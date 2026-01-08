@@ -1,0 +1,235 @@
+<view class="post-detail-container">
+  <!-- 帖子详情内容 -->
+  <view class="post-content-section" wx:if="{{post}}">
+    <!-- 帖子头部 -->
+    <view class="post-header">
+      <image class="avatar" src="{{post.userInfo.avatarUrl}}" aria-hidden="true"></image>
+      <view class="user-info">
+        <text class="user-name">{{post.userInfo.nickName}}</text>
+        <text class="post-time">{{post.createTime}}</text>
+      </view>
+      <view class="post-type" wx:if="{{post.type}}">
+        <text class="type-tag type-{{post.type}}">
+          {{post.type === 'help' ? '求助' : post.type === 'share' ? '分享' : '路障反馈'}}
+        </text>
+      </view>
+    </view>
+
+    <!-- 帖子内容 -->
+    <view class="post-content">
+      <text class="content-text" user-select="true">{{post.content}}</text>
+    </view>
+
+    <!-- 图片展示 -->
+    <view class="post-images" wx:if="{{post.images && post.images.length > 0}}">
+      <view class="image-grid">
+        <image 
+          class="post-image" 
+          wx:for="{{post.images}}" 
+          wx:key="index" 
+          src="{{item}}" 
+          mode="aspectFill"
+          aria-label="帖子图片{{index + 1}}"
+        ></image>
+      </view>
+    </view>
+
+    <!-- 帖子统计信息 -->
+    <view class="post-stats">
+      <view class="stat-item">
+        <text class="stat-number">{{post.stats.view}}</text>
+        <text class="stat-label">浏览</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{post.stats.like}}</text>
+        <text class="stat-label">点赞</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{post.stats.comment}}</text>
+        <text class="stat-label">评论</text>
+      </view>
+    </view>
+
+    <!-- 底部操作栏 -->
+    <view class="post-actions">
+      <view 
+        class="action-btn like-btn {{post.liked ? 'liked' : ''}}" 
+        bindtap="likePost"
+        aria-role="button"
+        aria-label="{{post.liked ? '取消点赞' : '点赞'}}，当前{{post.stats.like}}个赞"
+      >
+        <image class="action-icon" src="/images/like{{post.liked ? '-active' : ''}}.png" aria-hidden="true"></image>
+        <text class="action-text">{{post.stats.like}}</text>
+      </view>
+
+      <view 
+        class="action-btn comment-btn" 
+        bindtap="showCommentInput"
+        aria-role="button"
+        aria-label="发表评论，当前{{post.stats.comment}}条评论"
+      >
+        <image class="action-icon" src="/images/comment.png" aria-hidden="true"></image>
+        <text class="action-text">{{post.stats.comment}}</text>
+      </view>
+
+      <view 
+        class="action-btn collect-btn {{isCollected ? 'collected' : ''}}" 
+        bindtap="toggleCollect"
+        aria-role="button"
+        aria-label="{{isCollected ? '取消收藏' : '收藏'}}，当前{{collectCount}}人收藏"
+      >
+        <image class="action-icon" src="{{isCollected ? '/images/star2.png' : '/images/star.png'}}" aria-hidden="true"></image>
+        <text class="action-text">{{collectCount}}</text>
+      </view>
+
+      <view 
+        class="action-btn share-btn" 
+        bindtap="sharePost"
+        aria-role="button"
+        aria-label="分享帖子"
+      >
+        <image class="action-icon" src="/images/share.png" aria-hidden="true"></image>
+        <text class="action-text">分享</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 评论区 -->
+  <view class="comments-section">
+    <view class="section-header">
+      <text class="section-title">评论</text>
+      <text class="comment-count">{{comments.length}}条</text>
+    </view>
+
+    <!-- 评论列表 -->
+    <view class="comments-list">
+      <view class="comment-item" wx:for="{{comments}}" wx:key="_id">
+        <!-- 主评论 -->
+        <view class="main-comment">
+          <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true"></image>
+          <view class="comment-content">
+            <view class="comment-header">
+              <text class="comment-author">{{item.userInfo.nickName}}</text>
+              <text class="comment-time">{{item.createTime}}</text>
+            </view>
+            <text class="comment-text" user-select="true">{{item.content}}</text>
+            <view class="comment-actions">
+              <view 
+                class="comment-action like-action {{item.liked ? 'liked' : ''}}" 
+                bindtap="likeComment" 
+                data-commentid="{{item._id}}"
+                aria-role="button"
+                aria-label="{{item.liked ? '取消点赞' : '点赞'}}评论，当前{{item.likes}}个赞"
+              >
+                <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
+                <text class="action-text">{{item.likes}}</text>
+              </view>
+              <view 
+                class="comment-action reply-action" 
+                bindtap="showCommentInput" 
+                data-replyto="{{item._id}}"
+                aria-role="button"
+                aria-label="回复{{item.userInfo.nickName}}的评论"
+              >
+                <text class="action-text">回复</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 回复列表 -->
+        <view class="replies-list" wx:if="{{item.replies && item.replies.length > 0}}">
+          <view class="reply-item" wx:for="{{item.replies}}" wx:key="_id">
+            <image class="reply-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true"></image>
+            <view class="reply-content">
+              <view class="reply-header">
+                <text class="reply-author">{{item.userInfo.nickName}}</text>
+                <text class="reply-time">{{item.createTime}}</text>
+              </view>
+              <text class="reply-text" user-select="true">{{item.content}}</text>
+              <view class="reply-actions">
+                <view 
+                  class="reply-action like-action {{item.liked ? 'liked' : ''}}" 
+                  bindtap="likeComment" 
+                  data-commentid="{{item._id}}" 
+                  data-isreply="true" 
+                  data-parentid="{{item._id}}"
+                  aria-role="button"
+                  aria-label="{{item.liked ? '取消点赞' : '点赞'}}回复，当前{{item.likes}}个赞"
+                >
+                  <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
+                  <text class="action-text">{{item.likes}}</text>
+                </view>
+                <view 
+                  class="reply-action reply-action" 
+                  bindtap="showCommentInput" 
+                  data-replyto="{{item._id}}"
+                  aria-role="button"
+                  aria-label="回复{{item.userInfo.nickName}}的评论"
+                >
+                  <text class="action-text">回复</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空评论状态 -->
+    <view class="empty-comments" wx:if="{{comments.length === 0}}">
+      <image class="empty-icon" src="/images/empty-comments.png" aria-hidden="true"></image>
+      <text class="empty-text">暂无评论</text>
+      <text class="empty-subtext">快来发表第一条评论吧</text>
+    </view>
+  </view>
+
+  <!-- 底部评论输入栏 -->
+  <view class="comment-input-bar {{showCommentInput ? 'active' : ''}}">
+    <view class="input-container">
+      <input 
+        id="comment-input"
+        class="comment-input" 
+        placeholder="{{replyTo ? '回复某人...' : '发表评论...'}}" 
+        value="{{newComment}}" 
+        bindinput="onCommentInput"
+        aria-label="评论输入框"
+      />
+      <view class="input-actions">
+        <view 
+          class="cancel-btn" 
+          bindtap="hideCommentInput"
+          aria-role="button"
+          aria-label="取消评论"
+        >
+          <text>取消</text>
+        </view>
+        <view 
+          class="submit-btn" 
+          bindtap="submitComment"
+          aria-role="button"
+          aria-label="提交评论"
+        >
+          <text>发送</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 固定评论按钮 -->
+  <view 
+    class="fixed-comment-btn" 
+    bindtap="showCommentInput"
+    wx:if="{{!showCommentInput}}"
+    aria-role="button"
+    aria-label="发表评论"
+  >
+    <image class="comment-icon" src="/images/comment-white.png" aria-hidden="true"></image>
+    <text class="btn-text">发表评论</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>

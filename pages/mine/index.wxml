@@ -1,9 +1,9 @@
 <view class="mine-container">
   <!-- 头部登录区 -->
   <view class="header-section">
-    <view class="user-info" bindtap="handleLogin">
+    <view class="user-info" bindtap="handleLogin" aria-role="button" aria-label="点击登录或查看用户信息">
       <view class="avatar-section">
-        <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+        <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true"></image>
       </view>
       <view class="user-details">
         <text class="user-name" aria-label="用户昵称">
@@ -17,7 +17,7 @@
         </text>
       </view>
       <view class="login-arrow" wx:if="{{!userInfo.nickName}}">
-        <image src="/images/arrow-right.png" class="arrow-icon"></image>
+        <image src="/images/arrow-right.png" class="arrow-icon" aria-hidden="true"></image>
       </view>
     </view>
   </view>
@@ -32,11 +32,11 @@
       aria-label="我的随手拍"
     >
       <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-camera.png"></image>
+        <image class="menu-icon" src="/images/icon-camera.png" aria-hidden="true"></image>
         <text class="menu-text">我的随手拍</text>
         <text class="menu-desc">查看我上报的无障碍问题</text>
       </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png"></image>
+      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
     </button>
 
     <button 
@@ -47,11 +47,11 @@
       aria-label="我的方案收藏"
     >
       <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-favorite.png"></image>
+        <image class="menu-icon" src="/images/icon-favorite.png" aria-hidden="true"></image>
         <text class="menu-text">我的方案收藏</text>
         <text class="menu-desc">收藏的AI解决方案</text>
       </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png"></image>
+      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
     </button>
 
     <button 
@@ -62,11 +62,11 @@
       aria-label="我的评论互动"
     >
       <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-comment.png"></image>
+        <image class="menu-icon" src="/images/icon-comment.png" aria-hidden="true"></image>
         <text class="menu-text">我的评论/互动</text>
         <text class="menu-desc">我的评论和互动记录</text>
       </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png"></image>
+      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
     </button>
 
     <button 
@@ -76,11 +76,11 @@
       aria-label="联系客服反馈"
     >
       <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-service.png"></image>
+        <image class="menu-icon" src="/images/icon-service.png" aria-hidden="true"></image>
         <text class="menu-text">联系客服/反馈</text>
         <text class="menu-desc">问题反馈与客服联系</text>
       </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png"></image>
+      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
     </button>
   </view>
 

@@ -8,28 +8,29 @@
   <!-- 主要内容区域 -->
   <view class="main-content">
     <!-- 拍照按钮 -->
-    <button 
+    <view 
       class="camera-button" 
       bindtap="takePhoto" 
-      aria-label="拍照反馈，点击后可以拍摄无障碍设施问题"
+      aria-role="button"
+      aria-label="点击拍照反馈无障碍问题"
       hover-class="camera-button-hover"
     >
-      <image class="camera-icon" src="/images/camera.png" aria-label="相机图标"></image>
+      <image class="camera-icon" src="/images/camera.png" aria-hidden="true"></image>
       <text class="camera-text">拍照反馈</text>
-    </button>
+    </view>
 
     <!-- 功能说明 -->
     <view class="feature-intro">
-      <view class="feature-item">
-        <image class="feature-icon" src="/images/location.png" aria-label="定位图标"></image>
+      <view class="feature-item" aria-label="自动定位问题地点功能">
+        <image class="feature-icon" src="/images/location.png" aria-hidden="true"></image>
         <text class="feature-text">自动定位问题地点</text>
       </view>
-      <view class="feature-item">
-        <image class="feature-icon" src="/images/ai.png" aria-label="AI分析图标"></image>
+      <view class="feature-item" aria-label="AI智能分析解决方案功能">
+        <image class="feature-icon" src="/images/ai.png" aria-hidden="true"></image>
         <text class="feature-text">AI智能分析解决方案</text>
       </view>
-      <view class="feature-item">
-        <image class="feature-icon" src="/images/report.png" aria-label="报告图标"></image>
+      <view class="feature-item" aria-label="生成专业汇报材料功能">
+        <image class="feature-icon" src="/images/report.png" aria-hidden="true"></image>
         <text class="feature-text">生成专业汇报材料</text>
       </view>
     </view>

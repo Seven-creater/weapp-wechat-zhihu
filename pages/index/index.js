@@ -192,7 +192,20 @@ Page({
    */
   analyzeIssue: function(fileID, location) {
     return new Promise((resolve, reject) => {
-      wx.showLoading({ title: 'AI分析中...' });
+      // 显示加载提示，添加遮罩防止用户误操作
+      wx.showLoading({ 
+        title: 'AI正在诊断现场...', 
+        mask: true 
+      });
+
+      // 设置超时提醒，3秒后显示温馨提示
+      const timeoutTimer = setTimeout(() => {
+        wx.showToast({
+          title: '正在生成专业改造方案，请稍候...',
+          icon: 'none',
+          duration: 3000
+        });
+      }, 3000);
 
       // 调用云函数进行AI分析
       wx.cloud.callFunction({
@@ -202,11 +215,13 @@ Page({
           location: location
         },
         success: (res) => {
+          clearTimeout(timeoutTimer);
           wx.hideLoading();
           resolve(res.result.aiSolution);
         },
         fail: (err) => {
           console.error('AI分析失败:', err);
+          clearTimeout(timeoutTimer);
           wx.hideLoading();
           
           // 如果云函数调用失败，使用模拟数据
@@ -238,18 +253,33 @@ Page({
     db.collection('issues').add({
       data: issueData,
       success: (res) => {
-        wx.showToast({
-          title: '反馈成功！',
-          icon: 'success',
-          duration: 2000
-        });
-        
-        // 重新加载最近反馈
-        this.loadRecentReports();
-        
-        // 跳转到详情页
-        wx.navigateTo({
-          url: '../issue-detail/issue-detail?id=' + res._id
+        // 同时自动在社区发布一条帖子
+        this.createCommunityPost(res._id, fileID, location, aiSolution).then(() => {
+          wx.showToast({
+            title: '反馈成功！已同步到社区',
+            icon: 'success',
+            duration: 2000
+          });
+          
+          // 重新加载最近反馈
+          this.loadRecentReports();
+          
+          // 跳转到详情页
+          wx.navigateTo({
+            url: '../issue-detail/issue-detail?id=' + res._id
+          });
+        }).catch((err) => {
+          console.error('创建社区帖子失败:', err);
+          // 即使社区发帖失败，也不影响主流程
+          wx.showToast({
+            title: '反馈成功！',
+            icon: 'success',
+            duration: 2000
+          });
+          this.loadRecentReports();
+          wx.navigateTo({
+            url: '../issue-detail/issue-detail?id=' + res._id
+          });
         });
       },
       fail: (err) => {
@@ -259,6 +289,30 @@ Page({
           icon: 'none'
         });
       }
+    });
+  },
+
+  /**
+   * 自动在社区创建帖子
+   */
+  createCommunityPost: function(issueId, fileID, location, aiSolution) {
+    const db = wx.cloud.database();
+    
+    // 构建社区帖子数据
+    const postData = {
+      issueId: issueId, // 关联的路障问题ID
+      content: `自动同步：发现${location.address}存在无障碍问题。\nAI诊断：${aiSolution}\n欢迎大家讨论解决方案！`,
+      images: [fileID], // 使用同一张图片
+      type: 'issue', // 帖子类型：路障反馈
+      location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
+      address: location.address, // 详细地址
+      stats: { view: 0, like: 0, comment: 0 }, // 初始统计数据
+      createTime: db.serverDate(), // 创建时间
+      updateTime: db.serverDate() // 更新时间
+    };
+
+    return db.collection('posts').add({
+      data: postData
     });
   }
 });

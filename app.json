@@ -10,7 +10,9 @@
     "pages/my-comments/index",
     "pages/solutions/index",
     "pages/solution-detail/index",
-    "pages/my-issues/index"
+    "pages/my-issues/index",
+    "pages/post-detail/index",
+    "pages/post/create"
   ],
   "window": {
     "backgroundTextStyle": "light",

@@ -93,6 +93,20 @@
   color: #333333;
   display: block;
   line-height: 1.4;
+  margin-bottom: 8rpx;
+}
+
+.item-type {
+  font-size: 24rpx;
+  color: #666666;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.item-time {
+  font-size: 22rpx;
+  color: #999999;
+  display: block;
 }
 
 .item-arrow {

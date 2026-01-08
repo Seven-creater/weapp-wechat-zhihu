@@ -23,7 +23,7 @@
       wx:for="{{favoritesList}}" 
       wx:key="_id" 
       bindtap="goToDetail" 
-      data-id="{{item.postId}}"
+      data-index="{{index}}"
     >
       <!-- 左侧图片 -->
       <image class="item-image" src="{{item.image || '../../images/default-avatar.png'}}"></image>
@@ -31,6 +31,8 @@
       <!-- 右侧内容 -->
       <view class="item-content">
         <text class="item-title">{{item.title}}</text>
+        <text class="item-type">{{item.type === 'collect_solution' ? '解决方案' : '社区帖子'}}</text>
+        <text class="item-time">{{item.createTime}}</text>
       </view>
       
       <!-- 箭头图标 -->

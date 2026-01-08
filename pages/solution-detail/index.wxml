@@ -21,7 +21,8 @@
       <text class="section-subtitle">AI 智能分析，专业整改建议</text>
     </view>
     <view class="analysis-content">
-      <text class="analysis-text">{{solution.aiAnalysis}}</text>
+      <text class="analysis-text" user-select="true">{{solution.aiAnalysis}}</text>
+      <view class="copy-tip">长按文本可复制</view>
     </view>
   </view>
 
@@ -43,14 +44,27 @@
 
   <!-- 底部操作栏 -->
   <view class="action-bar">
-    <button class="action-btn copy-btn" bindtap="copySolutionText" aria-label="复制方案文本">
-      <image src="/images/copy.png" class="btn-icon"></image>
+    <view 
+      class="action-btn collect-btn {{isCollected ? 'collected' : ''}}" 
+      bindtap="toggleCollect" 
+      aria-role="button"
+      aria-label="{{isCollected ? '取消收藏' : '收藏'}}，当前{{collectCount}}人收藏"
+    >
+      <image 
+        src="{{isCollected ? '/images/star2.png' : '/images/star.png'}}" 
+        class="btn-icon" 
+        aria-hidden="true"
+      ></image>
+      <text>{{collectCount}}</text>
+    </view>
+    <view class="action-btn copy-btn" bindtap="copySolutionText" aria-role="button" aria-label="复制方案文本">
+      <image src="/images/copy.png" class="btn-icon" aria-hidden="true"></image>
       <text>复制方案文本</text>
-    </button>
-    <button class="action-btn generate-btn" bindtap="generateFeedbackLetter" aria-label="生成反馈函">
-      <image src="/images/letter.png" class="btn-icon"></image>
-      <text>生成反馈函</text>
-    </button>
+    </view>
+    <view class="action-btn generate-btn" bindtap="generateFeedbackLetter" aria-role="button" aria-label="生成致书记的一封信">
+      <image src="/images/letter.png" class="btn-icon" aria-hidden="true"></image>
+      <text>生成致书记的一封信</text>
+    </view>
   </view>
 
   <!-- 反馈函模态框 -->
