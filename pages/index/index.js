@@ -56,7 +56,7 @@ Page({
   goToDetail: function(e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: '../answer/answer?id=' + id
+      url: '../case-detail/case-detail?postId=' + id
     });
   }
 });

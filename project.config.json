@@ -3,32 +3,32 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "file",
-        "value": "images/navigation.gif"
+        "value": "images/navigation.gif",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/index_scroll.gif"
+        "value": "images/index_scroll.gif",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/bottom_tab.gif"
+        "value": "images/bottom_tab.gif",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/top_tab.gif"
+        "value": "images/top_tab.gif",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/24280.jpg"
+        "value": "images/24280.jpg",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/24213.jpg"
+        "value": "images/24213.jpg",
+        "type": "file"
       },
       {
-        "type": "file",
-        "value": "images/1444983318907-_DSC1826.jpg"
+        "value": "images/1444983318907-_DSC1826.jpg",
+        "type": "file"
       }
     ],
     "include": []

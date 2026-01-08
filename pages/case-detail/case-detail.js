@@ -1,6 +1,5 @@
-// 初始化云开发环境
+// 初始化云开发环境 - 使用默认环境
 wx.cloud.init({
-  env: 'your-cloud-env-id', // 替换为你的云开发环境ID
   traceUser: true
 });
 
@@ -228,29 +227,31 @@ Page({
       return;
     }
     
-    wx.getUserProfile({
-      desc: '用于评论功能',
-      success: (res) => {
-        const userInfo = res.userInfo;
-        db.collection('comments').add({
-          data: {
-            postId: postId,
-            content: content,
-            userInfo: userInfo,
-            likeCount: 0,
-            createTime: db.serverDate()
-          }
-        }).then(() => {
-          this.setData({ commentContent: '', showCommentInputBox: false });
-          wx.showToast({ title: '评论成功', icon: 'success' });
-        }).catch(err => {
-          console.error('评论失败:', err);
-          wx.showToast({ title: '评论失败', icon: 'none' });
-        });
-      },
-      fail: () => {
-        wx.showToast({ title: '需要授权才能评论', icon: 'none' });
+    // 使用简化的评论方式，避免授权问题
+    const userInfo = {
+      nickName: '匿名用户',
+      avatarUrl: 'https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132'
+    };
+    
+    // 发送评论
+    db.collection('comments').add({
+      data: {
+        postId: postId,
+        content: content,
+        userInfo: userInfo,
+        likeCount: 0,
+        createTime: db.serverDate()
       }
+    }).then(() => {
+      // 清空评论输入框并隐藏
+      this.setData({ 
+        commentContent: '', 
+        showCommentInputBox: false 
+      });
+      wx.showToast({ title: '评论成功', icon: 'success' });
+    }).catch(err => {
+      console.error('评论失败:', err);
+      wx.showToast({ title: '评论失败', icon: 'none' });
     });
   },
   
