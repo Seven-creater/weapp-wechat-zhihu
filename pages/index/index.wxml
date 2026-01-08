@@ -1,37 +1,56 @@
-<view class="waterfall-container">
-  <view class="waterfall-columns">
-    <!-- 左列 -->
-    <view class="waterfall-column">
-      <view class="case-card" wx:for="{{caseList}}" wx:key="index" wx:if="{{index % 2 === 0}}" bindtap="goToDetail" data-id="{{item.id}}">
-        <image class="case-image" mode="widthFix" src="{{item.imgUrl}}"></image>
-        <view class="case-info">
-          <text class="case-title">{{item.title}}</text>
-          <view class="case-footer">
-            <view class="author-info">
-              <image class="author-avatar" src="https://source.unsplash.com/random/100x100/?person"></image>
-              <text class="author-name">{{item.author}}</text>
-            </view>
-            <text class="case-views">{{item.views}}浏览</text>
+<view class="accessibility-home">
+  <!-- 页面头部 -->
+  <view class="page-header" aria-label="无障碍随手拍首页">
+    <text class="page-title">无障碍随手拍</text>
+    <text class="page-subtitle">发现无障碍问题，一键反馈</text>
+  </view>
+
+  <!-- 主要内容区域 -->
+  <view class="main-content">
+    <!-- 拍照按钮 -->
+    <button 
+      class="camera-button" 
+      bindtap="takePhoto" 
+      aria-label="拍照反馈，点击后可以拍摄无障碍设施问题"
+      hover-class="camera-button-hover"
+    >
+      <image class="camera-icon" src="/images/camera.png" aria-label="相机图标"></image>
+      <text class="camera-text">拍照反馈</text>
+    </button>
+
+    <!-- 功能说明 -->
+    <view class="feature-intro">
+      <view class="feature-item">
+        <image class="feature-icon" src="/images/location.png" aria-label="定位图标"></image>
+        <text class="feature-text">自动定位问题地点</text>
+      </view>
+      <view class="feature-item">
+        <image class="feature-icon" src="/images/ai.png" aria-label="AI分析图标"></image>
+        <text class="feature-text">AI智能分析解决方案</text>
+      </view>
+      <view class="feature-item">
+        <image class="feature-icon" src="/images/report.png" aria-label="报告图标"></image>
+        <text class="feature-text">生成专业汇报材料</text>
+      </view>
+    </view>
+
+    <!-- 最近反馈列表（可选） -->
+    <view class="recent-reports" wx:if="{{recentReports.length > 0}}">
+      <text class="section-title">最近反馈</text>
+      <view class="report-list">
+        <view class="report-item" wx:for="{{recentReports}}" wx:key="_id">
+          <image class="report-image" src="{{item.imageUrl}}" aria-label="问题图片"></image>
+          <view class="report-info">
+            <text class="report-location">{{item.address}}</text>
+            <text class="report-status {{item.status === 'pending' ? 'waiting' : 'submitted'}}">{{item.status === 'pending' ? '待处理' : '已上报'}}</text>
           </view>
         </view>
       </view>
     </view>
-    
-    <!-- 右列 -->
-    <view class="waterfall-column">
-      <view class="case-card" wx:for="{{caseList}}" wx:key="index" wx:if="{{index % 2 === 1}}" bindtap="goToDetail" data-id="{{item.id}}">
-        <image class="case-image" mode="widthFix" src="{{item.imgUrl}}"></image>
-        <view class="case-info">
-          <text class="case-title">{{item.title}}</text>
-          <view class="case-footer">
-            <view class="author-info">
-              <image class="author-avatar" src="https://source.unsplash.com/random/100x100/?person"></image>
-              <text class="author-name">{{item.author}}</text>
-            </view>
-            <text class="case-views">{{item.views}}浏览</text>
-          </view>
-        </view>
-      </view>
-    </view>
+  </view>
+
+  <!-- 底部说明 -->
+  <view class="page-footer">
+    <text class="footer-text">我们一起让城市更美好</text>
   </view>
 </view>

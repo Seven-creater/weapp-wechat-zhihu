@@ -113,21 +113,35 @@
   
   <!-- 底部操作栏 -->
   <view class="fixed-bottom-bar">
-    <view class="action-item" bindtap="toggleCollect">
-      <image class="action-icon" src="/images/star.png" style="opacity: {{isCollected ? 1 : 0.5}}"></image>
-      <text class="action-text" style="color: {{isCollected ? '#FF6B6B' : '#666'}}">收藏</text>
+    <!-- 左侧：胶囊状评论输入框 -->
+    <view class="comment-input-wrapper" bindtap="showCommentInput">
+      <image class="comment-icon" src="/images/comment.png"></image>
+      <text class="comment-placeholder">说点什么...</text>
     </view>
-    <view class="action-item" bindtap="showCommentInput">
-      <image class="action-icon" src="/images/comment.png"></image>
-      <text class="action-text">评论</text>
-    </view>
-    <view class="action-item" bindtap="toggleLike">
-      <image class="action-icon" src="/images/heart2.png" style="opacity: {{isLiked ? 1 : 0.5}}"></image>
-      <text class="action-text" style="color: {{isLiked ? '#FF6B6B' : '#666'}}">点赞</text>
-    </view>
-    <view class="action-item" bindtap="onShare">
-      <image class="action-icon" src="/images/more.png"></image>
-      <text class="action-text">转发</text>
+    
+    <!-- 右侧：操作图标 -->
+    <view class="action-icons">
+      <!-- 点赞 -->
+      <view class="action-icon-wrapper" bindtap="toggleLike">
+        <image 
+          class="action-icon like-icon" 
+          src="{{isLiked ? '/images/heart-active.png' : '/images/heart.png'}}">
+        </image>
+      </view>
+      
+      <!-- 收藏 -->
+      <view class="action-icon-wrapper" bindtap="toggleCollect">
+        <image 
+          class="action-icon collect-icon" 
+          src="{{isCollected ? '/images/star-active.png' : '/images/star.png'}}">
+        </image>
+      </view>
+      
+      <!-- 评论数 -->
+      <view class="action-icon-wrapper comment-count-wrapper">
+        <image class="action-icon comment-icon" src="/images/comment.png"></image>
+        <text class="comment-count">{{commentList.length}}</text>
+      </view>
     </view>
   </view>
   

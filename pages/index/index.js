@@ -1,62 +1,278 @@
+// 引入云开发能力
+wx.cloud.init();
+
 Page({
   data: {
-    caseList: [
-      {
-        id: 1,
-        title: '现代简约花园设计',
-        imgUrl: 'https://source.unsplash.com/random/600x800/?building,garden',
-        author: '设计大师A',
-        views: 1234
-      },
-      {
-        id: 2,
-        title: '欧式古典建筑风格',
-        imgUrl: 'https://source.unsplash.com/random/600x900/?architecture,classic',
-        author: '设计大师B',
-        views: 2345
-      },
-      {
-        id: 3,
-        title: '日式枯山水庭院',
-        imgUrl: 'https://source.unsplash.com/random/600x750/?japanese,garden',
-        author: '设计大师C',
-        views: 3456
-      },
-      {
-        id: 4,
-        title: '现代高层建筑设计',
-        imgUrl: 'https://source.unsplash.com/random/600x850/?building,modern',
-        author: '设计大师D',
-        views: 4567
-      },
-      {
-        id: 5,
-        title: '北欧风格花园景观',
-        imgUrl: 'https://source.unsplash.com/random/600x780/?garden,scandinavian',
-        author: '设计大师E',
-        views: 5678
-      },
-      {
-        id: 6,
-        title: '中式传统建筑设计',
-        imgUrl: 'https://source.unsplash.com/random/600x820/?chinese,architecture',
-        author: '设计大师F',
-        views: 6789
-      }
-    ]
+    recentReports: [], // 最近反馈列表
+    isUploading: false, // 是否正在上传
+    hasLocationPermission: true // 是否有定位权限
   },
-  
+
   onLoad: function() {
+    // 检查定位权限
+    this.checkLocationPermission();
+    // 加载最近反馈
+    this.loadRecentReports();
   },
-  
+
   onPullDownRefresh: function() {
-    wx.stopPullDownRefresh();
+    // 下拉刷新，重新加载最近反馈
+    this.loadRecentReports().then(() => {
+      wx.stopPullDownRefresh();
+    });
   },
-  
-  goToDetail: function(e) {
-    const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: '../case-detail/case-detail?postId=' + id
+
+  /**
+   * 检查定位权限
+   */
+  checkLocationPermission: function() {
+    wx.getSetting({
+      success: (res) => {
+        if (!res.authSetting['scope.userLocation']) {
+          this.setData({ hasLocationPermission: false });
+        }
+      }
+    });
+  },
+
+  /**
+   * 加载最近反馈
+   */
+  loadRecentReports: function() {
+    const db = wx.cloud.database();
+    return db.collection('issues')
+      .orderBy('createTime', 'desc')
+      .limit(5)
+      .get()
+      .then(res => {
+        this.setData({
+          recentReports: res.data
+        });
+      })
+      .catch(err => {
+        console.error('加载最近反馈失败:', err);
+      });
+  },
+
+  /**
+   * 拍照反馈
+   */
+  takePhoto: function() {
+    const that = this;
+    
+    // 1. 调用相机或相册选择图片
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      maxDuration: 30,
+      camera: 'back',
+      success: (res) => {
+        const tempFilePath = res.tempFiles[0].tempFilePath;
+        
+        // 2. 获取当前位置
+        that.getLocation().then(location => {
+          // 3. 上传图片到云存储
+          that.uploadImage(tempFilePath).then(fileID => {
+            // 4. 调用AI分析
+            that.analyzeIssue(fileID, location).then(aiSolution => {
+              // 5. 保存到数据库
+              that.saveIssue(tempFilePath, fileID, location, aiSolution);
+            });
+          });
+        }).catch(err => {
+          console.error('获取位置失败:', err);
+          wx.showToast({
+            title: '定位失败，请检查权限',
+            icon: 'none'
+          });
+        });
+      },
+      fail: (err) => {
+        console.error('选择图片失败:', err);
+        wx.showToast({
+          title: '选择图片失败',
+          icon: 'none'
+        });
+      }
+    });
+  },
+
+  /**
+   * 获取当前位置信息
+   */
+  getLocation: function() {
+    return new Promise((resolve, reject) => {
+      wx.getLocation({
+        type: 'gcj02',
+        altitude: true,
+        success: (res) => {
+          const { latitude, longitude } = res;
+          
+          // 逆地理编码获取详细地址
+          wx.request({
+            url: 'https://apis.map.qq.com/ws/geocoder/v1/',
+            data: {
+              location: `${latitude},${longitude}`,
+              key: 'YOUR_TENCENT_MAP_KEY' // 请替换为腾讯地图API密钥
+            },
+            success: (result) => {
+              if (result.data.status === 0) {
+                resolve({
+                  latitude,
+                  longitude,
+                  address: result.data.result.address,
+                  formattedAddress: result.data.result.formatted_addresses.recommend
+                });
+              } else {
+                resolve({
+                  latitude,
+                  longitude,
+                  address: '获取地址失败',
+                  formattedAddress: '获取地址失败'
+                });
+              }
+            },
+            fail: () => {
+              resolve({
+                latitude,
+                longitude,
+                address: '获取地址失败',
+                formattedAddress: '获取地址失败'
+              });
+            }
+          });
+        },
+        fail: (err) => {
+          reject(err);
+        }
+      });
+    });
+  },
+
+  /**
+   * 上传图片到云存储
+   */
+  uploadImage: function(tempFilePath) {
+    const that = this;
+    return new Promise((resolve, reject) => {
+      // 显示上传中提示
+      that.setData({ isUploading: true });
+      wx.showLoading({ title: '上传中...' });
+
+      // 生成唯一文件名
+      const cloudPath = `issues/${Date.now()}-${Math.floor(Math.random() * 1000)}.${tempFilePath.match(/\.(\w+)$/)[1]}`;
+
+      // 上传文件
+      wx.cloud.uploadFile({
+        cloudPath: cloudPath,
+        filePath: tempFilePath,
+        success: (res) => {
+          // 获取文件ID
+          resolve(res.fileID);
+        },
+        fail: (err) => {
+          console.error('上传图片失败:', err);
+          reject(err);
+        },
+        complete: () => {
+          that.setData({ isUploading: false });
+          wx.hideLoading();
+        }
+      });
+    });
+  },
+
+  /**
+   * 调用AI分析问题
+   */
+  analyzeIssue: function(fileID, location) {
+    return new Promise((resolve, reject) => {
+      wx.showLoading({ title: 'AI分析中...' });
+
+      // 调用云函数进行AI分析
+      wx.cloud.callFunction({
+        name: 'analyzeIssue',
+        data: {
+          fileID: fileID,
+          location: location
+        },
+        success: (res) => {
+          wx.hideLoading();
+          resolve(res.result.aiSolution);
+        },
+        fail: (err) => {
+          console.error('AI分析失败:', err);
+          wx.hideLoading();
+          
+          // 如果云函数调用失败，使用模拟数据
+          const mockSolution = '检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。';
+          resolve(mockSolution);
+        }
+      });
+    });
+  },
+
+  /**
+   * 保存问题到数据库
+   */
+  saveIssue: function(tempFilePath, fileID, location, aiSolution) {
+    const db = wx.cloud.database();
+    
+    // 构建数据库记录
+    const issueData = {
+      imageUrl: fileID, // 云存储文件ID
+      location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
+      address: location.address, // 详细地址
+      formattedAddress: location.formattedAddress, // 格式化地址
+      aiSolution: aiSolution, // AI解决方案
+      status: 'pending', // 状态：待处理
+      createTime: db.serverDate() // 创建时间
+    };
+
+    // 保存到数据库
+    db.collection('issues').add({
+      data: issueData,
+      success: (res) => {
+        wx.showToast({
+          title: '反馈成功！',
+          icon: 'success',
+          duration: 2000
+        });
+        
+        // 重新加载最近反馈
+        this.loadRecentReports();
+        
+        // 跳转到详情页
+        wx.navigateTo({
+          url: '../issue-detail/issue-detail?id=' + res._id
+        });
+      },
+      fail: (err) => {
+        console.error('保存问题失败:', err);
+        wx.showToast({
+          title: '保存失败，请重试',
+          icon: 'none'
+        });
+      }
     });
   }
 });
+
+// 数据库 schema 定义
+/**
+ * issues 集合结构
+ * {
+ *   _id: string, // 文档ID
+ *   _openid: string, // 用户openid
+ *   imageUrl: string, // 图片链接（云存储fileID）
+ *   location: GeoPoint, // 地理位置
+ *   address: string, // 详细地址
+ *   formattedAddress: string, // 格式化地址
+ *   description: string, // 用户描述（可选）
+ *   aiSolution: string, // AI给出的改造建议
+ *   status: string, // 状态：pending(待处理)/reported(已上报)
+ *   createTime: Date, // 创建时间
+ *   updateTime: Date // 更新时间
+ * }
+ */

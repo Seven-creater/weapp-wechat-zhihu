@@ -47,12 +47,12 @@
 
   <!-- 底部固定操作栏 -->
   <view class="action-bar">
-    <view class="action-btn" bindtap="toggleFavorite">
-      <image class="action-icon" src="{{isFavorite ? '/images/star-filled.png' : '/images/star.png'}}"></image>
-      <text class="action-text">{{isFavorite ? '已收藏' : '收藏'}}</text>
+    <view class="action-btn" bindtap="toggleCollect">
+      <image class="action-icon" src="{{isCollected ? '/images/star2.png' : '/images/star.png'}}"></image>
+      <text class="action-text">{{isCollected ? '已收藏' : '收藏'}}</text>
     </view>
-    <view class="action-btn" bindtap="addLike">
-      <image class="action-icon" src="/images/like.png"></image>
+    <view class="action-btn" bindtap="toggleLike">
+      <image class="action-icon" src="{{isLiked ? '/images/heart2.png' : '/images/heart2.png'}}"></image>
       <text class="action-text">{{likes}}</text>
     </view>
     <view class="action-btn primary" bindtap="contactConsult">

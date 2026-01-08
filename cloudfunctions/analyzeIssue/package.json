@@ -1,0 +1,14 @@
+{
+  "name": "analyzeIssue",
+  "version": "1.0.0",
+  "description": "AI分析无障碍设施问题的云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "wx-server-sdk": "~2.0.0"
+  },
+  "author": "",
+  "license": "MIT"
+}

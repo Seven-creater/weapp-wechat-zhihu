@@ -1,81 +1,184 @@
-.waterfall-container {
-  background-color: #f7f7f7;
-  padding: 20rpx;
+/* 基础样式重置 */
+view,
+text,
+button,
+image {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 页面主容器 */
+.accessibility-home {
+  background-color: #0a2463;
   min-height: 100vh;
+  padding: 40rpx;
 }
 
-.waterfall-columns {
-  display: flex;
-  justify-content: space-between;
-  gap: 20rpx;
+/* 页面头部 */
+.page-header {
+  text-align: center;
+  margin-bottom: 80rpx;
+  padding-top: 40rpx;
 }
 
-.waterfall-column {
-  width: calc(50% - 10rpx);
+.page-title {
+  font-size: 64rpx;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.page-subtitle {
+  font-size: 32rpx;
+  color: #cddafd;
+  display: block;
+}
+
+/* 主要内容区域 */
+.main-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 80rpx;
+}
+
+/* 拍照按钮 */
+.camera-button {
+  width: 400rpx;
+  height: 400rpx;
+  border-radius: 50%;
+  background-color: #ffd700;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 20rpx;
+  box-shadow: 0 12rpx 24rpx rgba(255, 215, 0, 0.4);
 }
 
-.case-card {
-  background: white;
-  border-radius: 16rpx;
-  overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+.camera-button-hover {
+  transform: scale(0.95);
+  box-shadow: 0 8rpx 16rpx rgba(255, 215, 0, 0.5);
 }
 
-.case-image {
+.camera-icon {
+  width: 160rpx;
+  height: 160rpx;
+}
+
+.camera-text {
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #0a2463;
+}
+
+/* 功能说明 */
+.feature-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 40rpx;
   width: 100%;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 30rpx;
+  background-color: #ffffff;
+  padding: 36rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  width: 64rpx;
+  height: 64rpx;
+}
+
+.feature-text {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #0a2463;
+  flex: 1;
+}
+
+/* 最近反馈列表 */
+.recent-reports {
+  width: 100%;
+}
+
+.section-title {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 30rpx;
   display: block;
 }
 
-.case-info {
-  padding: 20rpx;
+.report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 30rpx;
 }
 
-.case-title {
-  display: block;
+.report-item {
+  display: flex;
+  gap: 30rpx;
+  background-color: #ffffff;
+  padding: 30rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  align-items: center;
+}
+
+.report-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 10rpx;
+}
+
+.report-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.report-location {
   font-size: 32rpx;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 16rpx;
-  line-height: 44rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  color: #0a2463;
 }
 
-.case-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.report-status {
+  font-size: 28rpx;
+  font-weight: bold;
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  display: inline-block;
 }
 
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
+.report-status.waiting {
+  background-color: #ffd700;
+  color: #0a2463;
 }
 
-.author-avatar {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: #f0f0f0;
+.report-status.submitted {
+  background-color: #4caf50;
+  color: #ffffff;
 }
 
-.author-name {
-  font-size: 26rpx;
-  color: #666;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 180rpx;
+/* 底部说明 */
+.page-footer {
+  text-align: center;
+  margin-top: 100rpx;
+  padding-bottom: 40rpx;
 }
 
-.case-views {
-  font-size: 24rpx;
-  color: #999;
+.footer-text {
+  font-size: 32rpx;
+  color: #cddafd;
 }

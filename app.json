@@ -17,34 +17,18 @@
     "enablePullDownRefresh": true
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#007AFF",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "color": "#FFFFFF",
+    "selectedColor": "#FFD700",
+    "backgroundColor": "#0A2463",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "推荐",
-        "iconPath": "images/index.png",
-        "selectedIconPath": "images/index_focus.png"
-      },
-      {
-        "pagePath": "pages/scheme/scheme",
-        "text": "方案",
-        "iconPath": "images/discovery.png",
-        "selectedIconPath": "images/discovery_focus.png"
+        "text": "随手拍"
       },
       {
         "pagePath": "pages/community/community",
-        "text": "社区",
-        "iconPath": "images/chat.png",
-        "selectedIconPath": "images/chat_focus.png"
-      },
-      {
-        "pagePath": "pages/mine/mine",
-        "text": "我的",
-        "iconPath": "images/ring.png",
-        "selectedIconPath": "images/ring_focus.png"
+        "text": "社区"
       }
     ]
   },
