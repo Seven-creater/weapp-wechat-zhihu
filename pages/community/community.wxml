@@ -1,0 +1,43 @@
+<view class="community-container">
+  <view class="header">
+    <text class="title">社区</text>
+    <view class="header-right">
+      <image class="icon" src="/images/more.png"></image>
+      <image class="icon" src="/images/search.png"></image>
+    </view>
+  </view>
+  
+  <view class="post-list">
+    <view class="post-item" wx:for="{{posts}}" wx:key="index" bindtap="goToDetail" data-postid="{{item.postId}}">
+      <view class="post-header">
+        <text class="post-title">{{item.title}}</text>
+      </view>
+      
+      <view class="post-content">
+        <text class="post-desc">{{item.desc}}</text>
+      </view>
+      
+      <view class="post-image" wx:if="{{item.image}}">
+        <image src="{{item.image}}" mode="aspectFill"></image>
+      </view>
+      
+      <view class="post-tags" wx:if="{{item.tags.length > 0}}">
+        <text class="tag" wx:for="{{item.tags}}" wx:key="tagIndex">{{item}}</text>
+      </view>
+      
+      <view class="post-meta">
+        <view class="author-info">
+          <image class="avatar" src="{{item.avatar}}"></image>
+          <text class="author">{{item.author}}</text>
+          <text class="date">{{item.date}}</text>
+        </view>
+        
+        <view class="post-stats">
+          <text class="stat-item">{{item.views}}浏览</text>
+          <text class="stat-item">{{item.comments}}评论</text>
+          <text class="stat-item">{{item.likes}}点赞</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,112 +1,62 @@
-//index.js
-
-var util = require('../../utils/util.js')
-var app = getApp()
 Page({
   data: {
-    feed: [],
-    feed_length: 0
+    caseList: [
+      {
+        id: 1,
+        title: '现代简约花园设计',
+        imgUrl: 'https://source.unsplash.com/random/600x800/?building,garden',
+        author: '设计大师A',
+        views: 1234
+      },
+      {
+        id: 2,
+        title: '欧式古典建筑风格',
+        imgUrl: 'https://source.unsplash.com/random/600x900/?architecture,classic',
+        author: '设计大师B',
+        views: 2345
+      },
+      {
+        id: 3,
+        title: '日式枯山水庭院',
+        imgUrl: 'https://source.unsplash.com/random/600x750/?japanese,garden',
+        author: '设计大师C',
+        views: 3456
+      },
+      {
+        id: 4,
+        title: '现代高层建筑设计',
+        imgUrl: 'https://source.unsplash.com/random/600x850/?building,modern',
+        author: '设计大师D',
+        views: 4567
+      },
+      {
+        id: 5,
+        title: '北欧风格花园景观',
+        imgUrl: 'https://source.unsplash.com/random/600x780/?garden,scandinavian',
+        author: '设计大师E',
+        views: 5678
+      },
+      {
+        id: 6,
+        title: '中式传统建筑设计',
+        imgUrl: 'https://source.unsplash.com/random/600x820/?chinese,architecture',
+        author: '设计大师F',
+        views: 6789
+      }
+    ]
   },
-  //事件处理函数
-  bindItemTap: function() {
+  
+  onLoad: function() {
+  },
+  
+  onPullDownRefresh: function() {
+    wx.stopPullDownRefresh();
+  },
+  
+  goToDetail: function(e) {
+    const id = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: '../answer/answer'
-    })
-  },
-  bindQueTap: function() {
-    wx.navigateTo({
-      url: '../question/question'
-    })
-  },
-  onLoad: function () {
-    console.log('onLoad')
-    var that = this
-    //调用应用实例的方法获取全局数据
-    this.getData();
-  },
-  upper: function () {
-    wx.showNavigationBarLoading()
-    this.refresh();
-    console.log("upper");
-    setTimeout(function(){wx.hideNavigationBarLoading();wx.stopPullDownRefresh();}, 2000);
-  },
-  lower: function (e) {
-    wx.showNavigationBarLoading();
-    var that = this;
-    setTimeout(function(){wx.hideNavigationBarLoading();that.nextLoad();}, 1000);
-    console.log("lower")
-  },
-  //scroll: function (e) {
-  //  console.log("scroll")
-  //},
-
-  //网络请求数据, 实现首页刷新
-  refresh0: function(){
-    var index_api = '';
-    util.getData(index_api)
-        .then(function(data){
-          //this.setData({
-          //
-          //});
-          console.log(data);
-        });
-  },
-
-  //使用本地 fake 数据实现刷新效果
-  getData: function(){
-    var feed = util.getData2();
-    console.log("loaddata");
-    var feed_data = feed.data;
-    this.setData({
-      feed:feed_data,
-      feed_length: feed_data.length
+      url: '../answer/answer?id=' + id
     });
-  },
-  refresh: function(){
-    wx.showToast({
-      title: '刷新中',
-      icon: 'loading',
-      duration: 3000
-    });
-    var feed = util.getData2();
-    console.log("loaddata");
-    var feed_data = feed.data;
-    this.setData({
-      feed:feed_data,
-      feed_length: feed_data.length
-    });
-    setTimeout(function(){
-      wx.showToast({
-        title: '刷新成功',
-        icon: 'success',
-        duration: 2000
-      })
-    },3000)
-
-  },
-
-  //使用本地 fake 数据实现继续加载效果
-  nextLoad: function(){
-    wx.showToast({
-      title: '加载中',
-      icon: 'loading',
-      duration: 4000
-    })
-    var next = util.getNext();
-    console.log("continueload");
-    var next_data = next.data;
-    this.setData({
-      feed: this.data.feed.concat(next_data),
-      feed_length: this.data.feed_length + next_data.length
-    });
-    setTimeout(function(){
-      wx.showToast({
-        title: '加载成功',
-        icon: 'success',
-        duration: 2000
-      })
-    },3000)
   }
-
-
-})
+});

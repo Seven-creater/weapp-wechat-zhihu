@@ -1,0 +1,151 @@
+.community-container {
+  padding: 0 16rpx;
+  background-color: #f8f8f8;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #eee;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.header-right {
+  display: flex;
+  gap: 32rpx;
+}
+
+.icon {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.post-list {
+  margin-top: 16rpx;
+}
+
+.post-item {
+  background: white;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.post-header {
+  margin-bottom: 12rpx;
+}
+
+.post-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  line-height: 44rpx;
+}
+
+.post-content {
+  margin-bottom: 16rpx;
+}
+
+.post-desc {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 40rpx;
+}
+
+.post-image {
+  margin-bottom: 16rpx;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.post-image image {
+  width: 100%;
+  height: 300rpx;
+}
+
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.tag {
+  font-size: 24rpx;
+  color: #007AFF;
+  background: #e8f4ff;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.post-meta {
+  border-top: 1rpx solid #f0f0f0;
+  padding-top: 16rpx;
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+}
+
+.author {
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #333;
+  margin-right: 12rpx;
+}
+
+.date {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.post-stats {
+  display: flex;
+  gap: 32rpx;
+}
+
+.stat-item {
+  font-size: 24rpx;
+  color: #999;
+  display: flex;
+  align-items: center;
+}
+
+.stat-item::before {
+  content: '';
+  display: inline-block;
+  width: 20rpx;
+  height: 20rpx;
+  margin-right: 6rpx;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.stat-item:nth-child(1)::before {
+  background-image: url('/images/eye.png');
+}
+
+.stat-item:nth-child(2)::before {
+  background-image: url('/images/comment.png');
+}
+
+.stat-item:nth-child(3)::before {
+  background-image: url('/images/heart2.png');
+}

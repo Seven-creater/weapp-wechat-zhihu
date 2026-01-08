@@ -1,0 +1,76 @@
+<view class="scheme-container">
+  <view class="header">
+    <text class="title">优秀案例</text>
+    <view class="header-right">
+      <image class="icon" src="/images/more.png"></image>
+      <image class="icon" src="/images/search.png"></image>
+    </view>
+  </view>
+  
+  <view class="filter-bar">
+    <view class="filter-item" bindtap="showTypeFilter">
+      主题分类
+      <image class="arrow" src="/images/more.png"></image>
+    </view>
+    <view class="filter-item" bindtap="showSortFilter">
+      推荐
+      <image class="arrow" src="/images/more.png"></image>
+    </view>
+  </view>
+  
+  <!-- 主题分类筛选弹窗 -->
+  <view class="filter-popup" wx:if="{{showTypeFilterPopup}}">
+    <view class="popup-content">
+      <view class="popup-header">
+        <text class="popup-title">主题分类</text>
+        <view class="popup-actions">
+          <text class="cancel-btn" bindtap="hideTypeFilter">取消</text>
+          <text class="confirm-btn" bindtap="confirmTypeFilter">确认</text>
+        </view>
+      </view>
+      <view class="filter-options">
+        <view class="option-item" wx:for="{{typeFilters}}" wx:key="index" 
+              class="{{selectedTypes.indexOf(item) > -1 ? 'active' : ''}}" 
+              bindtap="toggleTypeFilter" data-type="{{item}}">
+          {{item}}
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 排序筛选弹窗 -->
+  <view class="filter-popup" wx:if="{{showSortFilterPopup}}">
+    <view class="popup-content">
+      <view class="popup-header">
+        <text class="popup-title">排序方式</text>
+        <view class="popup-actions">
+          <text class="cancel-btn" bindtap="hideSortFilter">取消</text>
+          <text class="confirm-btn" bindtap="confirmSortFilter">确认</text>
+        </view>
+      </view>
+      <view class="filter-options">
+        <view class="option-item" wx:for="{{sortOptions}}" wx:key="index" 
+              class="{{selectedSort === item ? 'active' : ''}}" 
+              bindtap="selectSort" data-sort="{{item}}">
+          {{item}}
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <view class="scheme-list">
+    <view class="scheme-item" wx:for="{{schemes}}" wx:key="index" bindtap="goToDetail" data-postid="{{item.postId}}">
+      <image class="scheme-image" src="{{item.image}}"></image>
+      <view class="scheme-info">
+        <text class="scheme-name">{{item.name}}</text>
+        <view class="scheme-tags">
+          <text class="tag" wx:for="{{item.tags}}" wx:key="tagIndex">{{item}}</text>
+        </view>
+        <view class="scheme-meta">
+          <text class="scheme-author">{{item.author}}</text>
+          <text class="scheme-views">{{item.views}}浏览</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

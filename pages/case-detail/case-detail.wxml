@@ -1,0 +1,139 @@
+<view class="case-detail-container">
+  <!-- 顶部导航栏 -->
+  <view class="custom-navigation">
+    <view class="nav-left" bindtap="goBack">
+      <image class="back-icon" src="/images/more.png" style="transform: rotate(180deg);"></image>
+    </view>
+    <view class="nav-title">项目详情</view>
+    <view class="nav-right"></view>
+  </view>
+  
+  <!-- 头部信息区 -->
+  <view class="header-info">
+    <text class="h1-title">{{projectDetail.title}}</text>
+    <text class="subtitle">{{projectDetail.subtitle}}</text>
+    
+    <!-- 元数据网格 -->
+    <view class="meta-grid">
+      <view class="meta-item">
+        <text class="meta-label">地点</text>
+        <text class="meta-value">{{projectDetail.location}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">设计团队</text>
+        <text class="meta-value">{{projectDetail.team}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">项目年份</text>
+        <text class="meta-value">{{projectDetail.year}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">面积</text>
+        <text class="meta-value">{{projectDetail.area}}</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 主图展示 -->
+  <view class="hero-image-container">
+    <image class="hero-image" src="{{projectDetail.heroImage}}"></image>
+  </view>
+  
+  <!-- 正文内容区 -->
+  <view class="rich-content">
+    <view class="content-section" wx:for="{{projectDetail.content}}" wx:key="index">
+      <text class="content-text" wx:if="{{item.type === 'text'}}">{{item.content}}</text>
+      <view class="content-image-container" wx:elif="{{item.type === 'image'}}">
+        <image class="content-image" src="{{item.url}}"></image>
+        <text class="image-caption" wx:if="{{item.caption}}">{{item.caption}}</text>
+      </view>
+      <text class="highlight-text" wx:elif="{{item.type === 'highlight'}}">{{item.content}}</text>
+    </view>
+  </view>
+  
+  <!-- 评论区 -->
+  <view class="comments-section">
+    <text class="section-title">评论 ({{commentList.length}})</text>
+    
+    <!-- 评论列表 -->
+    <view class="comment-list">
+      <view class="comment-item" wx:for="{{commentList}}" wx:key="_id">
+        <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}"></image>
+        <view class="comment-content">
+          <view class="comment-header">
+            <text class="comment-author">{{item.userInfo.nickName}}</text>
+            <text class="comment-time">{{item.createTime}}</text>
+          </view>
+          <text class="comment-text">{{item.content}}</text>
+          <view class="comment-actions">
+            <view class="comment-like" bindtap="likeComment" data-commentid="{{item._id}}">
+              <image class="like-icon" src="{{item.isLiked ? '/images/heart2.png' : '/images/heart2.png'}}" style="opacity: {{item.isLiked ? 1 : 0.5}}"></image>
+              <text class="like-count">{{item.likeCount}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 项目图库 -->
+  <view class="project-gallery">
+    <text class="section-title">项目图库</text>
+    
+    <!-- 使用swiper实现多图轮播 -->
+    <view class="gallery-swiper-container">
+      <swiper class="gallery-swiper" indicator-dots="true" autoplay="false" interval="5000" duration="1000">
+        <swiper-item wx:for="{{projectDetail.gallery}}" wx:key="index">
+          <image class="gallery-image" src="{{item}}"></image>
+        </swiper-item>
+      </swiper>
+    </view>
+  </view>
+  
+  <!-- 设计师卡片 -->
+  <view class="designer-section">
+    <text class="section-title">咨询设计师</text>
+    <view class="designer-card">
+      <image class="designer-avatar" src="{{projectDetail.designer.avatar}}"></image>
+      <view class="designer-info">
+        <text class="designer-name">{{projectDetail.designer.name}}</text>
+        <text class="designer-bio">{{projectDetail.designer.bio}}</text>
+      </view>
+      <button class="follow-btn" type="primary" size="mini">关注</button>
+    </view>
+  </view>
+  
+  <!-- 底部标签区 -->
+  <view class="tags-section">
+    <text class="section-title">#标签</text>
+    <view class="tags-container">
+      <view class="tag-item" wx:for="{{projectDetail.tags}}" wx:key="index">{{item}}</view>
+    </view>
+  </view>
+  
+  <!-- 底部操作栏 -->
+  <view class="fixed-bottom-bar">
+    <view class="action-item" bindtap="toggleCollect">
+      <image class="action-icon" src="/images/star.png" style="opacity: {{isCollected ? 1 : 0.5}}"></image>
+      <text class="action-text" style="color: {{isCollected ? '#FF6B6B' : '#666'}}">收藏</text>
+    </view>
+    <view class="action-item" bindtap="showCommentInput">
+      <image class="action-icon" src="/images/comment.png"></image>
+      <text class="action-text">评论</text>
+    </view>
+    <view class="action-item" bindtap="toggleLike">
+      <image class="action-icon" src="/images/heart2.png" style="opacity: {{isLiked ? 1 : 0.5}}"></image>
+      <text class="action-text" style="color: {{isLiked ? '#FF6B6B' : '#666'}}">点赞</text>
+    </view>
+    <view class="action-item" bindtap="onShare">
+      <image class="action-icon" src="/images/more.png"></image>
+      <text class="action-text">转发</text>
+    </view>
+  </view>
+  
+  <!-- 评论输入框 -->
+  <view class="comment-input-container" wx:if="{{showCommentInputBox}}">
+    <input class="comment-input" placeholder="写下你的评论..." value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInputBox}}"></input>
+    <button class="send-btn" bindtap="submitComment" disabled="{{!commentContent.trim()}}">发送</button>
+  </view>
+</view>

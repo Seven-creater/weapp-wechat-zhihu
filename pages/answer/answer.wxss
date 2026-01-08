@@ -1,150 +1,224 @@
 /**answer.wxss**/
-
-.container {
-    padding: 0;
-    font-size: 14rpx;
-    background: #F0F4F3;
-    color: #000;
+.detail-container {
+  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
-.question {
-    position: relative;
-    width: 650rpx;
-    padding: 40rpx 50rpx 30rpx;
-    background: #298DE5;
-    color: #fff;
+/* 顶部大图 */
+.hero-image {
+  width: 100%;
+  height: 500rpx;
+  overflow: hidden;
+}
+
+.hero-image image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 项目标题 */
+.title-section {
+  padding: 60rpx 40rpx 40rpx;
+  text-align: center;
+}
+
+.project-title {
+  display: block;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1.4;
+  margin-bottom: 20rpx;
+}
+
+.design-team {
+  display: block;
+  font-size: 28rpx;
+  color: #7f8c8d;
+  font-weight: 400;
+}
+
+/* 参数网格 */
+.params-grid {
+  display: flex;
+  justify-content: space-around;
+  padding: 0 40rpx 60rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.param-item {
+  text-align: center;
+  width: 33.33%;
+}
+
+.param-label {
+  display: block;
+  font-size: 24rpx;
+  color: #95a5a6;
+  margin-bottom: 12rpx;
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+}
+
+.param-value {
+  display: block;
+  font-size: 32rpx;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+/* 富文本内容 */
+.content-section {
+  padding: 60rpx 40rpx;
+  background-color: #ffffff;
+}
+
+.content-section rich-text {
+  font-size: 32rpx;
+  color: #34495e;
+  line-height: 1.8;
+}
+
+.content-section rich-text p {
+  margin-bottom: 32rpx;
+}
+
+/* 多图轮播 */
+.gallery-section {
+  padding: 0 0 60rpx;
+  background-color: #ffffff;
+}
+
+.section-title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 40rpx 30rpx;
+}
+
+.swiper-container {
+  position: relative;
+  width: 100%;
+  height: 500rpx;
+  margin: 0 auto;
+}
+
+.image-swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.image-swiper image {
+  width: 100%;
+  height: 100%;
+  border-radius: 12rpx;
+}
+
+.swiper-pagination {
+  position: absolute;
+  bottom: 20rpx;
+  right: 20rpx;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 24rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  z-index: 10;
+}
+
+/* 底部固定操作栏 */
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background-color: #ffffff;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 40rpx;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  flex: 1;
+}
+
+.action-btn.primary {
+  background-color: #3498db;
+  color: #ffffff;
+  padding: 20rpx 0;
+  border-radius: 80rpx;
+  margin: 0 20rpx;
+}
+
+.action-icon {
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.action-btn.primary .action-icon {
+  filter: brightness(0) invert(1);
+}
+
+.action-text {
+  font-size: 24rpx;
+  color: #7f8c8d;
+}
+
+.action-btn.primary .action-text {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* 适配不同屏幕尺寸 */
+@media (max-width: 750rpx) {
+  .hero-image {
+    height: 400rpx;
+  }
+
+  .title-section {
+    padding: 40rpx 30rpx 30rpx;
+  }
+
+  .project-title {
     font-size: 38rpx;
-    line-height: 48rpx;
-}
-.answerer-wrp{
-    position: relative;
-    width: 750rpx;
-    height: 150rpx;
-    background: #fff;
-}
-.answerer-wrp .bg-half{
-    position: absolute;
-    top: 0;
-    width: 750rpx;
-    height: 75rpx;
-    background: #298DE5;
-}
-.answerer {
-    position: relative;
-    margin: 0 auto;
-    width: 630rpx;
-    height: 90rpx;
-    padding: 30rpx;
-    background: #fff;
-    border: solid 1px #ebebeb;
-    border-radius: 3px;
-    box-shadow: 0 1px 2px #bebebe;
-}
-.answerer .avatar {
-    flex: 1;
-    width: 90rpx;
-    height: 90rpx;
+  }
+
+  .params-grid {
+    padding: 0 30rpx 40rpx;
+  }
+
+  .content-section {
+    padding: 40rpx 30rpx;
+  }
+
+  .content-section rich-text {
+    font-size: 28rpx;
+  }
+
+  .swiper-container {
+    height: 400rpx;
+  }
 }
 
-.answerer .avatar image {
-    display: inline-block;
-    width: 90rpx;
-    height: 90rpx;
-    border-radius: 90rpx;
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
-.answerer .answerer-info{
-    flex: 5;
-    text-align: left;
-    padding: 10rpx 20rpx;
-    line-height: 38rpx;
-}
-.answerer .answerer-info text{
-    display: block;
-}
-.answerer .answerer-info .answerer-name{
-    font-size: 32rpx;
-}
-.answerer .answerer-info .answerer-des{
-    font-size: 22rpx;
-    color: #808080;
-    line-height: 28rpx;
-}
-.answerer .follow{
-    flex: 2;
-    padding: 15rpx 0;
-    font-size: 22rpx;
-}
-.answerer .follow text{
-    display: inline-block;
-    padding: 15rpx 20rpx;
-    color: #40bcd0;
-    border: solid 2px #40bcd0;
-    border-radius: 6rpx;
-}
-.answer-content{
-    padding: 30rpx 40rpx;
-    background: #ffffff;
-}
-.answer-content text{
-    font-size: 32rpx;
-    color: #454545;
-    line-height: 44rpx;
-}
-.answer-content image{
-    width: 100%;
-    margin: 20rpx 0;
-}
-.answer-footer{
-    position: fixed;
-    bottom: 0;
-    height: 70rpx;
-    border-top: solid 1px #ebebeb;
-    background: #ffffff;
-    width: 670rpx;
-    padding: 20rpx 40rpx;
-}
-.answer-footer .good{
-    flex: 1;
-    /*display: inline-block;*/
-    height: 40rpx;
-    border: solid 1px #d1d1d1;
-    border-radius: 3px;
-    padding: 10rpx 8rpx;
-    margin: 10rpx 0;
-}
-.answer-footer .good .good-bad{
-    display: inline-block;
-}
-.answer-footer .good image{
-    display: inline-block;
-    width: 38rpx;
-    height: 38rpx;
-    vertical-align: middle;
-}
-.answer-footer .good .good-num{
-    display: inline-block;
-    padding: 10rpx 4rpx;
-    /*font-size: 24rpx;*/
-}
-.answer-footer .operation-wrp{
-    flex: 5;
-}
-.answer-footer .operation{
-    justify-content: space-between;
-    padding: 0 0 0 60rpx;
-}
-.answer-footer .operation-btn{
-    flex: 1;
-    text-align: center;
-}
-.answer-footer .operation image{
-    display: block;
-    margin: 0 auto;
-    width: 50rpx;
-    height: 50rpx;
-}
-.answer-footer .operation-btn text{
-    display: block;
-    font-size: 14rpx;
-    color: #bebebe;
+
+page {
+  background-color: #fafafa;
 }

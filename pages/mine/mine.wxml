@@ -1,0 +1,31 @@
+<view class="mine-container">
+  <view class="header">
+    <text class="title">我的</text>
+    <view class="header-right">
+      <image class="icon" src="/images/more.png"></image>
+      <image class="icon" src="/images/search.png"></image>
+    </view>
+  </view>
+  
+  <view class="user-info">
+    <image class="avatar" src="/images/icon8.jpg"></image>
+    <view class="user-detail">
+      <text class="username">1802*ELFI</text>
+      <image class="vip-icon" src="/images/v_index.png"></image>
+    </view>
+  </view>
+  
+  <view class="menu-list">
+    <view class="menu-item" wx:for="{{menuList}}" wx:key="index">
+      <view class="menu-left">
+        <image class="menu-icon" src="{{item.icon}}"></image>
+        <text class="menu-text">{{item.text}}</text>
+      </view>
+      <image class="arrow" src="/images/more.png"></image>
+    </view>
+  </view>
+  
+  <view class="logout-btn" bindtap="onLogout">
+    <text>退出当前帐号</text>
+  </view>
+</view>
