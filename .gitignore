@@ -1,0 +1,73 @@
+# 微信小程序 .gitignore
+
+# 微信开发者工具配置（不应该提交）
+project.config.json
+project.private.config.json
+
+# 编译产物
+dist/
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 依赖目录
+node_modules/
+
+# 临时文件
+*.tmp
+*.temp
+
+# 图片缓存（如果使用本地图片）
+images/*.jpg
+images/*.jpeg
+images/*.png
+images/*.gif
+images/*.bmp
+
+# 不提交大型图片文件
+!images/*.svg
+
+# 测试覆盖率
+coverage/
+
+# 类型检查缓存
+*.tsbuildinfo
+
+# 微信开发者工具缓存
+.prettierrc
+.eslintrc
+.eslintcache
+
+# Package lock（如果使用npm）
+package-lock.json
+yarn.lock
+
+# OS X
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Linux
+.directory
+
+# VIM
+*.swp
+*.swo
+
+# Misc
+*.bak
+*.backup
