@@ -1,53 +1,42 @@
-
-<view class="container">
-  <!-- 全局背景 -->
+<view class="page-container"> 
+  <!-- 头部：大头像 + 昵称 --> 
+  <view class="header-section" bindtap="handleLogin"> 
+    <image class="user-avatar" src="{{userInfo.avatarUrl || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0'}}"></image> 
+    <view class="user-info"> 
+      <view class="user-name">{{userInfo.nickName || '点击登录'}}</view> 
+      <view class="user-desc">登录后同步收藏与评论 ></view> 
+    </view> 
+  </view> 
   
-  <!-- 顶部用户信息区 -->
-  <view class="header">
-    <image 
-      class="avatar" 
-      src="{{userInfo ? userInfo.avatarUrl : '../../images/default-avatar.png'}}" 
-      bindtap="handleLogin"
-    ></image>
-    <view class="user-info" bindtap="handleLogin">
-      <text class="nickname">{{userInfo ? userInfo.nickName : '点击登录'}}</text>
-      <text class="bio" wx:if="{{userInfo}}">微信用户 | 分享生活点滴</text>
-    </view>
-  </view>
+  <!-- 数据栏：3列布局 --> 
+  <view class="data-section"> 
+    <view class="data-item"> 
+      <text class="num">0</text> 
+      <text class="label">获赞与收藏</text> 
+    </view> 
+    <view class="data-item"> 
+      <text class="num">0</text> 
+      <text class="label">我的关注</text> 
+    </view> 
+    <view class="data-item"> 
+      <text class="num">0</text> 
+      <text class="label">我的粉丝</text> 
+    </view> 
+  </view> 
   
-  <!-- 数据统计栏 -->
-  <view class="stats">
-    <view class="stat-item">
-      <text class="stat-number">{{stats.collect}}</text>
-      <text class="stat-label">收藏</text>
-    </view>
-    <view class="stat-item">
-      <text class="stat-number">{{stats.comment}}</text>
-      <text class="stat-label">评论</text>
-    </view>
-    <view class="stat-item">
-      <text class="stat-number">{{stats.like}}</text>
-      <text class="stat-label">获赞</text>
-    </view>
-  </view>
-  
-  <!-- 功能菜单卡片 -->
-  <view class="menu-card">
-    <view class="menu-item" bindtap="handleNav" data-url="/pages/my-favorites/index">
-      <text class="menu-text">我的收藏</text>
-      <text class="menu-arrow">></text>
-    </view>
-    <view class="menu-item" bindtap="handleNav" data-url="/pages/my-comments/index">
-      <text class="menu-text">我的评论</text>
-      <text class="menu-arrow">></text>
-    </view>
-    <view class="menu-item" bindtap="handleNav" data-url="">
-      <text class="menu-text">联系客服</text>
-      <text class="menu-arrow">></text>
-    </view>
-    <view class="menu-item" bindtap="handleNav" data-url="logout" wx:if="{{userInfo}}">
-      <text class="menu-text" style="color: #FF3B30;">退出登录</text>
-      <text class="menu-arrow">></text>
-    </view>
-  </view>
+  <!-- 功能菜单：白底圆角卡片 --> 
+  <view class="menu-card"> 
+    <view class="menu-item" bindtap="handleNav" data-path="/pages/my-favorites/index"> 
+      <text class="menu-text">⭐ 我的收藏</text> 
+      <text class="arrow">></text> 
+    </view> 
+    <view class="menu-item" bindtap="handleNav" data-path="/pages/my-comments/index"> 
+      <text class="menu-text">💬 社区互动</text> 
+      <text class="arrow">></text> 
+    </view> 
+    <view class="menu-item" bindtap="handleLogout" wx:if="{{userInfo}}"> 
+      <text class="menu-text">🚪 退出登录</text> 
+      <text class="arrow">></text> 
+    </view> 
+  </view> 
 </view>

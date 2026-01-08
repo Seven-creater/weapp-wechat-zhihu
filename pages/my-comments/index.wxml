@@ -4,8 +4,13 @@
     <text class="page-title">我的评论</text>
   </view>
   
+  <!-- 加载状态 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+  
   <!-- 评论列表 -->
-  <view class="comments-list">
+  <view class="comments-list" wx:if="{{!loading}}">
     <!-- 空状态 -->
     <view class="empty-state" wx:if="{{commentsList.length === 0}}">
       <image class="empty-icon" src="../../images/comment.png"></image>
@@ -28,11 +33,10 @@
       <!-- 原文信息 -->
       <view class="post-info">
         <text class="post-title">原文：{{item.postTitle || '文章标题'}}</text>
-        <text class="comment-time">{{item.createTime}}</text>
       </view>
       
       <!-- 箭头图标 -->
-      <image class="item-arrow" src="../../images/arrow-right.png"></image>
+      <text class="item-arrow">></text>
     </view>
   </view>
 </view>
