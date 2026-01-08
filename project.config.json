@@ -78,7 +78,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "2.14.1",
-  "appid": "YOUR_REAL_APPID_HERE",
+  "appid": "wxac8e01c7d79456d0",
   "projectname": "weapp-wechat-zhihu",
   "isGameTourist": false,
   "condition": {
