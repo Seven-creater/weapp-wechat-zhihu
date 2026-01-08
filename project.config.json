@@ -1,5 +1,6 @@
 {
   "description": "知乎微信小程序项目配置",
+  "cloudfunctionRoot": "cloudfunctions/",
   "packOptions": {
     "ignore": [
       {
@@ -77,7 +78,7 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "2.14.1",
+  "libVersion": "3.13.1",
   "appid": "wxac8e01c7d79456d0",
   "projectname": "weapp-wechat-zhihu",
   "isGameTourist": false,

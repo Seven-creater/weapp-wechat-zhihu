@@ -1,72 +1,53 @@
 
-<view class="container more">
-  <view class="user flex-wrp">
-    <view class="avatar flex-item">
-      <image class="userinfo-avatar" src="{{userInfo.avatarUrl}}" background-size="cover"></image>
-    </view>
-    <view class="user-info flex-item">
-      <text class="userinfo-nickname">{{userInfo.nickName}}</text>
-      <text class="edit">查看或编辑个人主页</text>
+<view class="container">
+  <!-- 顶部背景区 -->
+  <view class="top-bg"></view>
+  
+  <!-- 用户信息卡片 -->
+  <view class="user-card" bindtap="handleLogin">
+    <image 
+      class="avatar" 
+      src="{{userInfo ? userInfo.avatarUrl : '../../images/default-avatar.png'}}" 
+    ></image>
+    <view class="user-info">
+      <text class="nickname">{{userInfo ? userInfo.nickName : '点击登录体验更多功能'}}</text>
+      <text class="bio" wx:if="{{userInfo}}">微信用户 | 分享生活点滴</text>
     </view>
   </view>
-
-  <view class="my">
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/eye.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的关注</text>
-      </view>
+  
+  <!-- 数据栏 -->
+  <view class="stats-bar">
+    <view class="stat-item">
+      <text class="stat-number">{{stats.collect}}</text>
+      <text class="stat-label">收藏</text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/star.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的收藏</text>
-      </view>
+    <view class="stat-item">
+      <text class="stat-number">{{stats.comment}}</text>
+      <text class="stat-label">评论</text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/draft.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的草稿</text>
-      </view>
+    <view class="stat-item">
+      <text class="stat-number">{{stats.like}}</text>
+      <text class="stat-label">获赞</text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/recent.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>最近浏览</text>
-      </view>
+  </view>
+  
+  <!-- 功能菜单列表 -->
+  <view class="menu-card">
+    <view class="menu-item" bindtap="handleNav" data-path="/pages/my-favorites/index">
+      <text class="menu-text">我的收藏</text>
+      <text class="menu-arrow">></text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/book.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的书架</text>
-      </view>
+    <view class="menu-item" bindtap="handleNav" data-path="/pages/my-comments/index">
+      <text class="menu-text">我的评论</text>
+      <text class="menu-arrow">></text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/live.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的 Live</text>
-      </view>
+    <view class="menu-item" bindtap="handleNav" data-path="">
+      <text class="menu-text">我的设计</text>
+      <text class="menu-arrow">></text>
     </view>
-    <view class="my-item flex-wrp">
-      <view class="myitem-icon flex-item" >
-        <image src="../../images/zhi.png"></image>
-      </view>
-      <view class="myitem-name flex-item">
-        <text>我的值乎</text>
-      </view>
+    <view class="menu-item" bindtap="handleNav" data-path="">
+      <text class="menu-text">联系客服</text>
+      <text class="menu-arrow">></text>
     </view>
-
   </view>
 </view>

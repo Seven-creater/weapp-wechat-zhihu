@@ -1,8 +1,7 @@
-// 初始化云开发环境 - 使用默认环境
-wx.cloud.init({
-  traceUser: true
-});
+// 获取全局应用实例
+const app = getApp();
 
+// 初始化云数据库
 const db = wx.cloud.database();
 const _ = db.command;
 
@@ -69,9 +68,10 @@ Page({
     commentList: [],
     isLiked: false,
     isCollected: false,
-    commentContent: '',
     showCommentInputBox: false,
-    postId: ''
+    postId: '',
+    // 新的评论输入值
+    inputValue: ''
   },
   
   onLoad: function(options) {
@@ -81,26 +81,35 @@ Page({
     this.watchComments(postId);
   },
   
+  // 检查登录状态
+  checkLogin: function() {
+    const that = this;
+    return app.checkLogin().catch(() => {
+      wx.showModal({
+        title: '提示',
+        content: '请先登录',
+        success: (res) => {
+          if (res.confirm) {
+            that.login();
+          }
+        }
+      });
+      throw new Error('未登录');
+    });
+  },
+  
+  // 执行登录
+  login: function() {
+    app.login().then(userData => {
+      wx.showToast({ title: '登录成功', icon: 'success' });
+    }).catch(err => {
+      console.error('登录失败:', err);
+      wx.showToast({ title: '登录失败', icon: 'none' });
+    });
+  },
+  
   initData: function(postId) {
     const that = this;
-    
-    // 获取点赞状态
-    db.collection('actions').where({
-      postId: postId,
-      _openid: '{openid}',
-      type: 'like_post'
-    }).get().then(res => {
-      that.setData({ isLiked: res.data.length > 0 });
-    });
-    
-    // 获取收藏状态
-    db.collection('actions').where({
-      postId: postId,
-      _openid: '{openid}',
-      type: 'collect_post'
-    }).get().then(res => {
-      that.setData({ isCollected: res.data.length > 0 });
-    });
     
     // 获取评论列表
     db.collection('comments').where({
@@ -112,15 +121,51 @@ Page({
         createTime: this.formatTime(comment.createTime)
       }));
       that.setData({ commentList });
-      that.getCommentLikeStatus(postId, commentList);
+      // 只有登录后才获取评论点赞状态
+      if (app.globalData.openid) {
+        that.getCommentLikeStatus(postId, commentList);
+      }
+    });
+    
+    // 只有登录后才获取点赞和收藏状态
+    if (app.globalData.openid) {
+      that.getActionStatus(postId);
+    }
+  },
+  
+  // 获取点赞和收藏状态
+  getActionStatus: function(postId) {
+    const that = this;
+    const openid = app.globalData.openid;
+    
+    // 获取点赞状态
+    db.collection('actions').where({
+      postId: postId,
+      _openid: openid,
+      type: 'like_post'
+    }).get().then(res => {
+      that.setData({ isLiked: res.data.length > 0 });
+    });
+    
+    // 获取收藏状态
+    db.collection('actions').where({
+      postId: postId,
+      _openid: openid,
+      type: 'collect_post'
+    }).get().then(res => {
+      that.setData({ isCollected: res.data.length > 0 });
     });
   },
   
   getCommentLikeStatus: function(postId, commentList) {
     const that = this;
+    const openid = app.globalData.openid;
+    
+    if (!openid) return;
+    
     db.collection('actions').where({
       postId: postId,
-      _openid: '{openid}',
+      _openid: openid,
       type: 'like_comment'
     }).get().then(res => {
       const likedCommentIds = res.data.map(action => action.targetId);
@@ -163,92 +208,144 @@ Page({
   },
   
   toggleLike: function() {
-    const postId = this.data.postId;
-    const isLiked = this.data.isLiked;
-    this.setData({ isLiked: !isLiked });
-    
-    if (isLiked) {
-      db.collection('actions').where({
-        postId: postId,
-        _openid: '{openid}',
-        type: 'like_post'
-      }).remove();
-    } else {
-      db.collection('actions').add({
-        data: {
+    const that = this;
+    this.checkLogin().then(() => {
+      const postId = that.data.postId;
+      const isLiked = that.data.isLiked;
+      const openid = app.globalData.openid;
+      const { title, heroImage } = that.data.projectDetail;
+      
+      that.setData({ isLiked: !isLiked });
+      
+      if (isLiked) {
+        db.collection('actions').where({
           postId: postId,
-          type: 'like_post',
-          createTime: db.serverDate()
-        }
-      });
-    }
+          _openid: openid,
+          type: 'like_post'
+        }).remove();
+      } else {
+        db.collection('actions').add({
+          data: {
+            postId: postId,
+            type: 'like_post',
+            title: title,
+            coverImg: heroImage,
+            createTime: db.serverDate()
+          }
+        });
+      }
+    });
   },
   
   toggleCollect: function() {
-    const postId = this.data.postId;
-    const isCollected = this.data.isCollected;
-    this.setData({ isCollected: !isCollected });
-    
-    if (isCollected) {
-      db.collection('actions').where({
-        postId: postId,
-        _openid: '{openid}',
-        type: 'collect_post'
-      }).remove().then(() => {
-        wx.showToast({ title: '已取消收藏', icon: 'success' });
-      });
-    } else {
-      db.collection('actions').add({
-        data: {
+    const that = this;
+    this.checkLogin().then(() => {
+      const postId = that.data.postId;
+      const isCollected = that.data.isCollected;
+      const openid = app.globalData.openid;
+      const { title, heroImage } = that.data.projectDetail;
+      
+      that.setData({ isCollected: !isCollected });
+      
+      if (isCollected) {
+        db.collection('actions').where({
           postId: postId,
-          type: 'collect_post',
-          createTime: db.serverDate()
-        }
-      }).then(() => {
-        wx.showToast({ title: '收藏成功', icon: 'success' });
-      });
-    }
+          _openid: openid,
+          type: 'collect_post'
+        }).remove().then(() => {
+          wx.showToast({ title: '已取消收藏', icon: 'success' });
+        });
+      } else {
+        db.collection('actions').add({
+          data: {
+            postId: postId,
+            type: 'collect_post',
+            title: title,
+            coverImg: heroImage,
+            createTime: db.serverDate()
+          }
+        }).then(() => {
+          wx.showToast({ title: '收藏成功', icon: 'success' });
+        });
+      }
+    });
   },
   
   showCommentInput: function() {
-    this.setData({ showCommentInputBox: true });
+    const that = this;
+    this.checkLogin().then(() => {
+      that.setData({ showCommentInputBox: true });
+    });
   },
   
-  onCommentInput: function(e) {
-    this.setData({ commentContent: e.detail.value });
+  // 监听输入
+  onInput(e) {
+    console.log("正在输入:", e.detail.value);
+    this.setData({
+      inputValue: e.detail.value
+    });
   },
   
-  submitComment: function() {
-    const content = this.data.commentContent.trim();
-    const postId = this.data.postId;
+  // 取消评论
+  onCancelComment() {
+    console.log("点击取消按钮");
+    // 清空输入内容
+    this.setData({ 
+      inputValue: '', 
+      showCommentInputBox: false 
+    });
     
-    if (!content) {
-      wx.showToast({ title: '评论内容不能为空', icon: 'none' });
+    // 隐藏键盘
+    wx.hideKeyboard();
+  },
+  
+  // 提交评论
+  submitComment() {
+    const content = this.data.inputValue;
+    const postId = this.data.postId;
+    console.log("点击发送，当前内容:", content);
+
+    if (!content || !content.trim()) {
+      wx.showToast({ title: '评论不能为空', icon: 'none' });
       return;
     }
+
+    // 检查用户是否登录
+    if (!app.globalData.userInfo || !app.globalData.openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      this.login();
+      return;
+    }
+
+    // 使用登录用户的信息
+    const userInfo = app.globalData.userInfo;
     
-    // 使用简化的评论方式，避免授权问题
-    const userInfo = {
-      nickName: '匿名用户',
-      avatarUrl: 'https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132'
-    };
+    // 准备发送云函数
+    console.log("准备发送评论到云数据库...");
     
-    // 发送评论
+    // 获取文章标题
+    const postTitle = this.data.projectDetail.title;
+    
+    // 发送评论到云数据库
     db.collection('comments').add({
       data: {
         postId: postId,
-        content: content,
+        content: content.trim(),
         userInfo: userInfo,
         likeCount: 0,
+        postTitle: postTitle,
         createTime: db.serverDate()
       }
     }).then(() => {
-      // 清空评论输入框并隐藏
+      console.log("评论发送成功");
+      // 清空输入内容并隐藏评论框
       this.setData({ 
-        commentContent: '', 
+        inputValue: '', 
         showCommentInputBox: false 
       });
       wx.showToast({ title: '评论成功', icon: 'success' });
+      // 隐藏键盘
+      wx.hideKeyboard();
     }).catch(err => {
       console.error('评论失败:', err);
       wx.showToast({ title: '评论失败', icon: 'none' });
@@ -256,51 +353,55 @@ Page({
   },
   
   likeComment: function(e) {
-    const commentId = e.currentTarget.dataset.commentid;
-    const commentList = this.data.commentList;
-    const postId = this.data.postId;
-    
-    const commentIndex = commentList.findIndex(item => item._id === commentId);
-    if (commentIndex === -1) return;
-    
-    const comment = commentList[commentIndex];
-    const isLiked = comment.isLiked;
-    
-    const updatedComment = {
-      ...comment,
-      isLiked: !isLiked,
-      likeCount: isLiked ? comment.likeCount - 1 : comment.likeCount + 1
-    };
-    
-    const updatedCommentList = [...commentList];
-    updatedCommentList[commentIndex] = updatedComment;
-    this.setData({ commentList: updatedCommentList });
-    
-    if (isLiked) {
-      db.collection('actions').where({
-        postId: postId,
-        targetId: commentId,
-        _openid: '{openid}',
-        type: 'like_comment'
-      }).remove().then(() => {
-        db.collection('comments').doc(commentId).update({
-          data: { likeCount: _.inc(-1) }
-        });
-      });
-    } else {
-      db.collection('actions').add({
-        data: {
+    const that = this;
+    this.checkLogin().then(() => {
+      const commentId = e.currentTarget.dataset.commentid;
+      const commentList = that.data.commentList;
+      const postId = that.data.postId;
+      const openid = app.globalData.openid;
+      
+      const commentIndex = commentList.findIndex(item => item._id === commentId);
+      if (commentIndex === -1) return;
+      
+      const comment = commentList[commentIndex];
+      const isLiked = comment.isLiked;
+      
+      const updatedComment = {
+        ...comment,
+        isLiked: !isLiked,
+        likeCount: isLiked ? comment.likeCount - 1 : comment.likeCount + 1
+      };
+      
+      const updatedCommentList = [...commentList];
+      updatedCommentList[commentIndex] = updatedComment;
+      that.setData({ commentList: updatedCommentList });
+      
+      if (isLiked) {
+        db.collection('actions').where({
           postId: postId,
           targetId: commentId,
-          type: 'like_comment',
-          createTime: db.serverDate()
-        }
-      }).then(() => {
-        db.collection('comments').doc(commentId).update({
-          data: { likeCount: _.inc(1) }
+          _openid: openid,
+          type: 'like_comment'
+        }).remove().then(() => {
+          db.collection('comments').doc(commentId).update({
+            data: { likeCount: _.inc(-1) }
+          });
         });
-      });
-    }
+      } else {
+        db.collection('actions').add({
+          data: {
+            postId: postId,
+            targetId: commentId,
+            type: 'like_comment',
+            createTime: db.serverDate()
+          }
+        }).then(() => {
+          db.collection('comments').doc(commentId).update({
+            data: { likeCount: _.inc(1) }
+          });
+        });
+      }
+    });
   },
   
   onShare: function() {

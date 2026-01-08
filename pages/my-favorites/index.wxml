@@ -1,0 +1,37 @@
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">我的收藏</text>
+  </view>
+  
+  <!-- 收藏列表 -->
+  <view class="favorites-list">
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{favoritesList.length === 0}}">
+      <image class="empty-icon" src="../../images/star.png"></image>
+      <text class="empty-text">暂无收藏内容</text>
+    </view>
+    
+    <!-- 列表项 -->
+    <view 
+      class="favorite-item" 
+      wx:for="{{favoritesList}}" 
+      wx:key="_id" 
+      bindtap="goToDetail" 
+      data-id="{{item.postId}}"
+    >
+      <!-- 左侧图片 -->
+      <image class="item-image" src="{{item.image || '../../images/default-avatar.png'}}"></image>
+      
+      <!-- 右侧内容 -->
+      <view class="item-content">
+        <text class="item-title">{{item.title}}</text>
+        <text class="item-subtitle">{{item.subtitle}}</text>
+        <text class="item-time">{{item.createTime}}</text>
+      </view>
+      
+      <!-- 箭头图标 -->
+      <image class="item-arrow" src="../../images/arrow-right.png"></image>
+    </view>
+  </view>
+</view>

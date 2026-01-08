@@ -4,7 +4,10 @@
     "pages/scheme/scheme",
     "pages/community/community",
     "pages/mine/mine",
-    "pages/case-detail/case-detail"
+    "pages/case-detail/case-detail",
+    "pages/more/more",
+    "pages/my-favorites/index",
+    "pages/my-comments/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

@@ -131,9 +131,25 @@
     </view>
   </view>
   
-  <!-- 评论输入框 -->
-  <view class="comment-input-container" wx:if="{{showCommentInputBox}}">
-    <input class="comment-input" placeholder="写下你的评论..." value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInputBox}}"></input>
-    <button class="send-btn" bindtap="submitComment" disabled="{{!commentContent.trim()}}">发送</button>
+  <!-- 底部评论栏 -->
+  <view class="comment-bar" wx:if="{{showCommentInputBox}}">
+    <!-- 左侧：取消按钮 -->
+    <view class="btn-cancel" bindtap="onCancelComment">取消</view>
+    
+    <!-- 中间：输入框容器 -->
+    <view class="input-wrapper">
+      <input
+        class="comment-input"
+        placeholder="写下你的评论..."
+        cursor-spacing="20"
+        confirm-type="send"
+        value="{{inputValue}}"
+        bindinput="onInput"
+        bindconfirm="submitComment"
+      />
+    </view>
+    
+    <!-- 右侧：发送按钮 -->
+    <view class="btn-send {{inputValue ? 'active' : ''}}" bindtap="submitComment">发送</view>
   </view>
 </view>

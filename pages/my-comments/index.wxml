@@ -1,0 +1,38 @@
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">我的评论</text>
+  </view>
+  
+  <!-- 评论列表 -->
+  <view class="comments-list">
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{commentsList.length === 0}}">
+      <image class="empty-icon" src="../../images/comment.png"></image>
+      <text class="empty-text">暂无评论内容</text>
+    </view>
+    
+    <!-- 列表项 -->
+    <view 
+      class="comment-item" 
+      wx:for="{{commentsList}}" 
+      wx:key="_id" 
+      bindtap="goToDetail" 
+      data-id="{{item.postId}}"
+    >
+      <!-- 评论内容 -->
+      <view class="comment-content">
+        <text class="comment-text">{{item.content}}</text>
+      </view>
+      
+      <!-- 原文信息 -->
+      <view class="post-info">
+        <text class="post-title">原文：{{item.postTitle || '文章标题'}}</text>
+        <text class="comment-time">{{item.createTime}}</text>
+      </view>
+      
+      <!-- 箭头图标 -->
+      <image class="item-arrow" src="../../images/arrow-right.png"></image>
+    </view>
+  </view>
+</view>
