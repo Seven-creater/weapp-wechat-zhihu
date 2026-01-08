@@ -60,47 +60,48 @@ App({
         success: (res) => {
           const userInfo = res.userInfo;
 
-          // 调用云函数获取OpenID
-          wx.cloud.callFunction({
-            name: "login",
-            data: {},
-            success: (res) => {
-              const openid = res.result.openid;
+          // 使用本地生成的OpenID，避免云函数调用
+          const openid =
+            wx.getStorageSync("openid") || "local_user_" + Date.now();
 
-              // 存储到全局
-              that.globalData.userInfo = userInfo;
-              that.globalData.openid = openid;
+          // 如果没有openid，生成一个本地ID
+          if (!wx.getStorageSync("openid")) {
+            wx.setStorageSync("openid", openid);
+          }
 
-              // 存储到本地
-              wx.setStorageSync("userInfo", userInfo);
-              wx.setStorageSync("openid", openid);
+          // 存储到全局
+          that.globalData.userInfo = userInfo;
+          that.globalData.openid = openid;
 
-              // 保存到云数据库users集合
-              const db = wx.cloud.database();
-              db.collection("users")
-                .where({
-                  _openid: openid,
-                })
-                .get()
-                .then((res) => {
-                  if (res.data.length === 0) {
-                    // 新用户，插入数据
-                    db.collection("users").add({
-                      data: {
-                        userInfo: userInfo,
-                        createTime: db.serverDate(),
-                      },
-                    });
-                  }
+          // 存储到本地
+          wx.setStorageSync("userInfo", userInfo);
+          wx.setStorageSync("openid", openid);
+
+          // 保存到云数据库users集合
+          const db = wx.cloud.database();
+          db.collection("users")
+            .where({
+              _openid: openid,
+            })
+            .get()
+            .then((res) => {
+              if (res.data.length === 0) {
+                // 新用户，插入数据
+                db.collection("users").add({
+                  data: {
+                    userInfo: userInfo,
+                    _openid: openid,
+                    createTime: db.serverDate(),
+                  },
                 });
+              }
+            })
+            .catch((err) => {
+              console.error("用户数据保存失败:", err);
+              // 即使数据库保存失败，也不影响登录
+            });
 
-              resolve({ userInfo, openid });
-            },
-            fail: (err) => {
-              console.error("云函数调用失败:", err);
-              reject(err);
-            },
-          });
+          resolve({ userInfo, openid });
         },
         fail: (err) => {
           console.error("用户拒绝授权:", err);

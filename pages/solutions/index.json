@@ -1,0 +1,6 @@
+{
+  "usingComponents": {},
+  "navigationBarTitleText": "AI 解决方案库",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50
+}

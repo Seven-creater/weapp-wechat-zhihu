@@ -51,6 +51,10 @@ Page({
       })
       .catch(err => {
         console.error('加载最近反馈失败:', err);
+        // 数据库集合不存在时，显示空列表
+        this.setData({
+          recentReports: []
+        });
       });
   },
 

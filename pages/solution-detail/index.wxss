@@ -1,0 +1,307 @@
+/* 解决方案详情页样式 */
+.solution-detail-container {
+  background-color: #f5f5f5;
+  min-height: 100vh;
+  padding-bottom: 140rpx;
+}
+
+/* 通用部分样式 */
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+  margin: 40rpx 30rpx 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-subtitle {
+  font-size: 24rpx;
+  font-weight: normal;
+  color: #999999;
+}
+
+/* 问题现场部分 */
+.problem-section {
+  background-color: #ffffff;
+  margin: 20rpx 0;
+  padding: 0 0 30rpx;
+}
+
+.problem-image {
+  margin: 0 30rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.problem-image image {
+  width: 100%;
+  border-radius: 12rpx;
+}
+
+.problem-description {
+  padding: 0 30rpx;
+}
+
+.problem-description .title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 16rpx;
+  line-height: 1.4;
+}
+
+.meta-info {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.category {
+  background-color: #E3F2FD;
+  color: #1976D2;
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+}
+
+.status {
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
+.status.solved {
+  background-color: #4CAF50;
+}
+
+.status.processing {
+  background-color: #FF9800;
+}
+
+/* AI 诊断报告部分 */
+.ai-analysis-section {
+  background-color: #ffffff;
+  margin: 20rpx 0;
+  padding: 30rpx 0;
+}
+
+.analysis-content {
+  margin: 0 30rpx;
+  padding: 30rpx;
+  background-color: #E8F4FD;
+  border-radius: 12rpx;
+  border-left: 6rpx solid #2196F3;
+}
+
+.analysis-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #333333;
+  white-space: pre-wrap;
+}
+
+/* 改造后效果部分 */
+.after-section {
+  background-color: #ffffff;
+  margin: 20rpx 0;
+  padding: 30rpx 0;
+}
+
+.after-image {
+  margin: 0 30rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.after-image image {
+  width: 100%;
+  border-radius: 12rpx;
+}
+
+/* 官方回复部分 */
+.official-reply-section {
+  background-color: #ffffff;
+  margin: 20rpx 0;
+  padding: 30rpx 0;
+}
+
+.reply-content {
+  margin: 0 30rpx;
+  padding: 30rpx;
+  background-color: #F3E5F5;
+  border-radius: 12rpx;
+  border-left: 6rpx solid #9C27B0;
+}
+
+.reply-text {
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #333333;
+  white-space: pre-wrap;
+}
+
+/* 底部操作栏 */
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #ffffff;
+  padding: 20rpx 30rpx;
+  border-top: 1rpx solid #e0e0e0;
+  display: flex;
+  gap: 20rpx;
+  z-index: 100;
+}
+
+.action-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.copy-btn {
+  background-color: #0A2463;
+  color: #ffffff;
+}
+
+.generate-btn {
+  background-color: #FFD700;
+  color: #0A2463;
+}
+
+.btn-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* 模态框样式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: none;
+}
+
+.modal.show {
+  display: block;
+}
+
+.modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  max-width: 600rpx;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.modal-close {
+  font-size: 40rpx;
+  color: #999999;
+  width: 60rpx;
+  height: 60rpx;
+  text-align: center;
+  line-height: 60rpx;
+}
+
+.modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 30rpx;
+}
+
+.letter-content {
+  background-color: #f9f9f9;
+  padding: 30rpx;
+  border-radius: 12rpx;
+}
+
+.letter-text {
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #333333;
+  white-space: pre-wrap;
+}
+
+.modal-footer {
+  padding: 20rpx 30rpx;
+  border-top: 1rpx solid #e0e0e0;
+  display: flex;
+  gap: 20rpx;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 36rpx;
+  border: none;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.copy-letter-btn {
+  background-color: #0A2463;
+  color: #ffffff;
+}
+
+.close-btn {
+  background-color: #f0f0f0;
+  color: #666666;
+}
+
+/* 无障碍优化 */
+.action-btn, .modal-btn {
+  min-height: 88rpx;
+  line-height: 88rpx;
+}
+
+.section-title {
+  min-height: 88rpx;
+  line-height: 88rpx;
+}

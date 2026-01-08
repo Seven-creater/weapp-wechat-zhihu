@@ -1,0 +1,58 @@
+<view class="my-issues-container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">我的随手拍</text>
+    <text class="page-subtitle">我上报的无障碍问题</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{issues.length === 0 && !loading}}">
+    <image src="/images/empty-issues.png" class="empty-image"></image>
+    <text class="empty-text">暂无随手拍记录</text>
+    <text class="empty-desc">快去首页拍照上报无障碍问题吧</text>
+    <button class="empty-btn" bindtap="goToHome" aria-label="去首页">
+      去首页拍照
+    </button>
+  </view>
+
+  <!-- 问题列表 -->
+  <view class="issues-list" wx:if="{{issues.length > 0}}">
+    <view class="issue-item" wx:for="{{issues}}" wx:key="_id" bindtap="goToDetail" data-id="{{item._id}}">
+      <view class="issue-image">
+        <image src="{{item.imageUrl}}" mode="aspectFill"></image>
+        <view class="status-tag {{item.status === 'pending' ? 'waiting' : 'submitted'}}">
+          {{item.status === 'pending' ? '待处理' : '已上报'}}
+        </view>
+      </view>
+      
+      <view class="issue-content">
+        <text class="issue-title">{{item.title || '无障碍问题'}}</text>
+        <text class="issue-location">{{item.address || '位置信息获取中'}}</text>
+        <text class="issue-time">{{item.createTime}}</text>
+        
+        <view class="ai-suggestion" wx:if="{{item.aiAnalysis}}">
+          <text class="suggestion-label">AI建议：</text>
+          <text class="suggestion-text">{{item.aiAnalysis.substring(0, 30)}}...</text>
+        </view>
+      </view>
+      
+      <view class="issue-arrow">
+        <image src="/images/arrow-right-yellow.png" class="arrow-icon"></image>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{hasMore && !loading}}" bindtap="loadMore">
+    <text>加载更多</text>
+  </view>
+  
+  <view class="no-more" wx:if="{{!hasMore && issues.length > 0}}">
+    <text>没有更多数据了</text>
+  </view>
+</view>

@@ -3,11 +3,14 @@
     "pages/index/index",
     "pages/scheme/scheme",
     "pages/community/community",
-    "pages/mine/mine",
+    "pages/mine/index",
     "pages/case-detail/case-detail",
     "pages/more/more",
     "pages/my-favorites/index",
-    "pages/my-comments/index"
+    "pages/my-comments/index",
+    "pages/solutions/index",
+    "pages/solution-detail/index",
+    "pages/my-issues/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -17,9 +20,9 @@
     "enablePullDownRefresh": true
   },
   "tabBar": {
-    "color": "#FFFFFF",
+    "color": "#999999",
     "selectedColor": "#FFD700",
-    "backgroundColor": "#0A2463",
+    "backgroundColor": "#002fa7",
     "borderStyle": "white",
     "list": [
       {
@@ -27,8 +30,16 @@
         "text": "随手拍"
       },
       {
+        "pagePath": "pages/solutions/index",
+        "text": "方案库"
+      },
+      {
         "pagePath": "pages/community/community",
         "text": "社区"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "个人中心"
       }
     ]
   },

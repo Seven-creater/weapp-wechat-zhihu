@@ -1,0 +1,226 @@
+/* 我的随手拍页面样式 - 无障碍设计 */
+.my-issues-container {
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* 页面标题 */
+.page-header {
+  background-color: #002fa7;
+  padding: 40rpx 30rpx;
+  color: #ffffff;
+}
+
+.page-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: bold;
+  margin-bottom: 12rpx;
+}
+
+.page-subtitle {
+  display: block;
+  font-size: 28rpx;
+  opacity: 0.8;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 60rpx;
+  text-align: center;
+}
+
+.empty-image {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 40rpx;
+  opacity: 0.6;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #666666;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 28rpx;
+  color: #999999;
+  margin-bottom: 40rpx;
+}
+
+.empty-btn {
+  background-color: #002fa7;
+  color: #ffffff;
+  border: none;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  padding: 0 60rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+}
+
+/* 问题列表 */
+.issues-list {
+  padding: 30rpx;
+}
+
+.issue-item {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  min-height: 200rpx;
+  transition: all 0.3s ease;
+}
+
+.issue-item:active {
+  transform: scale(0.98);
+}
+
+.issue-image {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  overflow: hidden;
+  border-radius: 20rpx 0 0 20rpx;
+}
+
+.issue-image image {
+  width: 100%;
+  height: 100%;
+}
+
+.status-tag {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.status-tag.waiting {
+  background-color: #FF9800;
+}
+
+.status-tag.submitted {
+  background-color: #4CAF50;
+}
+
+.issue-content {
+  flex: 1;
+  padding: 30rpx;
+}
+
+.issue-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
+}
+
+.issue-location {
+  display: block;
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 8rpx;
+}
+
+.issue-time {
+  display: block;
+  font-size: 24rpx;
+  color: #999999;
+  margin-bottom: 16rpx;
+}
+
+.ai-suggestion {
+  background-color: #E8F4FD;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  border-left: 4rpx solid #2196F3;
+}
+
+.suggestion-label {
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #1976D2;
+  margin-right: 8rpx;
+}
+
+.suggestion-text {
+  font-size: 24rpx;
+  color: #333333;
+  line-height: 1.4;
+}
+
+.issue-arrow {
+  padding: 0 30rpx 0 20rpx;
+}
+
+.arrow-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* 加载状态 */
+.loading-state {
+  text-align: center;
+  padding: 60rpx;
+  color: #999999;
+  font-size: 28rpx;
+}
+
+/* 加载更多 */
+.load-more, .no-more {
+  text-align: center;
+  padding: 40rpx;
+  color: #999999;
+  font-size: 28rpx;
+}
+
+.load-more {
+  color: #002fa7;
+}
+
+/* 无障碍优化 */
+.issue-item {
+  min-height: 200rpx;
+}
+
+.empty-btn {
+  min-height: 80rpx;
+  line-height: 80rpx;
+}
+
+/* 高对比度优化 */
+.issue-title {
+  font-weight: bold;
+  font-size: 34rpx;
+}
+
+.page-title {
+  font-size: 42rpx;
+}
+
+/* 大触摸目标 */
+.issue-item {
+  min-height: 200rpx;
+}
+
+button {
+  min-height: 80rpx;
+  min-width: 80rpx;
+}

@@ -1,0 +1,67 @@
+<view class="solutions-container">
+  <!-- 顶部筛选栏 -->
+  <view class="filter-bar">
+    <scroll-view class="filter-scroll" scroll-x="true">
+      <view class="filter-item {{currentCategory === '' ? 'active' : ''}}" bindtap="onFilterChange" data-category="">
+        全部
+      </view>
+      <view class="filter-item {{currentCategory === '轮椅通行' ? 'active' : ''}}" bindtap="onFilterChange" data-category="轮椅通行">
+        轮椅通行
+      </view>
+      <view class="filter-item {{currentCategory === '视障辅助' ? 'active' : ''}}" bindtap="onFilterChange" data-category="视障辅助">
+        视障辅助
+      </view>
+      <view class="filter-item {{currentCategory === '听障关怀' ? 'active' : ''}}" bindtap="onFilterChange" data-category="听障关怀">
+        听障关怀
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <view class="search-input">
+      <input 
+        placeholder="搜索解决方案..." 
+        bindinput="onSearchInput" 
+        value="{{searchKeyword}}"
+        aria-label="搜索解决方案"
+      />
+      <image class="search-icon" src="/images/search.png"></image>
+    </view>
+  </view>
+
+  <!-- 案例卡片列表 -->
+  <view class="solutions-list">
+    <view class="solution-item" wx:for="{{solutions}}" wx:key="_id" bindtap="goToDetail" data-id="{{item._id}}">
+      <view class="solution-image">
+        <image src="{{item.beforeImg}}" mode="aspectFill"></image>
+        <view class="status-tag {{item.status === '已解决' ? 'solved' : 'processing'}}">
+          {{item.status === '已解决' ? 'AI 已解决' : '跟进中'}}
+        </view>
+      </view>
+      
+      <view class="solution-content">
+        <text class="solution-title">{{item.title}}</text>
+        <text class="solution-category">{{item.category}}</text>
+        <view class="solution-meta">
+          <text class="view-count">{{item.viewCount}} 浏览</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+    <text>加载更多</text>
+  </view>
+  
+  <view class="no-more" wx:if="{{!hasMore && solutions.length > 0}}">
+    <text>没有更多数据了</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{solutions.length === 0}}">
+    <image src="/images/empty-solutions.png" class="empty-image"></image>
+    <text class="empty-text">暂无解决方案</text>
+  </view>
+</view>
