@@ -1,0 +1,100 @@
+{
+  "description": "知乎微信小程序项目配置",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "file",
+        "value": "images/navigation.gif"
+      },
+      {
+        "type": "file",
+        "value": "images/index_scroll.gif"
+      },
+      {
+        "type": "file",
+        "value": "images/bottom_tab.gif"
+      },
+      {
+        "type": "file",
+        "value": "images/top_tab.gif"
+      },
+      {
+        "type": "file",
+        "value": "images/24280.jpg"
+      },
+      {
+        "type": "file",
+        "value": "images/24213.jpg"
+      },
+      {
+        "type": "file",
+        "value": "images/1444983318907-_DSC1826.jpg"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "preloadBackgroundData": false,
+    "minified": true,
+    "newFeature": false,
+    "coverView": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "showShadowRootInWxmlPanel": true,
+    "scopeDataCheck": false,
+    "uglifyFileName": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": false,
+    "uploadWithSourceMap": false,
+    "compileHotReLoad": false,
+    "lazyloadPlaceholderEnable": false,
+    "useMultiFrameRuntime": true,
+    "useApiHook": false,
+    "useApiHostProcess": false,
+    "showES6CompileOption": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "enableEngineNative": false,
+    "enableEngineNativeDebug": false,
+    "disableUseStrict": false,
+    "minifyWXSS": true,
+    "disableWXRuntimeCheck": true,
+    "compileWorklet": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXML": true,
+    "localPlugins": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
+  },
+  "compileType": "miniprogram",
+  "libVersion": "2.14.1",
+  "appid": "YOUR_REAL_APPID_HERE",
+  "projectname": "weapp-wechat-zhihu",
+  "isGameTourist": false,
+  "condition": {
+    "search": {
+      "list": []
+    },
+    "conversation": {
+      "list": []
+    },
+    "game": {
+      "list": []
+    },
+    "miniprogram": {
+      "list": []
+    }
+  },
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
+}
