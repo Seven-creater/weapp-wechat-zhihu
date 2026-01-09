@@ -1,4 +1,7 @@
 const collectUtil = require("../../utils/collect.js");
+const app = getApp();
+const db = wx.cloud.database();
+const _ = db.command;
 
 Page({
   data: {
@@ -14,40 +17,152 @@ Page({
 
   onLoad: function (options) {
     const postId = options.postId;
-    this.loadPostDetail(postId);
-    this.loadComments(postId);
+    if (postId) {
+      this.loadPostDetail(postId);
+      this.loadComments(postId);
+    }
   },
 
   // 加载帖子详情
   loadPostDetail: function (postId) {
     this.setData({ loading: true });
 
-    // 模拟从数据库加载帖子详情
-    const mockPost = this.getMockPost(postId);
+    db.collection("posts")
+      .doc(postId)
+      .get()
+      .then((res) => {
+        const post = res.data || null;
+        this.setData({
+          post: post
+            ? {
+                ...post,
+                userInfo: post.userInfo || {
+                  nickName: "匿名用户",
+                  avatarUrl: "/images/default-avatar.png",
+                },
+                stats: post.stats || { view: 0, like: 0, comment: 0 },
+                createTime: this.formatTime(post.createTime),
+              }
+            : null,
+          loading: false,
+        });
 
-    setTimeout(() => {
-      this.setData({
-        post: mockPost,
-        loading: false,
-      });
+        // 初始化收藏状态
+        collectUtil.initCollectStatus(this, "collect_post", postId).catch(() => {
+          // 初始化失败不影响主要功能
+        });
 
-      // 初始化收藏状态
-      collectUtil.initCollectStatus(this, "collect_post", postId).catch(() => {
-        // 初始化失败不影响主要功能
+        // 初始化点赞状态
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
+        if (openid && post) {
+          db.collection("actions")
+            .where({
+              type: "like_post",
+              targetId: postId,
+              _openid: openid,
+            })
+            .get()
+            .then((likeRes) => {
+              this.setData({
+                post: {
+                  ...this.data.post,
+                  liked: likeRes.data.length > 0,
+                },
+              });
+            })
+            .catch(() => {});
+        }
+      })
+      .catch((err) => {
+        console.error("加载帖子详情失败:", err);
+        this.setData({ loading: false });
+        wx.showToast({
+          title: "加载失败",
+          icon: "none",
+        });
       });
-    }, 500);
   },
 
   // 加载评论列表
   loadComments: function (postId) {
-    // 模拟从数据库加载评论
-    const mockComments = this.getMockComments(postId);
+    db.collection("comments")
+      .where({ postId })
+      .orderBy("createTime", "desc")
+      .get()
+      .then((res) => {
+        const rawComments = res.data || [];
+        const commentMap = new Map();
+        const rootComments = [];
 
-    setTimeout(() => {
-      this.setData({
-        comments: mockComments,
+        rawComments.forEach((comment) => {
+          const mapped = {
+            ...comment,
+            createTime: this.formatTime(comment.createTime),
+            likes: comment.likes || 0,
+            liked: false,
+            replies: [],
+          };
+          commentMap.set(comment._id, mapped);
+        });
+
+        rawComments.forEach((comment) => {
+          const mapped = commentMap.get(comment._id);
+          if (comment.parentId) {
+            const parent = commentMap.get(comment.parentId);
+            if (parent) {
+              parent.replies.push(mapped);
+            } else {
+              rootComments.push(mapped);
+            }
+          } else {
+            rootComments.push(mapped);
+          }
+        });
+
+        this.setData({ comments: rootComments });
+        this.initCommentLikeStatus(rawComments.map((item) => item._id));
+      })
+      .catch((err) => {
+        console.error("加载评论失败:", err);
+        this.setData({ comments: [] });
       });
-    }, 300);
+  },
+
+  initCommentLikeStatus: function (commentIds) {
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    if (!openid || commentIds.length === 0) return;
+
+    db.collection("actions")
+      .where(
+        _.or([
+          { type: "like_comment", targetId: _.in(commentIds), _openid: openid },
+          { type: "like_comment", postId: _.in(commentIds), _openid: openid },
+        ])
+      )
+      .get()
+      .then((res) => {
+        const likedIds = new Set(
+          res.data.map((item) => item.targetId || item.postId)
+        );
+
+        const comments = this.data.comments.map((comment) => {
+          const replies = comment.replies
+            ? comment.replies.map((reply) => ({
+                ...reply,
+                liked: likedIds.has(reply._id),
+              }))
+            : [];
+
+          return {
+            ...comment,
+            liked: likedIds.has(comment._id),
+            replies,
+          };
+        });
+
+        this.setData({ comments });
+      })
+      .catch(() => {});
   },
 
   // 点赞帖子
@@ -55,16 +170,95 @@ Page({
     const post = this.data.post;
     if (!post) return;
 
-    wx.showToast({
-      title: post.liked ? "取消点赞" : "点赞成功",
-      icon: "success",
-      duration: 1000,
-    });
+    app
+      .checkLogin()
+      .catch(() => {
+        return new Promise((resolve, reject) => {
+          wx.showModal({
+            title: "提示",
+            content: "请先登录",
+            confirmText: "去登录",
+            cancelText: "取消",
+            success: (res) => {
+              if (res.confirm) {
+                app
+                  .login()
+                  .then(() => resolve())
+                  .catch((err) => reject(err));
+              } else {
+                reject(new Error("未登录"));
+              }
+            },
+          });
+        });
+      })
+      .then(() => {
+        const isLiked = !!post.liked;
+        const currentLike = post.stats?.like || 0;
+        const newLikeCount = isLiked
+          ? Math.max(0, currentLike - 1)
+          : currentLike + 1;
 
-    post.stats.like += post.liked ? -1 : 1;
-    post.liked = !post.liked;
+        const updatedPost = {
+          ...post,
+          liked: !isLiked,
+          stats: {
+            ...post.stats,
+            like: newLikeCount,
+          },
+        };
 
-    this.setData({ post });
+        this.setData({ post: updatedPost });
+
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
+        if (!openid) return;
+
+        if (isLiked) {
+          return db
+            .collection("actions")
+            .where({
+              type: "like_post",
+              targetId: post._id,
+              _openid: openid,
+            })
+            .remove()
+            .then(() => {
+              return db.collection("posts").doc(post._id).update({
+                data: {
+                  "stats.like": db.command.inc(-1),
+                },
+              });
+            })
+            .catch((err) => {
+              console.error("取消点赞失败:", err);
+              this.setData({ post });
+              wx.showToast({ title: "操作失败", icon: "none" });
+            });
+        }
+
+        return db
+          .collection("actions")
+          .add({
+            data: {
+              type: "like_post",
+              targetId: post._id,
+              createTime: db.serverDate(),
+            },
+          })
+          .then(() => {
+            return db.collection("posts").doc(post._id).update({
+              data: {
+                "stats.like": db.command.inc(1),
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("点赞失败:", err);
+            this.setData({ post });
+            wx.showToast({ title: "操作失败", icon: "none" });
+          });
+      })
+      .catch(() => {});
   },
 
   // 显示评论输入框
@@ -109,57 +303,107 @@ Page({
       return;
     }
 
-    // 模拟用户信息
-    const userInfo = {
-      nickName: "当前用户",
-      avatarUrl: "/images/default-avatar.png",
-    };
+    if (!post) return;
 
-    // 创建新评论
-    const newCommentObj = {
-      _id: "comment-" + Date.now(),
-      userInfo: userInfo,
-      content: newComment,
-      replyTo: replyTo,
-      createTime: new Date().toLocaleString("zh-CN"),
-      likes: 0,
-      liked: false,
-    };
+    app
+      .checkLogin()
+      .catch(() => {
+        return new Promise((resolve, reject) => {
+          wx.showModal({
+            title: "提示",
+            content: "请先登录",
+            confirmText: "去登录",
+            cancelText: "取消",
+            success: (res) => {
+              if (res.confirm) {
+                app
+                  .login()
+                  .then(() => resolve())
+                  .catch((err) => reject(err));
+              } else {
+                reject(new Error("未登录"));
+              }
+            },
+          });
+        });
+      })
+      .then(() => {
+        const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+        const commentData = {
+          postId: post._id,
+          parentId: replyTo || "",
+          content: newComment.trim(),
+          postTitle: post.content ? post.content.substring(0, 30) : "",
+          userInfo: userInfo || {
+            nickName: "匿名用户",
+            avatarUrl: "/images/default-avatar.png",
+          },
+          createTime: db.serverDate(),
+          likes: 0,
+        };
 
-    // 添加到评论列表
-    const comments = [...this.data.comments];
+        return db
+          .collection("comments")
+          .add({ data: commentData })
+          .then((res) => {
+            const createdComment = {
+              ...commentData,
+              _id: res._id,
+              createTime: this.formatTime(new Date()),
+              liked: false,
+              replies: [],
+            };
 
-    if (replyTo) {
-      // 如果是回复，找到被回复的评论并添加到其回复列表
-      const parentCommentIndex = comments.findIndex((c) => c._id === replyTo);
-      if (parentCommentIndex !== -1) {
-        if (!comments[parentCommentIndex].replies) {
-          comments[parentCommentIndex].replies = [];
-        }
-        comments[parentCommentIndex].replies.push(newCommentObj);
-      }
-    } else {
-      // 直接评论
-      comments.unshift(newCommentObj);
-    }
+            const comments = [...this.data.comments];
+            if (replyTo) {
+              const parentIndex = comments.findIndex((c) => c._id === replyTo);
+              if (parentIndex !== -1) {
+                const parent = comments[parentIndex];
+                const replies = parent.replies ? [...parent.replies] : [];
+                replies.unshift(createdComment);
+                comments[parentIndex] = {
+                  ...parent,
+                  replies,
+                };
+              } else {
+                comments.unshift(createdComment);
+              }
+            } else {
+              comments.unshift(createdComment);
+            }
 
-    // 更新帖子评论数
-    if (post) {
-      post.stats.comment += 1;
-    }
+            this.setData({
+              comments,
+              newComment: "",
+              showCommentInput: false,
+              replyTo: null,
+              post: {
+                ...post,
+                stats: {
+                  ...post.stats,
+                  comment: (post.stats?.comment || 0) + 1,
+                },
+              },
+            });
 
-    this.setData({
-      comments,
-      post,
-      newComment: "",
-      showCommentInput: false,
-      replyTo: null,
-    });
-
-    wx.showToast({
-      title: "评论成功",
-      icon: "success",
-    });
+            return db.collection("posts").doc(post._id).update({
+              data: {
+                "stats.comment": db.command.inc(1),
+              },
+            });
+          })
+          .then(() => {
+            wx.showToast({
+              title: "评论成功",
+              icon: "success",
+            });
+          })
+          .catch((err) => {
+            console.error("评论失败:", err);
+            wx.showToast({ title: "操作失败", icon: "none" });
+          });
+      })
+      .catch(() => {});
   },
 
   // 点赞评论
@@ -168,26 +412,109 @@ Page({
     const isReply = e.currentTarget.dataset.isreply;
     const parentId = e.currentTarget.dataset.parentid;
 
-    const comments = [...this.data.comments];
-    let comment = null;
+    if (!commentId) return;
 
-    if (isReply && parentId) {
-      // 点赞回复
-      const parentComment = comments.find((c) => c._id === parentId);
-      if (parentComment && parentComment.replies) {
-        comment = parentComment.replies.find((r) => r._id === commentId);
-      }
-    } else {
-      // 点赞主评论
-      comment = comments.find((c) => c._id === commentId);
-    }
+    app
+      .checkLogin()
+      .catch(() => {
+        return new Promise((resolve, reject) => {
+          wx.showModal({
+            title: "提示",
+            content: "请先登录",
+            confirmText: "去登录",
+            cancelText: "取消",
+            success: (res) => {
+              if (res.confirm) {
+                app
+                  .login()
+                  .then(() => resolve())
+                  .catch((err) => reject(err));
+              } else {
+                reject(new Error("未登录"));
+              }
+            },
+          });
+        });
+      })
+      .then(() => {
+        const comments = [...this.data.comments];
+        let comment = null;
 
-    if (comment) {
-      comment.likes += comment.liked ? -1 : 1;
-      comment.liked = !comment.liked;
+        if (isReply && parentId) {
+          const parentComment = comments.find((c) => c._id === parentId);
+          if (parentComment && parentComment.replies) {
+            comment = parentComment.replies.find((r) => r._id === commentId);
+          }
+        } else {
+          comment = comments.find((c) => c._id === commentId);
+        }
 
-      this.setData({ comments });
-    }
+        if (!comment) return;
+
+        const isLiked = !!comment.liked;
+        const currentLikes = comment.likes || 0;
+        const newLikes = isLiked
+          ? Math.max(0, currentLikes - 1)
+          : currentLikes + 1;
+
+        comment.likes = newLikes;
+        comment.liked = !isLiked;
+
+        this.setData({ comments });
+
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
+        if (!openid) return;
+
+        if (isLiked) {
+          return db
+            .collection("actions")
+            .where({
+              type: "like_comment",
+              targetId: commentId,
+              _openid: openid,
+            })
+            .remove()
+            .then(() => {
+              return db.collection("comments").doc(commentId).update({
+                data: {
+                  likes: db.command.inc(-1),
+                },
+              });
+            })
+            .catch((err) => {
+              console.error("取消评论点赞失败:", err);
+              comment.likes = currentLikes;
+              comment.liked = isLiked;
+              this.setData({ comments });
+              wx.showToast({ title: "操作失败", icon: "none" });
+            });
+        }
+
+        return db
+          .collection("actions")
+          .add({
+            data: {
+              type: "like_comment",
+              targetId: commentId,
+              createTime: db.serverDate(),
+            },
+          })
+          .then(() => {
+            return db.collection("comments").doc(commentId).update({
+              data: {
+                likes: db.command.inc(1),
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("评论点赞失败:", err);
+            comment.likes = currentLikes;
+            comment.liked = isLiked;
+            this.setData({ comments });
+            wx.showToast({ title: "操作失败", icon: "none" });
+          });
+      })
+      .catch(() => {});
   },
 
   // 分享帖子
@@ -202,81 +529,18 @@ Page({
     });
   },
 
-  // 模拟帖子详情数据
-  getMockPost: function (postId) {
-    const basePosts = [
-      {
-        _id: "post-detail-1",
-        userInfo: {
-          nickName: "无障碍热心市民",
-          avatarUrl: "/images/default-avatar.png",
-        },
-        content:
-          "今天在社区发现一个很棒的坡道设计，分享给大家参考！坡道坡度合适，两侧有扶手，非常适合轮椅使用者。这个设计考虑了不同用户的需求，包括轮椅使用者、推婴儿车的家长等。坡道表面采用了防滑材料，即使在雨天也能保证安全。",
-        images: ["/images/icon1.jpeg", "/images/icon9.jpeg"],
-        type: "share",
-        stats: { view: 128, like: 24, comment: 8 },
-        createTime: "2024-01-08 10:30:00",
-        liked: false,
-      },
-      {
-        _id: "post-detail-2",
-        userInfo: {
-          nickName: "视障用户小李",
-          avatarUrl: "/images/default-avatar.png",
-        },
-        content:
-          "求助：我们小区盲道被车辆占用严重，有什么好的解决方案吗？希望有经验的朋友分享一下。这种情况已经持续很久了，给我们的出行带来了很大困扰。",
-        images: ["/images/icon9.jpeg"],
-        type: "help",
-        stats: { view: 256, like: 45, comment: 23 },
-        createTime: "2024-01-07 15:20:00",
-        liked: false,
-      },
-    ];
+  formatTime: function (timestamp) {
+    if (!timestamp) return "";
 
-    return basePosts.find((post) => post._id === postId) || basePosts[0];
-  },
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
 
-  // 模拟评论数据
-  getMockComments: function (postId) {
-    return [
-      {
-        _id: "comment-1",
-        userInfo: {
-          nickName: "社区管理员",
-          avatarUrl: "/images/default-avatar.png",
-        },
-        content: "这个坡道设计确实很人性化，感谢分享！",
-        createTime: "2024-01-08 11:00:00",
-        likes: 5,
-        liked: false,
-        replies: [
-          {
-            _id: "reply-1-1",
-            userInfo: {
-              nickName: "原帖作者",
-              avatarUrl: "/images/default-avatar.png",
-            },
-            content: "谢谢认可！希望更多社区能参考这样的设计。",
-            createTime: "2024-01-08 11:15:00",
-            likes: 2,
-            liked: false,
-          },
-        ],
-      },
-      {
-        _id: "comment-2",
-        userInfo: {
-          nickName: "轮椅使用者小王",
-          avatarUrl: "/images/default-avatar.png",
-        },
-        content: "作为轮椅使用者，我觉得这个设计非常实用！",
-        createTime: "2024-01-08 10:45:00",
-        likes: 8,
-        liked: false,
-      },
-    ];
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   },
 
   onShareAppMessage: function () {

@@ -153,7 +153,7 @@
                   bindtap="likeComment" 
                   data-commentid="{{item._id}}" 
                   data-isreply="true" 
-                  data-parentid="{{item._id}}"
+                  data-parentid="{{item.parentId}}"
                   aria-role="button"
                   aria-label="{{item.liked ? '取消点赞' : '点赞'}}回复，当前{{item.likes}}个赞"
                 >

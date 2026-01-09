@@ -9,18 +9,22 @@ Page({
   },
 
   onLoad: function () {
-    // 获取openid
-    const openid = wx.getStorageSync("openid");
-    if (!openid) {
-      wx.showToast({ title: "请先登录", icon: "none" });
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
-      return;
-    }
-
-    // 查询评论列表
-    this.loadCommentsList(openid);
+    app
+      .checkLogin()
+      .then(() => {
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
+        if (!openid) {
+          this.setData({ loading: false });
+          return;
+        }
+        this.loadCommentsList(openid);
+      })
+      .catch(() => {
+        wx.showToast({ title: "请先登录", icon: "none" });
+        setTimeout(() => {
+          wx.navigateBack();
+        }, 1500);
+      });
   },
 
   // 加载评论列表
@@ -59,7 +63,7 @@ Page({
   goToDetail: function (e) {
     const postId = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: "/pages/answer/answer?id=" + postId,
+      url: "/pages/post-detail/index?postId=" + postId,
     });
   },
 });

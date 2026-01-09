@@ -1,5 +1,6 @@
 // 获取全局应用实例
 const app = getApp();
+const collectUtil = require("../../utils/collect.js");
 
 // 初始化云数据库
 const db = wx.cloud.database();
@@ -150,6 +151,8 @@ Page({
     // 只有登录后才获取点赞和收藏状态
     if (app.globalData.openid) {
       that.getActionStatus(postId);
+    } else {
+      collectUtil.initCollectStatus(that, "collect_post", postId).catch(() => {});
     }
   },
   
@@ -168,13 +171,7 @@ Page({
     });
     
     // 获取收藏状态
-    db.collection('actions').where({
-      postId: postId,
-      _openid: openid,
-      type: 'collect_post'
-    }).get().then(res => {
-      that.setData({ isCollected: res.data.length > 0 });
-    });
+    collectUtil.initCollectStatus(that, "collect_post", postId).catch(() => {});
   },
   
   getCommentLikeStatus: function(postId, commentList) {
@@ -290,59 +287,21 @@ Page({
   },
   
   toggleCollect: function() {
-    const that = this;
-    
-    // 1. 检查登录状态
-    this.checkLogin().then(() => {
-      // 2. 获取当前状态
-      const isCollected = this.data.isCollected;
-      const postId = this.data.postId;
-      const { title, heroImage } = this.data.projectDetail;
-      
-      // 3. [关键] 立即更新 UI (震动反馈 + 状态取反)
-      wx.vibrateShort();
-      this.setData({ isCollected: !isCollected });
-      
-      // 4. 后台静默处理云数据库
-      const db = wx.cloud.database();
-      const _cmd = db.command;
-      
-      if (!isCollected) {
-        // 之前没收藏 -> 添加收藏记录
-        db.collection('actions').add({
-          data: {
-            postId: postId,
-            type: 'collect_post',
-            title: title,
-            coverImg: heroImage,
-            createTime: db.serverDate()
-          }
-        }).then(() => {
-          wx.showToast({ title: '收藏成功', icon: 'success' });
-        }).catch(err => {
-          console.error('收藏失败:', err);
-          // 如果失败，回滚 UI
-          that.setData({ isCollected: isCollected });
-          wx.showToast({ title: '收藏失败', icon: 'none' });
-        });
-      } else {
-        // 之前收藏了 -> 删除收藏记录
-        db.collection('actions').where({
-          postId: postId,
-          _openid: app.globalData.openid,
-          type: 'collect_post'
-        }).remove().then(() => {
-          wx.showToast({ title: '已取消收藏', icon: 'success' });
-        }).catch(err => {
-          console.error('取消收藏失败:', err);
-          // 如果失败，回滚 UI
-          that.setData({ isCollected: isCollected });
-          wx.showToast({ title: '取消收藏失败', icon: 'none' });
-        });
-      }
-    }).catch(() => {
-      // 未登录，不做任何操作
-    });
+    const postId = this.data.postId;
+    if (!postId) return;
+
+    const targetData = {
+      title: this.data.projectDetail.title,
+      image: this.data.projectDetail.heroImage
+    };
+
+    collectUtil
+      .toggleCollect(this, "collect_post", postId, targetData)
+      .catch((err) => {
+        console.error("收藏操作失败:", err);
+        this.setData({ isCollected: !this.data.isCollected });
+        wx.showToast({ title: "操作失败，请重试", icon: "none" });
+      });
   },
   
   showCommentInput: function() {

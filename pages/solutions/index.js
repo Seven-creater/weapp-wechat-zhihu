@@ -1,5 +1,7 @@
 // pages/solutions/index.js
 const db = wx.cloud.database();
+const _ = db.command;
+const collectUtil = require("../../utils/collect.js");
 
 Page({
   data: {
@@ -70,14 +72,16 @@ Page({
         const solutions =
           page === 1 ? newSolutions : [...this.data.solutions, ...newSolutions];
 
-        this.setData({
-          solutions,
-          hasMore: newSolutions.length === limit,
-          loading: false,
-        });
+        return this.attachCollectStatus(solutions).then((mergedSolutions) => {
+          this.setData({
+            solutions: mergedSolutions,
+            hasMore: newSolutions.length === limit,
+            loading: false,
+          });
 
-        // 更新浏览量
-        this.updateViewCount(newSolutions);
+          // 更新浏览量
+          this.updateViewCount(newSolutions);
+        });
       })
       .catch((err) => {
         console.error("加载解决方案失败:", err);
@@ -86,6 +90,38 @@ Page({
           title: "加载失败",
           icon: "none",
         });
+      });
+  },
+
+  attachCollectStatus: function (solutions) {
+    const ids = solutions.map((item) => item._id).filter(Boolean);
+    if (ids.length === 0) {
+      return Promise.resolve(solutions);
+    }
+
+    return db
+      .collection("actions")
+      .where(
+        _.or([
+          { type: "collect_solution", targetId: _.in(ids) },
+          { type: "collect_solution", postId: _.in(ids) },
+        ])
+      )
+      .get()
+      .then((res) => {
+        const collectedIds = new Set(
+          res.data.map((item) => item.targetId || item.postId)
+        );
+
+        return solutions.map((item) => ({
+          ...item,
+          isCollected: collectedIds.has(item._id),
+          collectCount: item.collectCount || 0,
+        }));
+      })
+      .catch((err) => {
+        console.error("同步收藏状态失败:", err);
+        return solutions;
       });
   },
 
@@ -200,10 +236,26 @@ Page({
         solutions: updatedSolutions,
       });
 
-      // 跳转到详情页进行完整的收藏操作
-      wx.navigateTo({
-        url: `/pages/solution-detail/index?id=${solutionId}`,
-      });
+      const targetData = {
+        title: solution.title,
+        image: solution.imageUrl || solution.beforeImg || "",
+      };
+
+      collectUtil
+        .toggleCollect(this, "collect_solution", solutionId, targetData)
+        .catch((err) => {
+          console.error("收藏操作失败:", err);
+          const rollbackSolutions = [...this.data.solutions];
+          rollbackSolutions[solutionIndex] = {
+            ...rollbackSolutions[solutionIndex],
+            isCollected: !newIsCollected,
+            collectCount: newIsCollected
+              ? Math.max(0, newCollectCount - 1)
+              : newCollectCount + 1,
+          };
+          this.setData({ solutions: rollbackSolutions });
+          wx.showToast({ title: "操作失败，请重试", icon: "none" });
+        });
     }
   },
 });

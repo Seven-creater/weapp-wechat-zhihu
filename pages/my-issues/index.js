@@ -1,4 +1,5 @@
 // pages/my-issues/index.js
+const app = getApp();
 const db = wx.cloud.database();
 
 Page({
@@ -43,26 +44,33 @@ Page({
 
   // 检查登录状态并加载数据
   checkLoginAndLoad: function () {
-    const userInfo = wx.getStorageSync("userInfo");
-    if (!userInfo) {
-      wx.showModal({
-        title: "未登录",
-        content: "请先登录以查看您的随手拍记录",
-        showCancel: false,
-        confirmText: "去登录",
-        success: (res) => {
-          if (res.confirm) {
-            wx.navigateTo({
-              url: "/pages/mine/index",
-            });
-          }
-        },
+    app
+      .checkLogin()
+      .then(() => {
+        this.loadMyIssues();
+      })
+      .catch(() => {
+        wx.showModal({
+          title: "未登录",
+          content: "请先登录以查看您的随手拍记录",
+          showCancel: false,
+          confirmText: "去登录",
+          success: (res) => {
+            if (res.confirm) {
+              app
+                .login()
+                .then(() => {
+                  this.loadMyIssues();
+                })
+                .catch(() => {
+                  this.setData({ loading: false });
+                });
+            } else {
+              this.setData({ loading: false });
+            }
+          },
+        });
       });
-      this.setData({ loading: false });
-      return;
-    }
-
-    this.loadMyIssues();
   },
 
   // 加载我的随手拍数据
@@ -73,11 +81,21 @@ Page({
 
     const { page, limit } = this.data;
     const skip = (page - 1) * limit;
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+
+    if (!openid) {
+      this.setData({
+        issues: [],
+        loading: false,
+        hasMore: false,
+      });
+      return Promise.resolve();
+    }
 
     return db
       .collection("issues")
       .where({
-        _openid: "{openid}",
+        _openid: openid,
       })
       .orderBy("createTime", "desc")
       .skip(skip)
@@ -87,6 +105,7 @@ Page({
         const newIssues = res.data.map((issue) => ({
           ...issue,
           createTime: this.formatTime(issue.createTime),
+          aiAnalysis: issue.aiSolution || issue.aiAnalysis || "",
         }));
 
         const issues =
@@ -106,7 +125,6 @@ Page({
           loading: false,
           hasMore: false,
         });
-        this.setData({ loading: false });
         wx.showToast({
           title: "加载失败",
           icon: "none",
@@ -128,7 +146,7 @@ Page({
   goToDetail: function (e) {
     const issueId = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: `/pages/case-detail/case-detail?id=${issueId}`,
+      url: `/pages/issue-detail/issue-detail?id=${issueId}`,
     });
   },
 

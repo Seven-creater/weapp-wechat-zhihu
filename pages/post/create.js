@@ -1,3 +1,6 @@
+const app = getApp();
+const db = wx.cloud.database();
+
 Page({
   data: {
     content: '',
@@ -70,9 +73,9 @@ Page({
   // 提交帖子
   submitPost: function() {
     const { content, images, type, submitting } = this.data;
-    
+
     if (submitting) return;
-    
+
     // 验证内容
     if (!content.trim()) {
       wx.showToast({
@@ -81,7 +84,7 @@ Page({
       });
       return;
     }
-    
+
     if (content.trim().length < 5) {
       wx.showToast({
         title: '内容至少5个字',
@@ -89,92 +92,114 @@ Page({
       });
       return;
     }
-    
+
     this.setData({ submitting: true });
-    
+
     // 显示提交中状态
     wx.showLoading({
       title: '发布中...',
       mask: true
     });
-    
-    // 模拟发布过程
-    setTimeout(() => {
-      this.uploadImages(images).then((imageUrls) => {
-        return this.savePostToDatabase(content, imageUrls, type);
-      }).then(() => {
+
+    app
+      .checkLogin()
+      .catch(() => {
+        return new Promise((resolve, reject) => {
+          wx.showModal({
+            title: '提示',
+            content: '请先登录',
+            confirmText: '去登录',
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                app
+                  .login()
+                  .then(() => resolve())
+                  .catch((err) => reject(err));
+              } else {
+                reject(new Error('未登录'));
+              }
+            }
+          });
+        });
+      })
+      .then(() => {
+        return this.uploadImages(images).then((imageUrls) => {
+          return this.savePostToDatabase(content, imageUrls, type);
+        });
+      })
+      .then(() => {
         wx.hideLoading();
         wx.showToast({
           title: '发布成功',
           icon: 'success',
           duration: 1500
         });
-        
+
         // 发布成功后返回社区页面
         setTimeout(() => {
           wx.navigateBack();
         }, 1500);
-        
-      }).catch((error) => {
+      })
+      .catch((error) => {
         wx.hideLoading();
+        if (error && error.message === '未登录') {
+          return;
+        }
         wx.showToast({
           title: '发布失败，请重试',
           icon: 'none'
         });
         console.error('发布失败:', error);
-      }).finally(() => {
+      })
+      .finally(() => {
         this.setData({ submitting: false });
       });
-    }, 1000);
   },
 
-  // 模拟上传图片到云存储
+  // 上传图片到云存储
   uploadImages: function(images) {
-    return new Promise((resolve, reject) => {
-      if (images.length === 0) {
-        resolve([]);
-        return;
-      }
-      
-      // 模拟上传过程
-      setTimeout(() => {
-        const imageUrls = images.map((img, index) => {
-          return `/images/uploaded-${Date.now()}-${index}.jpg`;
-        });
-        resolve(imageUrls);
-      }, 500);
+    if (images.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    const uploads = images.map((filePath, index) => {
+      const fileExt = filePath.split('.').pop() || 'jpg';
+      const cloudPath = `posts/${Date.now()}-${index}.${fileExt}`;
+      return wx.cloud
+        .uploadFile({
+          cloudPath,
+          filePath
+        })
+        .then((res) => res.fileID);
     });
+
+    return Promise.all(uploads);
   },
 
-  // 模拟保存帖子到数据库
+  // 保存帖子到数据库
   savePostToDatabase: function(content, imageUrls, type) {
-    return new Promise((resolve, reject) => {
-      // 模拟用户信息
-      const userInfo = {
-        nickName: '当前用户',
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
+
+    const postData = {
+      userInfo: userInfo || {
+        nickName: '匿名用户',
         avatarUrl: '/images/default-avatar.png'
-      };
-      
-      // 创建帖子数据
-      const postData = {
-        userInfo: userInfo,
-        content: content.trim(),
-        images: imageUrls,
-        type: type,
-        stats: {
-          view: 0,
-          like: 0,
-          comment: 0
-        },
-        createTime: new Date().toLocaleString('zh-CN'),
-        liked: false
-      };
-      
-      // 模拟数据库保存
-      setTimeout(() => {
-        console.log('帖子保存成功:', postData);
-        resolve(postData);
-      }, 300);
+      },
+      content: content.trim(),
+      images: imageUrls,
+      type: type,
+      stats: {
+        view: 0,
+        like: 0,
+        comment: 0
+      },
+      createTime: db.serverDate(),
+      updateTime: db.serverDate()
+    };
+
+    return db.collection('posts').add({
+      data: postData
     });
   },
 

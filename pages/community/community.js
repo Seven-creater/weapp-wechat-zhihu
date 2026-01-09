@@ -1,210 +1,362 @@
+const collectUtil = require("../../utils/collect.js");
+const app = getApp();
+
 Page({
   data: {
     posts: [],
     loading: false,
     hasMore: true,
     page: 1,
-    pageSize: 10
+    pageSize: 10,
   },
 
-  onLoad: function() {
+  onLoad: function () {
     this.loadPosts();
   },
 
-  onShow: function() {
+  onShow: function () {
     // 页面显示时刷新数据
     this.refreshPosts();
   },
 
-  onPullDownRefresh: function() {
+  onPullDownRefresh: function () {
     this.refreshPosts();
   },
 
-  onReachBottom: function() {
+  onReachBottom: function () {
     if (this.data.hasMore && !this.data.loading) {
       this.loadMorePosts();
     }
   },
 
   // 加载帖子列表
-  loadPosts: function() {
+  loadPosts: function () {
     if (this.data.loading) return;
 
     this.setData({ loading: true });
 
-    // 模拟从数据库加载数据
-    const mockPosts = this.getMockPosts();
-    
-    setTimeout(() => {
-      this.setData({
-        posts: mockPosts,
-        loading: false,
-        hasMore: mockPosts.length >= this.data.pageSize
+    const db = wx.cloud.database();
+    const { page, pageSize } = this.data;
+    const skip = (page - 1) * pageSize;
+
+    db.collection("posts")
+      .orderBy("createTime", "desc")
+      .skip(skip)
+      .limit(pageSize)
+      .get()
+      .then((res) => {
+        const newPosts = res.data.map((post) => ({
+          ...post,
+          userInfo: post.userInfo || {
+            nickName: "匿名用户",
+            avatarUrl: "/images/default-avatar.png",
+          },
+          stats: post.stats || { view: 0, like: 0, comment: 0 },
+          createTime: this.formatTime(post.createTime),
+        }));
+
+        const posts =
+          page === 1 ? newPosts : [...this.data.posts, ...newPosts];
+
+        return this.attachActionStatus(posts).then((mergedPosts) => {
+          this.setData({
+            posts: mergedPosts,
+            loading: false,
+            hasMore: newPosts.length >= pageSize,
+          });
+          wx.stopPullDownRefresh();
+        });
+      })
+      .catch((err) => {
+        console.error("加载社区帖子失败:", err);
+        const errMsg = err && err.errMsg ? err.errMsg : String(err || "");
+        this.setData({
+          loading: false,
+          posts: page === 1 ? [] : this.data.posts,
+          hasMore: false,
+        });
+        wx.stopPullDownRefresh();
+        if (errMsg.includes("PERMISSION_DENIED")) {
+          wx.showToast({ title: "云权限不足，请检查posts权限", icon: "none" });
+        } else if (errMsg.includes("COLLECTION_NOT_EXISTS")) {
+          wx.showToast({ title: "posts集合不存在", icon: "none" });
+        } else {
+          wx.showToast({ title: "加载失败", icon: "none" });
+        }
       });
-      wx.stopPullDownRefresh();
-    }, 500);
   },
 
-  // 刷新帖子
-  refreshPosts: function() {
+  attachActionStatus: function (posts) {
+    const ids = posts.map((item) => item._id).filter(Boolean);
+    if (ids.length === 0) {
+      return Promise.resolve(posts);
+    }
+
+    const db = wx.cloud.database();
+    const _ = db.command;
+    const openid = app.globalData.openid;
+
+    return Promise.all([
+      db
+        .collection("actions")
+        .where(
+          _.or([
+            { type: "collect_post", targetId: _.in(ids) },
+            { type: "collect_post", postId: _.in(ids) },
+          ])
+        )
+        .get(),
+      openid
+        ? db
+            .collection("actions")
+            .where(
+              _.or([
+                { type: "like_post", targetId: _.in(ids), _openid: openid },
+                { type: "like_post", postId: _.in(ids), _openid: openid },
+              ])
+            )
+            .get()
+        : Promise.resolve({ data: [] }),
+    ]).then(([collectRes, likeRes]) => {
+      const collectedIds = new Set(
+        collectRes.data.map((item) => item.targetId || item.postId)
+      );
+      const likedIds = new Set(
+        likeRes.data.map((item) => item.targetId || item.postId)
+      );
+
+      return posts.map((item) => ({
+        ...item,
+        isCollected: collectedIds.has(item._id),
+        collectCount: item.collectCount || 0,
+        liked: likedIds.has(item._id),
+      }));
+    });
+  },
+
+  refreshPosts: function () {
     this.setData({
       page: 1,
       posts: [],
-      hasMore: true
+      hasMore: true,
     });
     this.loadPosts();
   },
 
   // 加载更多帖子
-  loadMorePosts: function() {
+  loadMorePosts: function () {
     if (this.data.loading || !this.data.hasMore) return;
 
-    this.setData({ loading: true });
-
-    // 模拟加载更多数据
-    const morePosts = this.getMockPosts(this.data.page + 1);
-    
-    setTimeout(() => {
-      this.setData({
-        posts: [...this.data.posts, ...morePosts],
-        page: this.data.page + 1,
-        loading: false,
-        hasMore: morePosts.length >= this.data.pageSize
-      });
-    }, 500);
+    this.setData({ page: this.data.page + 1 });
+    this.loadPosts();
   },
 
   // 跳转到帖子详情
-  goToDetail: function(e) {
+  goToDetail: function (e) {
     const postId = e.currentTarget.dataset.postid;
     wx.navigateTo({
-      url: '/pages/post-detail/index?postId=' + postId
+      url: "/pages/post-detail/index?postId=" + postId,
     });
   },
 
   // 点赞帖子
-  likePost: function(e) {
+  likePost: function (e) {
     const postId = e.currentTarget.dataset.postid;
     const index = e.currentTarget.dataset.index;
-    
-    wx.showToast({
-      title: '点赞成功',
-      icon: 'success',
-      duration: 1000
-    });
 
-    // 更新本地数据
-    const posts = this.data.posts;
-    posts[index].stats.like += 1;
-    posts[index].liked = true;
-    
-    this.setData({ posts });
+    if (!postId) return;
+
+    app
+      .checkLogin()
+      .catch(() => {
+        return new Promise((resolve, reject) => {
+          wx.showModal({
+            title: "提示",
+            content: "请先登录",
+            confirmText: "去登录",
+            cancelText: "取消",
+            success: (res) => {
+              if (res.confirm) {
+                app
+                  .login()
+                  .then(() => resolve())
+                  .catch((err) => reject(err));
+              } else {
+                reject(new Error("未登录"));
+              }
+            },
+          });
+        });
+      })
+      .then(() => {
+        const posts = [...this.data.posts];
+        const post = posts[index];
+        if (!post) return;
+
+        const isLiked = !!post.liked;
+        const currentLike = post.stats?.like || 0;
+        const newLikeCount = isLiked
+          ? Math.max(0, currentLike - 1)
+          : currentLike + 1;
+
+        posts[index] = {
+          ...post,
+          liked: !isLiked,
+          stats: {
+            ...post.stats,
+            like: newLikeCount,
+          },
+        };
+
+        this.setData({ posts });
+
+        const db = wx.cloud.database();
+        const openid = app.globalData.openid;
+
+        if (!openid) return;
+
+        if (isLiked) {
+          return db
+            .collection("actions")
+            .where({
+              type: "like_post",
+              targetId: postId,
+              _openid: openid,
+            })
+            .remove()
+            .then(() => {
+              return db.collection("posts").doc(postId).update({
+                data: {
+                  "stats.like": db.command.inc(-1),
+                },
+              });
+            })
+            .catch((err) => {
+              console.error("取消点赞失败:", err);
+              posts[index] = post;
+              this.setData({ posts });
+              wx.showToast({ title: "操作失败", icon: "none" });
+            });
+        }
+
+        return db
+          .collection("actions")
+          .add({
+            data: {
+              type: "like_post",
+              targetId: postId,
+              createTime: db.serverDate(),
+            },
+          })
+          .then(() => {
+            return db.collection("posts").doc(postId).update({
+              data: {
+                "stats.like": db.command.inc(1),
+              },
+            });
+          })
+          .catch((err) => {
+            console.error("点赞失败:", err);
+            posts[index] = post;
+            this.setData({ posts });
+            wx.showToast({ title: "操作失败", icon: "none" });
+          });
+      })
+      .catch(() => {});
   },
 
   // 跳转到发布页面
-  goToCreatePost: function() {
+  goToCreatePost: function () {
     wx.navigateTo({
-      url: '/pages/post/create'
+      url: "/pages/post/create",
     });
   },
 
-  // 模拟帖子数据
-  getMockPosts: function(page = 1) {
-    const basePosts = [
-      {
-        _id: 'post-' + Date.now() + '-1',
-        userInfo: {
-          nickName: '无障碍热心市民',
-          avatarUrl: '/images/default-avatar.png'
-        },
-        content: '今天在社区发现一个很棒的坡道设计，分享给大家参考！坡道坡度合适，两侧有扶手，非常适合轮椅使用者。',
-        images: ['/images/icon1.jpeg'],
-        type: 'share',
-        stats: { view: 128, like: 24, comment: 8 },
-        createTime: '2024-01-08 10:30:00',
-        liked: false
-      },
-      {
-        _id: 'post-' + Date.now() + '-2',
-        userInfo: {
-          nickName: '视障用户小李',
-          avatarUrl: '/images/default-avatar.png'
-        },
-        content: '求助：我们小区盲道被车辆占用严重，有什么好的解决方案吗？希望有经验的朋友分享一下。',
-        images: ['/images/icon9.jpeg'],
-        type: 'help',
-        stats: { view: 256, like: 45, comment: 23 },
-        createTime: '2024-01-07 15:20:00',
-        liked: false
-      },
-      {
-        _id: 'post-' + Date.now() + '-3',
-        userInfo: {
-          nickName: '无障碍随手拍用户',
-          avatarUrl: '/images/default-avatar.png'
-        },
-        content: '自动同步：发现某商场入口台阶过高，缺少无障碍坡道，已通过随手拍功能上报相关部门。',
-        images: [],
-        type: 'issue',
-        stats: { view: 89, like: 12, comment: 3 },
-        createTime: '2024-01-07 09:15:00',
-        liked: false
-      }
-    ];
-
-    return basePosts.map(post => ({
-      ...post,
-      _id: post._id.replace('post-', 'post-' + page + '-')
-    }));
-  },
-
   // 更新帖子收藏状态（从详情页回传）
-  updatePostStatus: function(postId, status) {
-    const posts = this.data.posts
-    const postIndex = posts.findIndex(item => item._id === postId)
-    
+  updatePostStatus: function (postId, status) {
+    const posts = this.data.posts;
+    const postIndex = posts.findIndex((item) => item._id === postId);
+
     if (postIndex !== -1) {
       // 更新对应帖子的收藏状态
-      const updatedPosts = [...posts]
+      const updatedPosts = [...posts];
       updatedPosts[postIndex] = {
         ...updatedPosts[postIndex],
         isCollected: status.isCollected,
-        collectCount: status.collectCount
-      }
-      
+        collectCount: status.collectCount,
+      };
+
       this.setData({
-        posts: updatedPosts
-      })
+        posts: updatedPosts,
+      });
     }
   },
 
   // 收藏帖子（列表页直接操作）
-  collectPost: function(e) {
-    const postId = e.currentTarget.dataset.postid
-    const index = e.currentTarget.dataset.index
-    const posts = this.data.posts
-    
+  collectPost: function (e) {
+    const postId = e.currentTarget.dataset.postid;
+    const index = e.currentTarget.dataset.index;
+    const posts = this.data.posts;
+
     if (index >= 0 && index < posts.length) {
-      const post = posts[index]
-      const newIsCollected = !post.isCollected
-      const newCollectCount = newIsCollected ? (post.collectCount || 0) + 1 : Math.max(0, (post.collectCount || 0) - 1)
-      
+      const post = posts[index];
+      const newIsCollected = !post.isCollected;
+      const newCollectCount = newIsCollected
+        ? (post.collectCount || 0) + 1
+        : Math.max(0, (post.collectCount || 0) - 1);
+
       // 乐观更新UI
-      const updatedPosts = [...posts]
+      const updatedPosts = [...posts];
       updatedPosts[index] = {
         ...updatedPosts[index],
         isCollected: newIsCollected,
-        collectCount: newCollectCount
-      }
-      
+        collectCount: newCollectCount,
+      };
+
       this.setData({
-        posts: updatedPosts
-      })
-      
-      // 跳转到详情页进行完整的收藏操作
-      wx.navigateTo({
-        url: `/pages/post-detail/index?postId=${postId}`
-      })
+        posts: updatedPosts,
+      });
+
+      const targetData = {
+        title: post.content?.substring(0, 30) || "未命名帖子",
+        image: post.images?.[0] || "",
+      };
+
+      collectUtil
+        .toggleCollect(this, "collect_post", postId, targetData)
+        .catch((err) => {
+          console.error("收藏操作失败:", err);
+          const rollbackPosts = [...this.data.posts];
+          rollbackPosts[index] = {
+            ...rollbackPosts[index],
+            isCollected: !newIsCollected,
+            collectCount: newIsCollected
+              ? Math.max(0, newCollectCount - 1)
+              : newCollectCount + 1,
+          };
+          this.setData({ posts: rollbackPosts });
+          wx.showToast({ title: "操作失败，请重试", icon: "none" });
+        });
     }
-  }
-})
+  },
+
+  sharePost: function () {
+    wx.showShareMenu({
+      withShareTicket: true,
+    });
+  },
+
+  formatTime: function (timestamp) {
+    if (!timestamp) return "";
+
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  },
+});

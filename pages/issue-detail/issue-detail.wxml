@@ -1,0 +1,43 @@
+<view class="issue-detail-container">
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">
+      <image class="back-icon" src="/images/arrow-right-yellow.png" style="transform: rotate(180deg);"></image>
+    </view>
+    <text class="title">问题详情</text>
+    <view class="header-right"></view>
+  </view>
+
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view class="content" wx:if="{{issue && !loading}}">
+    <view class="image-wrapper" wx:if="{{issue.imageUrl}}">
+      <image class="issue-image" src="{{issue.imageUrl}}" mode="aspectFill" bindtap="previewImage" data-src="{{issue.imageUrl}}"></image>
+      <view class="status-tag {{issue.status === 'pending' ? 'waiting' : 'submitted'}}">
+        {{issue.status === 'pending' ? '待处理' : '已上报'}}
+      </view>
+    </view>
+
+    <view class="info-card">
+      <text class="info-title">位置信息</text>
+      <text class="info-text">{{issue.address || '位置信息获取中'}}</text>
+      <text class="info-subtext">{{issue.formattedAddress || ''}}</text>
+    </view>
+
+    <view class="info-card">
+      <text class="info-title">AI建议</text>
+      <text class="info-text">{{issue.aiSolution || '暂无AI建议'}}</text>
+    </view>
+
+    <view class="info-card">
+      <text class="info-title">上报时间</text>
+      <text class="info-text">{{issue.createTime}}</text>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{!issue && !loading}}">
+    <image class="empty-icon" src="/images/empty-issues.png"></image>
+    <text class="empty-text">未找到问题详情</text>
+  </view>
+</view>

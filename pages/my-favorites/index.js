@@ -1,6 +1,7 @@
 // 我的收藏列表页
 const app = getApp();
 const db = wx.cloud.database();
+const _ = db.command;
 
 Page({
   data: {
@@ -9,22 +10,29 @@ Page({
   },
 
   onLoad: function () {
-    // 获取openid
-    const openid = wx.getStorageSync("openid");
-    if (!openid) {
-      wx.showToast({ title: "请先登录", icon: "none" });
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
-      return;
-    }
+    this.ensureLoginAndLoad();
+  },
 
-    // 查询收藏列表
-    this.loadFavoritesList(openid);
+  onShow: function () {
+    this.ensureLoginAndLoad();
+  },
+
+  ensureLoginAndLoad: function () {
+    app
+      .checkLogin()
+      .then(() => {
+        this.loadFavoritesList();
+      })
+      .catch(() => {
+        wx.showToast({ title: "请先登录", icon: "none" });
+        setTimeout(() => {
+          wx.navigateBack();
+        }, 1500);
+      });
   },
 
   // 加载收藏列表
-  loadFavoritesList: function (openid) {
+  loadFavoritesList: function () {
     const that = this;
     that.setData({ loading: true });
 
@@ -32,20 +40,26 @@ Page({
     // 注意：_openid 由微信云开发系统自动处理，不需要手动设置
     db.collection("actions")
       .where({
-        type: db.command.in(["collect_solution", "collect_post"]),
+        type: _.in(["collect_solution", "collect_post", "collect"]),
       })
       .orderBy("createTime", "desc")
       .get()
       .then((res) => {
-        const favoritesList = res.data.map((item) => ({
-          _id: item._id,
-          targetId: item.targetId,
-          title: item.title || "未命名项目",
-          image: item.image || "../../images/default-avatar.png",
-          type: item.type,
-          targetRoute: item.targetRoute,
-          createTime: item.createTime,
-        }));
+        const favoritesList = res.data.map((item) => {
+          const normalizedType =
+            item.type === "collect" ? "collect_post" : item.type;
+          const targetId = item.targetId || item.postId;
+          const image = item.image || item.coverImg || "../../images/default-avatar.png";
+          return {
+            _id: item._id,
+            targetId: targetId,
+            title: item.title || "未命名项目",
+            image: image,
+            type: normalizedType,
+            targetRoute: item.targetRoute,
+            createTime: item.createTime,
+          };
+        });
 
         that.setData({
           favoritesList: favoritesList,
@@ -73,7 +87,7 @@ Page({
     let targetUrl = "";
     switch (item.type) {
       case "collect_solution":
-        targetUrl = "/pages/solution-detail/index?solutionId=" + item.targetId;
+        targetUrl = "/pages/solution-detail/index?id=" + item.targetId;
         break;
       case "collect_post":
         targetUrl = "/pages/post-detail/index?postId=" + item.targetId;

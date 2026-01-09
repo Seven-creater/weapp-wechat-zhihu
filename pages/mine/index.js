@@ -27,60 +27,69 @@ Page({
   syncUserData: function () {
     if (!this.data.userInfo) return;
 
-    // 使用本地存储的openid，避免云函数调用
-    const openid = wx.getStorageSync("openid") || "local_user_" + Date.now();
-
-    // 如果没有openid，生成一个本地ID
-    if (!wx.getStorageSync("openid")) {
-      wx.setStorageSync("openid", openid);
-    }
-
-    // 更新或创建用户信息
-    db.collection("users")
-      .where({
-        _openid: openid,
-      })
-      .get()
-      .then((queryRes) => {
-        if (queryRes.data.length === 0) {
-          // 新用户，创建记录
-          db.collection("users").add({
-            data: {
-              ...this.data.userInfo,
-              _openid: openid,
-              createTime: db.serverDate(),
-              lastLoginTime: db.serverDate(),
-              loginCount: 1,
-            },
+    const app = getApp();
+    const ensureOpenid = app.globalData.openid
+      ? Promise.resolve(app.globalData.openid)
+      : app
+          .loginWithCloud()
+          .then((openid) => {
+            app.globalData.openid = openid;
+            wx.setStorageSync("openid", openid);
+            return openid;
           });
-        } else {
-          // 老用户，更新登录信息
-          db.collection("users")
-            .doc(queryRes.data[0]._id)
-            .update({
-              data: {
-                lastLoginTime: db.serverDate(),
-                loginCount: db.command.inc(1),
-              },
-            });
-        }
+
+    ensureOpenid
+      .then((openid) => {
+        // 更新或创建用户信息
+        db.collection("users")
+          .where({
+            _openid: openid,
+          })
+          .get()
+          .then((queryRes) => {
+            if (queryRes.data.length === 0) {
+              // 新用户，创建记录
+              db.collection("users").add({
+                data: {
+                  ...this.data.userInfo,
+                  _openid: openid,
+                  createTime: db.serverDate(),
+                  lastLoginTime: db.serverDate(),
+                  loginCount: 1,
+                },
+              });
+            } else {
+              // 老用户，更新登录信息
+              db.collection("users")
+                .doc(queryRes.data[0]._id)
+                .update({
+                  data: {
+                    lastLoginTime: db.serverDate(),
+                    loginCount: db.command.inc(1),
+                  },
+                });
+            }
+          })
+          .catch((err) => {
+            console.error("用户集合查询失败:", err);
+            // 集合不存在时，创建新用户记录
+            db.collection("users")
+              .add({
+                data: {
+                  ...this.data.userInfo,
+                  _openid: openid,
+                  createTime: db.serverDate(),
+                  lastLoginTime: db.serverDate(),
+                  loginCount: 1,
+                },
+              })
+              .catch((addErr) => {
+                console.error("创建用户记录失败:", addErr);
+              });
+          });
       })
       .catch((err) => {
-        console.error("用户集合查询失败:", err);
-        // 集合不存在时，创建新用户记录
-        db.collection("users")
-          .add({
-            data: {
-              ...this.data.userInfo,
-              _openid: openid,
-              createTime: db.serverDate(),
-              lastLoginTime: db.serverDate(),
-              loginCount: 1,
-            },
-          })
-          .catch((addErr) => {
-            console.error("创建用户记录失败:", addErr);
-          });
+        console.error("获取openid失败:", err);
       });
   },
 

@@ -1,5 +1,6 @@
 // 引入云开发能力
 wx.cloud.init();
+const app = getApp();
 
 Page({
   data: {
@@ -237,7 +238,8 @@ Page({
    */
   saveIssue: function(tempFilePath, fileID, location, aiSolution) {
     const db = wx.cloud.database();
-    
+    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+
     // 构建数据库记录
     const issueData = {
       imageUrl: fileID, // 云存储文件ID
@@ -254,16 +256,16 @@ Page({
       data: issueData,
       success: (res) => {
         // 同时自动在社区发布一条帖子
-        this.createCommunityPost(res._id, fileID, location, aiSolution).then(() => {
+        this.createCommunityPost(res._id, fileID, location, aiSolution, userInfo).then(() => {
           wx.showToast({
             title: '反馈成功！已同步到社区',
             icon: 'success',
             duration: 2000
           });
-          
+
           // 重新加载最近反馈
           this.loadRecentReports();
-          
+
           // 跳转到详情页
           wx.navigateTo({
             url: '../issue-detail/issue-detail?id=' + res._id
@@ -295,9 +297,9 @@ Page({
   /**
    * 自动在社区创建帖子
    */
-  createCommunityPost: function(issueId, fileID, location, aiSolution) {
+  createCommunityPost: function(issueId, fileID, location, aiSolution, userInfo) {
     const db = wx.cloud.database();
-    
+
     // 构建社区帖子数据
     const postData = {
       issueId: issueId, // 关联的路障问题ID
@@ -308,7 +310,11 @@ Page({
       address: location.address, // 详细地址
       stats: { view: 0, like: 0, comment: 0 }, // 初始统计数据
       createTime: db.serverDate(), // 创建时间
-      updateTime: db.serverDate() // 更新时间
+      updateTime: db.serverDate(), // 更新时间
+      userInfo: userInfo || {
+        nickName: "匿名用户",
+        avatarUrl: "/images/default-avatar.png",
+      },
     };
 
     return db.collection('posts').add({

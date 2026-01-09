@@ -11,6 +11,7 @@
     "pages/solutions/index",
     "pages/solution-detail/index",
     "pages/my-issues/index",
+    "pages/issue-detail/issue-detail",
     "pages/post-detail/index",
     "pages/post/create"
   ],

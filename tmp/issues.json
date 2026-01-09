@@ -1,0 +1,2 @@
+{"_id":"ba046a62696084a30b4bec2d569f57d4","formattedAddress":"地址待补充","imageUrl":"cloud://your-env-id/placeholder.jpg","location":{"coordinates":[121.47,31.23],"type":"Point"},"status":"pending","address":"地址待补充","aiSolution":"示例AI建议","createTime":{"$date":"2026-01-09T04:31:31.314Z"}}
+{"_id":"8656c024696085200b46223a78c5acbb","location":{"coordinates":[121.47,31.23],"type":"Point"},"status":"pending","address":"地址待补充","aiSolution":"示例AI建议","createTime":{"$date":"2026-01-09T04:33:36.445Z"},"formattedAddress":"地址待补充","imageUrl":"cloud://your-env-id/placeholder.jpg"}

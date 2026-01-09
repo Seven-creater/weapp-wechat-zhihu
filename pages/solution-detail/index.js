@@ -12,8 +12,9 @@ Page({
   },
 
   onLoad: function (options) {
-    if (options.id) {
-      this.loadSolutionDetail(options.id);
+    const solutionId = options.id || options.solutionId;
+    if (solutionId) {
+      this.loadSolutionDetail(solutionId);
     }
   },
 
