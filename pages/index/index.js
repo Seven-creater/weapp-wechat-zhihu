@@ -95,8 +95,27 @@ Page({
           return;
         }
 
-        // 2. 获取当前位置
-        that.getLocation().then(location => {
+        // 2. 优先使用已有的定位信息，避免重新定位
+        let locationPromise;
+        const existingAddress = that.data.currentAddress;
+        const existingLocation = that.data.currentLocation;
+
+        if (existingAddress && existingAddress !== '定位中' && existingLocation) {
+          // 首页已有有效定位，直接使用
+          console.log('使用首页已有的定位信息:', existingAddress);
+          locationPromise = Promise.resolve({
+            latitude: existingLocation.latitude,
+            longitude: existingLocation.longitude,
+            address: existingAddress,
+            formattedAddress: existingAddress
+          });
+        } else {
+          // 没有有效定位，需要重新获取
+          console.log('首页暂无定位信息，开始获取...');
+          locationPromise = that.getLocation();
+        }
+
+        locationPromise.then(location => {
           // 保存临时草稿，进入编辑页
           wx.setStorageSync("issueDraftTemp", {
             images: tempFilePaths,
