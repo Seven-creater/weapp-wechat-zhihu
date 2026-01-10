@@ -15,7 +15,7 @@
   <!-- 帖子列表 -->
   <view class="post-list">
     <view 
-      class="post-item" 
+      class="post-card" 
       wx:for="{{posts}}" 
       wx:key="_id" 
       bindtap="goToDetail" 
@@ -23,103 +23,103 @@
       aria-role="button"
       aria-label="查看{{item.userInfo.nickName}}的帖子：{{item.content.substring(0, 50)}}..."
     >
-      <!-- 帖子头部：用户信息 -->
-      <view class="post-header">
-        <image class="avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true"></image>
-        <view class="user-info">
-          <text class="user-name">{{item.userInfo.nickName}}</text>
-          <text class="post-time">{{item.createTime}}</text>
-        </view>
-        <view class="post-type" wx:if="{{item.type}}">
-          <text class="type-tag type-{{item.type}}">
-            {{item.type === 'help' ? '求助' : item.type === 'share' ? '分享' : '路障反馈'}}
-          </text>
-        </view>
-      </view>
-
-      <!-- 帖子内容 -->
-      <view class="post-content">
-        <text class="content-text" user-select="true">{{item.content}}</text>
-      </view>
-
-      <!-- 标签区域 -->
-      <view class="post-tags" wx:if="{{item.tags && item.tags.length > 0}}">
-        <view class="tag-item" wx:for="{{item.tags}}" wx:key="index" wx:for-item="tag">
-          <text class="tag-text">{{tag}}</text>
+      <!-- 1. 头部：头像 + 信息 + 标签 -->
+      <view class="card-header">
+        <image class="avatar" src="{{item.userInfo.avatarUrl}}" mode="aspectFill"></image>
+        <view class="info-box">
+          <view class="name-row">
+            <text class="nickname">{{item.userInfo.nickName}}</text>
+            <view class="tag" wx:if="{{item.type === 'issue'}}">路障反馈</view>
+            <view class="tag tag-help" wx:elif="{{item.type === 'help'}}">求助</view>
+            <view class="tag tag-share" wx:elif="{{item.type === 'share'}}">分享</view>
+          </view>
+          <text class="time">{{item.createTime}}</text>
         </view>
       </view>
 
-      <!-- 定位信息 -->
-      <view class="post-location" wx:if="{{item.address}}">
-        <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
-        <text class="location-text">{{item.address}}</text>
-      </view>
+      <!-- 2. 内容区 -->
+      <view class="card-content">
+        <text class="content-text">{{item.content}}</text>
+        
+        <!-- 标签区域 -->
+        <view class="post-tags" wx:if="{{item.tags && item.tags.length > 0}}">
+          <view class="tag-item" wx:for="{{item.tags}}" wx:key="index" wx:for-item="tag">
+            <text class="tag-text">{{tag}}</text>
+          </view>
+        </view>
 
-      <!-- 图片展示（九宫格） -->
-      <view class="post-images" wx:if="{{item.images && item.images.length > 0}}">
-        <view class="image-grid">
-          <image 
-            class="post-image" 
-            wx:for="{{item.images}}" 
-            wx:key="index" 
-            wx:for-item="img"
-            src="{{img}}" 
-            mode="aspectFill"
-            bindtap="previewImage"
-            data-postid="{{item._id}}"
-            data-current="{{img}}"
-            data-urls="{{item.images}}"
-            aria-label="帖子图片{{index + 1}}"
-          ></image>
+        <!-- 定位信息 -->
+        <view class="post-location" wx:if="{{item.address}}">
+          <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
+          <text class="location-text">{{item.address}}</text>
+        </view>
+
+        <!-- 图片区域 -->
+        <view class="post-images" wx:if="{{item.images && item.images.length > 0}}">
+          <view class="image-grid">
+            <image 
+              class="content-img" 
+              wx:for="{{item.images}}" 
+              wx:key="index" 
+              wx:for-item="img"
+              src="{{img}}" 
+              mode="aspectFill"
+              bindtap="previewImage"
+              data-postid="{{item._id}}"
+              data-current="{{img}}"
+              data-urls="{{item.images}}"
+              aria-label="帖子图片{{index + 1}}"
+            ></image>
+          </view>
         </view>
       </view>
 
-      <!-- 底部操作栏 -->
-      <view class="post-actions">
+      <!-- 3. 底部操作栏 -->
+      <view class="card-footer">
         <view 
-          class="action-btn like-btn {{item.liked ? 'liked' : ''}}" 
-          bindtap="likePost" 
+          class="action-btn" 
+          catchtap="likePost" 
           data-postid="{{item._id}}" 
           data-index="{{index}}"
           aria-role="button"
           aria-label="{{item.liked ? '取消点赞' : '点赞'}}，当前{{item.stats.like}}个赞"
         >
-          <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}.png" aria-hidden="true"></image>
-          <text class="action-text">{{item.stats.like}}</text>
+          <image class="icon" src="/images/like{{item.liked ? '-active' : ''}}.png" aria-hidden="true"></image>
+          <text class="num">{{item.stats.like}}</text>
         </view>
 
         <view 
-          class="action-btn comment-btn" 
-          bindtap="goToDetail" 
+          class="action-btn" 
+          catchtap="goToDetail" 
           data-postid="{{item._id}}"
           aria-role="button"
           aria-label="查看评论，当前{{item.stats.comment}}条评论"
         >
-          <image class="action-icon" src="/images/comment.png" aria-hidden="true"></image>
-          <text class="action-text">{{item.stats.comment}}</text>
+          <image class="icon" src="/images/comment.png" aria-hidden="true"></image>
+          <text class="num">{{item.stats.comment}}</text>
         </view>
 
         <view 
-          class="action-btn share-btn" 
-          bindtap="sharePost" 
+          class="action-btn" 
+          catchtap="sharePost" 
           data-postid="{{item._id}}"
           aria-role="button"
           aria-label="分享帖子"
         >
-          <image class="action-icon" src="/images/share.png" aria-hidden="true"></image>
-          <text class="action-text">分享</text>
+          <image class="icon" src="/images/share.png" aria-hidden="true"></image>
+          <text class="num">分享</text>
         </view>
 
         <view 
-          class="action-btn collect-btn {{item.isCollected ? 'collected' : ''}}" 
-          bindtap="collectPost" 
+          class="action-btn" 
+          catchtap="collectPost" 
           data-postid="{{item._id}}"
           data-index="{{index}}"
           aria-role="button"
           aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount || 0}}人收藏"
         >
-          <image class="action-icon" src="{{item.isCollected ? '/images/star2.png' : '/images/star.png'}}" aria-hidden="true"></image>
-          <text class="action-text">{{item.collectCount || 0}}</text>
+          <image class="icon" src="{{item.isCollected ? '/images/star2.png' : '/images/star.png'}}" aria-hidden="true"></image>
+          <text class="num">{{item.collectCount || 0}}</text>
         </view>
       </view>
     </view>
