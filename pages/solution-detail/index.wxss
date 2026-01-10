@@ -9,7 +9,7 @@ page {
 .hero-section {
   position: relative;
   width: 100%;
-  height: 420rpx;
+  height: 500rpx;
 }
 
 .hero-img {

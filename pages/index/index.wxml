@@ -30,10 +30,6 @@
   </view>
 
   <view class="features-section">
-    <view class="section-header">
-      <text class="section-title">快捷功能</text>
-    </view>
-    
     <view class="features-grid">
       <view class="feature-card" bindtap="navigateToSolutions" aria-role="button" aria-label="AI无障碍方案库">
         <view class="feature-icon-wrap bg-solution">

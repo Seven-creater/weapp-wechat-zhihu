@@ -198,8 +198,18 @@
 }
 
 .action-icon {
+  font-size: 36rpx;
+  margin-right: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 44rpx;
   height: 44rpx;
+}
+
+.action-icon.heart-icon,
+.action-icon.star-icon {
+  font-size: 36rpx;
   margin-right: 8rpx;
 }
 

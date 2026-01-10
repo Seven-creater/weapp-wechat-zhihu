@@ -84,12 +84,7 @@
           aria-role="button"
           aria-label="{{item.liked ? '取消点赞' : '点赞'}}，当前{{item.stats.like}}个赞"
         >
-          <image 
-            class="icon" 
-            src="{{item.liked ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
-            mode="aspectFit"
-            aria-hidden="true"
-          ></image>
+          <text class="icon heart-icon">{{item.liked ? '❤️' : '🤍'}}</text>
           <text class="num {{item.liked ? 'liked-text' : ''}}">{{item.stats.like}}</text>
         </view>
 
@@ -123,12 +118,7 @@
           aria-role="button"
           aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount || 0}}人收藏"
         >
-          <image 
-            class="icon" 
-            src="{{item.isCollected ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
-            mode="aspectFit"
-            aria-hidden="true"
-          ></image>
+          <text class="icon star-icon">{{item.isCollected ? '⭐' : '☆'}}</text>
           <text class="num {{item.isCollected ? 'collected-text' : ''}}">{{item.collectCount || 0}}</text>
         </view>
       </view>

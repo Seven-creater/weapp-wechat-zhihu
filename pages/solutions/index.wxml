@@ -45,18 +45,6 @@
         <text class="solution-desc">{{item.aiAnalysis}}</text>
         <view class="solution-meta">
           <text class="view-count">{{item.viewCount || 0}} 浏览</text>
-          <view class="collect-info" 
-                wx:if="{{item.collectCount !== undefined}}" 
-                bindtap="collectSolution" 
-                data-id="{{item._id}}" 
-                catchtap="true"
-                aria-role="button"
-                aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount}}人收藏">
-            <image class="collect-icon {{item.isCollected ? 'collected' : ''}}" 
-                   src="{{item.isCollected ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
-                   mode="aspectFit"></image>
-            <text class="collect-count {{item.isCollected ? 'collected-text' : ''}}">{{item.collectCount}}</text>
-          </view>
         </view>
       </view>
     </view>
