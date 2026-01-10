@@ -19,6 +19,9 @@
       <view class="login-arrow" wx:if="{{!userInfo.nickName}}">
         <image src="/images/arrow-right.png" class="arrow-icon" aria-hidden="true"></image>
       </view>
+      <view class="edit-tip" wx:if="{{userInfo.nickName}}">
+        <text>编辑资料</text>
+      </view>
     </view>
   </view>
 

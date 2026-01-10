@@ -1,0 +1,84 @@
+/* 个人资料编辑页 */
+.profile-edit-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 32rpx;
+}
+
+.header-card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.06);
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 80rpx;
+  border: 4rpx solid #ffd700;
+}
+
+.avatar-btn {
+  background: #002fa7;
+  color: #ffffff;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  padding: 10rpx 28rpx;
+}
+
+.name-section {
+  margin-top: 24rpx;
+}
+
+.label {
+  display: block;
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 12rpx;
+}
+
+.name-input {
+  background: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  font-size: 30rpx;
+  color: #333333;
+}
+
+.quick-actions {
+  margin-top: 24rpx;
+}
+
+.wechat-btn {
+  width: 100%;
+  background: #ffd700;
+  color: #002fa7;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  padding: 18rpx 0;
+}
+
+.footer-actions {
+  margin-top: 48rpx;
+}
+
+.save-btn {
+  width: 100%;
+  background: #002fa7;
+  color: #ffffff;
+  border-radius: 999rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  padding: 20rpx 0;
+}

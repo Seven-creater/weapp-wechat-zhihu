@@ -54,6 +54,15 @@
   opacity: 0.9;
 }
 
+.edit-tip {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
 .login-arrow {
   width: 40rpx;
   height: 40rpx;

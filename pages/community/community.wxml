@@ -35,6 +35,17 @@
             {{item.type === 'help' ? '求助' : item.type === 'share' ? '分享' : '路障反馈'}}
           </text>
         </view>
+        <view
+          class="delete-btn"
+          wx:if="{{item.isOwner}}"
+          bindtap="deletePost"
+          data-postid="{{item._id}}"
+          data-index="{{index}}"
+          aria-role="button"
+          aria-label="删除帖子"
+        >
+          <text>删除</text>
+        </view>
       </view>
 
       <!-- 帖子内容 -->

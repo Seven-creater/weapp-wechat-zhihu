@@ -36,16 +36,29 @@
   padding: 24rpx 32rpx 40rpx;
 }
 
+.image-scroll {
+  display: flex;
+  gap: 16rpx;
+  overflow-x: auto;
+  padding: 10rpx 20rpx 20rpx;
+}
+
+.image-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.image-scroll .issue-image {
+  width: 420rpx;
+  height: 280rpx;
+  border-radius: 16rpx;
+}
+
 .image-wrapper {
   position: relative;
   border-radius: 20rpx;
   overflow: hidden;
   background: #ffffff;
-}
-
-.issue-image {
-  width: 100%;
-  height: 420rpx;
+  margin-bottom: 20rpx;
 }
 
 .status-tag {

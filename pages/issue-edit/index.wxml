@@ -1,0 +1,96 @@
+<view class="issue-edit-container">
+  <view class="header">
+    <view class="back-btn" bindtap="handleCancel" aria-role="button" aria-label="返回">
+      <image class="back-icon" src="/images/arrow-right-yellow.png" style="transform: rotate(180deg);"></image>
+    </view>
+    <text class="title">问题编辑</text>
+    <view class="header-right"></view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">问题说明</text>
+    <textarea
+      class="description-input"
+      placeholder="请描述问题现状..."
+      value="{{description}}"
+      maxlength="500"
+      show-confirm-bar="false"
+      bindinput="onDescriptionInput"
+      aria-label="问题说明"
+    ></textarea>
+    <view class="word-count">{{description.length}}/500</view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">现场照片</text>
+      <text class="section-subtitle">{{images.length}}/9</text>
+    </view>
+    <view class="image-list">
+      <view
+        class="image-item"
+        wx:for="{{images}}"
+        wx:key="index"
+        aria-role="button"
+        aria-label="图片{{index + 1}}"
+      >
+        <image
+          class="uploaded-image"
+          src="{{item.path}}"
+          mode="aspectFill"
+          bindtap="previewImage"
+          data-src="{{item.path}}"
+        ></image>
+        <view class="remove-btn" bindtap="removeImage" data-index="{{index}}" aria-role="button" aria-label="删除图片">
+          <text class="remove-icon" aria-hidden="true">×</text>
+        </view>
+      </view>
+      <view class="add-image-btn" wx:if="{{images.length < 9}}" bindtap="chooseImage" aria-role="button" aria-label="添加图片">
+        <image class="add-icon" src="/images/add-image.png" aria-hidden="true"></image>
+        <text class="add-text">继续添加</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">位置信息</text>
+      <view class="reselect-btn" bindtap="chooseLocation" aria-role="button" aria-label="重新定位">
+        <text>重新选点</text>
+      </view>
+    </view>
+    <text class="location-text">{{formattedAddress || address || '暂未选择位置'}}</text>
+  </view>
+
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">AI 方案</text>
+      <view class="ai-btn" bindtap="generateAISolution" aria-role="button" aria-label="生成AI方案">
+        <text>{{aiSolution ? '重新生成' : '生成方案'}}</text>
+      </view>
+    </view>
+    <view class="ai-content">
+      <text class="ai-text" user-select="true">{{aiSolution || '尚未生成 AI 方案'}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="switch-row">
+      <text class="switch-label">同步到社区</text>
+      <switch checked="{{syncToCommunity}}" bindchange="onSyncChange" aria-label="同步到社区"></switch>
+    </view>
+  </view>
+
+  <view class="footer-actions">
+    <button class="submit-btn" bindtap="submitIssue" aria-label="提交">
+      提交并生成方案库
+    </button>
+  </view>
+
+  <view class="loading-mask" wx:if="{{generatingAI || submitting}}">
+    <view class="loading-content">
+      <image class="loading-icon" src="/images/loading.gif" aria-hidden="true"></image>
+      <text class="loading-text">{{generatingAI ? 'AI 生成中...' : '提交中...'}} </text>
+    </view>
+  </view>
+</view>

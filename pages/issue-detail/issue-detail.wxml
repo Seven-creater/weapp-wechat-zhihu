@@ -12,7 +12,24 @@
   </view>
 
   <view class="content" wx:if="{{issue && !loading}}">
-    <view class="image-wrapper" wx:if="{{issue.imageUrl}}">
+    <view class="image-wrapper" wx:if="{{issue.images && issue.images.length > 0}}">
+      <view class="image-scroll">
+        <image
+          class="issue-image"
+          wx:for="{{issue.images}}"
+          wx:key="index"
+          src="{{item}}"
+          mode="aspectFill"
+          bindtap="previewImage"
+          data-src="{{item}}"
+        ></image>
+      </view>
+      <view class="status-tag {{issue.status === 'pending' ? 'waiting' : 'submitted'}}">
+        {{issue.status === 'pending' ? '待处理' : '已上报'}}
+      </view>
+    </view>
+
+    <view class="image-wrapper" wx:elif="{{issue.imageUrl}}">
       <image class="issue-image" src="{{issue.imageUrl}}" mode="aspectFill" bindtap="previewImage" data-src="{{issue.imageUrl}}"></image>
       <view class="status-tag {{issue.status === 'pending' ? 'waiting' : 'submitted'}}">
         {{issue.status === 'pending' ? '待处理' : '已上报'}}
@@ -23,6 +40,11 @@
       <text class="info-title">位置信息</text>
       <text class="info-text">{{issue.address || '位置信息获取中'}}</text>
       <text class="info-subtext">{{issue.formattedAddress || ''}}</text>
+    </view>
+
+    <view class="info-card">
+      <text class="info-title">问题说明</text>
+      <text class="info-text">{{issue.description || '暂无描述'}}</text>
     </view>
 
     <view class="info-card">

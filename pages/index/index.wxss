@@ -44,6 +44,50 @@ image {
   gap: 80rpx;
 }
 
+/* 位置卡片 */
+.location-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+  margin-bottom: 40rpx;
+}
+
+.location-info {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex: 1;
+}
+
+.location-icon {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.location-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #0a2463;
+}
+
+.location-action {
+  background: #0a2463;
+  color: #ffffff;
+  border-radius: 999rpx;
+  padding: 12rpx 24rpx;
+}
+
+.location-action-text {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+
 /* 拍照按钮 */
 .camera-button {
   width: 400rpx;

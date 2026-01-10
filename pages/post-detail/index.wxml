@@ -14,6 +14,16 @@
         </text>
       </view>
     </view>
+    <view
+      class="delete-btn"
+      wx:if="{{post.isOwner}}"
+      bindtap="deletePost"
+      data-postid="{{post._id}}"
+      aria-role="button"
+      aria-label="删除帖子"
+    >
+      删除
+    </view>
 
     <!-- 帖子内容 -->
     <view class="post-content">
@@ -114,9 +124,9 @@
             </view>
             <text class="comment-text" user-select="true">{{item.content}}</text>
             <view class="comment-actions">
-              <view 
-                class="comment-action like-action {{item.liked ? 'liked' : ''}}" 
-                bindtap="likeComment" 
+              <view
+                class="comment-action like-action {{item.liked ? 'liked' : ''}}"
+                bindtap="likeComment"
                 data-commentid="{{item._id}}"
                 aria-role="button"
                 aria-label="{{item.liked ? '取消点赞' : '点赞'}}评论，当前{{item.likes}}个赞"
@@ -124,14 +134,24 @@
                 <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
                 <text class="action-text">{{item.likes}}</text>
               </view>
-              <view 
-                class="comment-action reply-action" 
-                bindtap="showCommentInput" 
+              <view
+                class="comment-action reply-action"
+                bindtap="showCommentInput"
                 data-replyto="{{item._id}}"
                 aria-role="button"
                 aria-label="回复{{item.userInfo.nickName}}的评论"
               >
                 <text class="action-text">回复</text>
+              </view>
+              <view
+                class="comment-action delete-action"
+                wx:if="{{item.isOwner}}"
+                bindtap="deleteComment"
+                data-commentid="{{item._id}}"
+                aria-role="button"
+                aria-label="删除评论"
+              >
+                <text class="action-text">删除</text>
               </view>
             </view>
           </view>
@@ -160,14 +180,26 @@
                   <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
                   <text class="action-text">{{item.likes}}</text>
                 </view>
-                <view 
-                  class="reply-action reply-action" 
-                  bindtap="showCommentInput" 
+                <view
+                  class="reply-action reply-action"
+                  bindtap="showCommentInput"
                   data-replyto="{{item._id}}"
                   aria-role="button"
                   aria-label="回复{{item.userInfo.nickName}}的评论"
                 >
                   <text class="action-text">回复</text>
+                </view>
+                <view
+                  class="reply-action delete-action"
+                  wx:if="{{item.isOwner}}"
+                  bindtap="deleteComment"
+                  data-commentid="{{item._id}}"
+                  data-isreply="true"
+                  data-parentid="{{item.parentId}}"
+                  aria-role="button"
+                  aria-label="删除回复"
+                >
+                  <text class="action-text">删除</text>
                 </view>
               </view>
             </view>

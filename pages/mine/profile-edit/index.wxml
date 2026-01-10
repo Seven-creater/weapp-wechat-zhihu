@@ -1,0 +1,45 @@
+<view class="profile-edit-container">
+  <view class="header-card">
+    <view class="avatar-section">
+      <image class="avatar" src="{{form.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true"></image>
+      <button
+        class="avatar-btn"
+        bindtap="chooseAvatar"
+        aria-label="更换头像"
+      >
+        更换头像
+      </button>
+    </view>
+    <view class="name-section">
+      <text class="label">昵称</text>
+      <input
+        class="name-input"
+        placeholder="请输入昵称"
+        value="{{form.nickName}}"
+        maxlength="20"
+        bindinput="onNameInput"
+        aria-label="昵称输入框"
+      />
+    </view>
+  </view>
+
+  <view class="quick-actions">
+    <button
+      class="wechat-btn"
+      bindtap="syncWechatProfile"
+      aria-label="同步微信头像昵称"
+    >
+      同步微信头像昵称
+    </button>
+  </view>
+
+  <view class="footer-actions">
+    <button
+      class="save-btn"
+      bindtap="saveProfile"
+      aria-label="保存资料"
+    >
+      保存
+    </button>
+  </view>
+</view>

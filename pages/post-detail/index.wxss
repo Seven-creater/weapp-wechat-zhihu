@@ -20,13 +20,14 @@
   display: flex;
   align-items: center;
   margin-bottom: 30rpx;
+  gap: 20rpx;
 }
 
 .avatar {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  margin-right: 20rpx;
+  margin-right: 0;
   border: 3rpx solid #ffd700;
 }
 
@@ -48,7 +49,7 @@
 }
 
 .post-type {
-  margin-left: 20rpx;
+  margin-left: 0;
 }
 
 .type-tag {
@@ -69,6 +70,14 @@
 
 .type-issue {
   background-color: #ff9800;
+}
+
+.delete-btn {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #ff4d4f;
+  color: #ffffff;
+  font-size: 22rpx;
 }
 
 /* 帖子内容 */
@@ -294,6 +303,16 @@
 
 .like-action.liked .action-text {
   color: #ff4444;
+}
+
+.reply-action.delete-action,
+.comment-action.delete-action {
+  background-color: #fff1f0;
+}
+
+.reply-action.delete-action .action-text,
+.comment-action.delete-action .action-text {
+  color: #ff4d4f;
 }
 
 /* 回复列表 */

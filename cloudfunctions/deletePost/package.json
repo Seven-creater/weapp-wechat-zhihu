@@ -1,0 +1,5 @@
+{
+  "name": "deletePost",
+  "version": "1.0.0",
+  "description": "Delete post with cascade cleanup"
+}

@@ -1,15 +1,25 @@
 // 引入云开发能力
 wx.cloud.init();
 const app = getApp();
+const QQMapWX = require("../../utils/qqmap-wx-jssdk.js");
+const TENCENT_MAP_KEY = "QTABZ-SI5CL-JMMPF-MJMVG-AND33-UHFCE";
+let qqmapsdk = null;
 
 Page({
   data: {
     recentReports: [], // 最近反馈列表
     isUploading: false, // 是否正在上传
-    hasLocationPermission: true // 是否有定位权限
+    hasLocationPermission: true, // 是否有定位权限
+    currentAddress: "",
+    currentLocation: null
   },
 
   onLoad: function() {
+    if (!qqmapsdk) {
+      qqmapsdk = new QQMapWX({
+        key: TENCENT_MAP_KEY
+      });
+    }
     // 检查定位权限
     this.checkLocationPermission();
     // 加载最近反馈
@@ -64,26 +74,36 @@ Page({
    */
   takePhoto: function() {
     const that = this;
-    
+
     // 1. 调用相机或相册选择图片
     wx.chooseMedia({
-      count: 1,
+      count: 9,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       maxDuration: 30,
       camera: 'back',
       success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
-        
+        const tempFilePaths = res.tempFiles
+          .map((file) => file.tempFilePath)
+          .filter(Boolean);
+
+        if (tempFilePaths.length === 0) {
+          wx.showToast({
+            title: '未选择图片',
+            icon: 'none'
+          });
+          return;
+        }
+
         // 2. 获取当前位置
         that.getLocation().then(location => {
-          // 3. 上传图片到云存储
-          that.uploadImage(tempFilePath).then(fileID => {
-            // 4. 调用AI分析
-            that.analyzeIssue(fileID, location).then(aiSolution => {
-              // 5. 保存到数据库
-              that.saveIssue(tempFilePath, fileID, location, aiSolution);
-            });
+          // 保存临时草稿，进入编辑页
+          wx.setStorageSync("issueDraftTemp", {
+            images: tempFilePaths,
+            location: location
+          });
+          wx.navigateTo({
+            url: "/pages/issue-edit/index?fromCapture=1"
           });
         }).catch(err => {
           console.error('获取位置失败:', err);
@@ -104,47 +124,75 @@ Page({
   },
 
   /**
-   * 获取当前位置信息
+   * 重新选择位置
+   */
+  reselectLocation: function() {
+    this.chooseLocationManual();
+  },
+
+  /**
+   * 获取当前位置（优先自动定位）
    */
   getLocation: function() {
+    return this.getAutoLocation().catch(() => this.chooseLocationManual());
+  },
+
+  /**
+   * 自动定位 + 逆地理
+   */
+  getAutoLocation: function() {
     return new Promise((resolve, reject) => {
       wx.getLocation({
-        type: 'gcj02',
+        type: "gcj02",
         altitude: true,
         success: (res) => {
           const { latitude, longitude } = res;
-          
-          // 逆地理编码获取详细地址
-          wx.request({
-            url: 'https://apis.map.qq.com/ws/geocoder/v1/',
-            data: {
-              location: `${latitude},${longitude}`,
-              key: 'YOUR_TENCENT_MAP_KEY' // 请替换为腾讯地图API密钥
+          if (!qqmapsdk) {
+            return reject(new Error("未初始化地图SDK"));
+          }
+          qqmapsdk.reverseGeocoder({
+            location: {
+              latitude,
+              longitude
             },
             success: (result) => {
-              if (result.data.status === 0) {
-                resolve({
-                  latitude,
-                  longitude,
-                  address: result.data.result.address,
-                  formattedAddress: result.data.result.formatted_addresses.recommend
-                });
-              } else {
-                resolve({
-                  latitude,
-                  longitude,
-                  address: '获取地址失败',
-                  formattedAddress: '获取地址失败'
-                });
-              }
-            },
-            fail: () => {
-              resolve({
+              const address =
+                (result.result && result.result.address) || "";
+              const formattedAddress =
+                (result.result &&
+                  result.result.formatted_addresses &&
+                  result.result.formatted_addresses.recommend) ||
+                address;
+              const location = {
                 latitude,
                 longitude,
-                address: '获取地址失败',
-                formattedAddress: '获取地址失败'
+                address: address || "定位成功",
+                formattedAddress: formattedAddress || address || "定位成功"
+              };
+              this.setData({
+                currentAddress: location.formattedAddress || location.address,
+                currentLocation: {
+                  latitude,
+                  longitude
+                }
               });
+              resolve(location);
+            },
+            fail: () => {
+              const location = {
+                latitude,
+                longitude,
+                address: "定位成功",
+                formattedAddress: "定位成功"
+              };
+              this.setData({
+                currentAddress: location.formattedAddress,
+                currentLocation: {
+                  latitude,
+                  longitude
+                }
+              });
+              resolve(location);
             }
           });
         },
@@ -153,6 +201,50 @@ Page({
         }
       });
     });
+  },
+
+  /**
+   * 手动选点
+   */
+  chooseLocationManual: function() {
+    return new Promise((resolve, reject) => {
+      wx.chooseLocation({
+        success: (res) => {
+          const latitude = res.latitude;
+          const longitude = res.longitude;
+          const location = {
+            latitude,
+            longitude,
+            address: res.address || res.name || "手动选点",
+            formattedAddress: res.address || res.name || "手动选点"
+          };
+          this.setData({
+            currentAddress: location.formattedAddress || location.address,
+            currentLocation: {
+              latitude,
+              longitude
+            }
+          });
+          resolve(location);
+        },
+        fail: (err) => {
+          reject(err);
+        }
+      });
+    });
+  },
+
+  /**
+   * 上传多张图片到云存储
+   */
+  uploadImages: function(tempFilePaths) {
+    if (!Array.isArray(tempFilePaths) || tempFilePaths.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return Promise.all(
+      tempFilePaths.map((tempFilePath) => this.uploadImage(tempFilePath))
+    );
   },
 
   /**
@@ -192,11 +284,11 @@ Page({
    * 调用AI分析问题
    */
   analyzeIssue: function(fileID, location) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       // 显示加载提示，添加遮罩防止用户误操作
-      wx.showLoading({ 
-        title: 'AI正在诊断现场...', 
-        mask: true 
+      wx.showLoading({
+        title: 'AI正在诊断现场...',
+        mask: true
       });
 
       // 设置超时提醒，3秒后显示温馨提示
@@ -236,13 +328,16 @@ Page({
   /**
    * 保存问题到数据库
    */
-  saveIssue: function(tempFilePath, fileID, location, aiSolution) {
+  saveIssue: function(fileIDs, location, aiSolution) {
     const db = wx.cloud.database();
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+    const coverImage = Array.isArray(fileIDs) ? fileIDs[0] : fileIDs;
+    const images = Array.isArray(fileIDs) ? fileIDs : [fileIDs];
 
     // 构建数据库记录
     const issueData = {
-      imageUrl: fileID, // 云存储文件ID
+      imageUrl: coverImage, // 首图
+      images: images, // 全部图片
       location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
       address: location.address, // 详细地址
       formattedAddress: location.formattedAddress, // 格式化地址
@@ -256,7 +351,7 @@ Page({
       data: issueData,
       success: (res) => {
         // 同时自动在社区发布一条帖子
-        this.createCommunityPost(res._id, fileID, location, aiSolution, userInfo).then(() => {
+        this.createCommunityPost(res._id, images, location, aiSolution, userInfo).then(() => {
           wx.showToast({
             title: '反馈成功！已同步到社区',
             icon: 'success',
@@ -297,14 +392,15 @@ Page({
   /**
    * 自动在社区创建帖子
    */
-  createCommunityPost: function(issueId, fileID, location, aiSolution, userInfo) {
+  createCommunityPost: function(issueId, images, location, aiSolution, userInfo) {
     const db = wx.cloud.database();
+    const postImages = Array.isArray(images) ? images : [images];
 
     // 构建社区帖子数据
     const postData = {
       issueId: issueId, // 关联的路障问题ID
       content: `自动同步：发现${location.address}存在无障碍问题。\nAI诊断：${aiSolution}\n欢迎大家讨论解决方案！`,
-      images: [fileID], // 使用同一张图片
+      images: postImages, // 使用同一组图片
       type: 'issue', // 帖子类型：路障反馈
       location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
       address: location.address, // 详细地址
@@ -322,7 +418,6 @@ Page({
     });
   }
 });
-
 // 数据库 schema 定义
 /**
  * issues 集合结构

@@ -13,7 +13,9 @@
     "pages/my-issues/index",
     "pages/issue-detail/issue-detail",
     "pages/post-detail/index",
-    "pages/post/create"
+    "pages/post/create",
+    "pages/issue-edit/index",
+    "pages/mine/profile-edit/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -22,6 +24,15 @@
     "navigationBarTextStyle": "black",
     "enablePullDownRefresh": true
   },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "我们需要获取您的当前位置，以便自动定位无障碍问题发生的地点"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ],
   "tabBar": {
     "color": "#999999",
     "selectedColor": "#FFD700",

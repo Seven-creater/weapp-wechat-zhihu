@@ -96,7 +96,10 @@ Page({
   // 处理登录
   handleLogin: function () {
     if (this.data.userInfo) {
-      return; // 已登录，不重复登录
+      wx.navigateTo({
+        url: "/pages/mine/profile-edit/index",
+      });
+      return;
     }
 
     wx.getUserProfile({

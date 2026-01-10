@@ -32,6 +32,7 @@ Page({
       .get()
       .then((res) => {
         const post = res.data || null;
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
         this.setData({
           post: post
             ? {
@@ -42,6 +43,7 @@ Page({
                 },
                 stats: post.stats || { view: 0, like: 0, comment: 0 },
                 createTime: this.formatTime(post.createTime),
+                isOwner: openid ? post._openid === openid : false,
               }
             : null,
           loading: false,
@@ -53,7 +55,6 @@ Page({
         });
 
         // 初始化点赞状态
-        const openid = app.globalData.openid || wx.getStorageSync("openid");
         if (openid && post) {
           db.collection("actions")
             .where({
@@ -91,16 +92,22 @@ Page({
       .get()
       .then((res) => {
         const rawComments = res.data || [];
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
         const commentMap = new Map();
         const rootComments = [];
 
         rawComments.forEach((comment) => {
           const mapped = {
             ...comment,
+            userInfo: comment.userInfo || {
+              nickName: "匿名用户",
+              avatarUrl: "/images/default-avatar.png",
+            },
             createTime: this.formatTime(comment.createTime),
             likes: comment.likes || 0,
             liked: false,
             replies: [],
+            isOwner: openid ? comment._openid === openid : false,
           };
           commentMap.set(comment._id, mapped);
         });
@@ -515,6 +522,107 @@ Page({
           });
       })
       .catch(() => {});
+  },
+
+  // 删除帖子
+  deletePost: function (e) {
+    const postId = e.currentTarget.dataset.postid;
+    if (!postId) return;
+
+    wx.showModal({
+      title: "确认删除",
+      content: "删除后评论和点赞会一并清理，是否继续？",
+      confirmText: "删除",
+      confirmColor: "#ff4d4f",
+      success: (res) => {
+        if (!res.confirm) return;
+
+        wx.showLoading({ title: "删除中...", mask: true });
+
+        wx.cloud
+          .callFunction({
+            name: "deletePost",
+            data: { postId },
+          })
+          .then((result) => {
+            const success = result && result.result && result.result.success;
+            if (!success) {
+              throw new Error(
+                (result && result.result && result.result.error) || "删除失败"
+              );
+            }
+
+            wx.showToast({ title: "已删除", icon: "success" });
+            wx.navigateBack();
+          })
+          .catch((err) => {
+            console.error("删除帖子失败:", err);
+            wx.showToast({ title: "删除失败", icon: "none" });
+          })
+          .finally(() => {
+            wx.hideLoading();
+          });
+      },
+    });
+  },
+
+  // 删除评论/回复
+  deleteComment: function (e) {
+    const commentId = e.currentTarget.dataset.commentid;
+    const postId = this.data.post?._id;
+    if (!commentId || !postId) return;
+
+    wx.showModal({
+      title: "确认删除",
+      content: "删除后该评论及回复将被清理，是否继续？",
+      confirmText: "删除",
+      confirmColor: "#ff4d4f",
+      success: (res) => {
+        if (!res.confirm) return;
+
+        wx.showLoading({ title: "删除中...", mask: true });
+
+        wx.cloud
+          .callFunction({
+            name: "deleteComment",
+            data: { commentId, postId },
+          })
+          .then((result) => {
+            const success = result && result.result && result.result.success;
+            if (!success) {
+              throw new Error(
+                (result && result.result && result.result.error) || "删除失败"
+              );
+            }
+
+            const removedCount = result.result.removed || 1;
+
+            this.loadComments(postId);
+
+            this.setData({
+              post: {
+                ...this.data.post,
+                stats: {
+                  ...this.data.post.stats,
+                  comment: Math.max(
+                    0,
+                    (this.data.post.stats?.comment || 0) - removedCount
+                  ),
+                },
+              },
+            });
+
+            wx.showToast({ title: "已删除", icon: "success" });
+          })
+          .catch((err) => {
+            console.error("删除评论失败:", err);
+            wx.showToast({ title: "删除失败", icon: "none" });
+          })
+          .finally(() => {
+            wx.hideLoading();
+          });
+      },
+    });
   },
 
   // 分享帖子

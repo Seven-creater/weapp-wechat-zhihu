@@ -88,12 +88,12 @@
           aria-role="button"
           aria-label="图片{{index + 1}}，点击预览"
         >
-          <image 
-            class="uploaded-image" 
-            src="{{item}}" 
+          <image
+            class="uploaded-image"
+            src="{{item.path || item}}"
             mode="aspectFill"
             bindtap="previewImage"
-            data-src="{{item}}"
+            data-src="{{item.path || item}}"
           ></image>
           <view 
             class="remove-btn" 

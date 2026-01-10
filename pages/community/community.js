@@ -45,6 +45,7 @@ Page({
       .limit(pageSize)
       .get()
       .then((res) => {
+        const openid = app.globalData.openid || wx.getStorageSync("openid");
         const newPosts = res.data.map((post) => ({
           ...post,
           userInfo: post.userInfo || {
@@ -53,6 +54,7 @@ Page({
           },
           stats: post.stats || { view: 0, like: 0, comment: 0 },
           createTime: this.formatTime(post.createTime),
+          isOwner: openid ? post._openid === openid : false,
         }));
 
         const posts =
@@ -338,6 +340,56 @@ Page({
           wx.showToast({ title: "操作失败，请重试", icon: "none" });
         });
     }
+  },
+
+  deletePost: function (e) {
+    const postId = e.currentTarget.dataset.postid;
+    const index = e.currentTarget.dataset.index;
+
+    if (!postId) return;
+
+    wx.showModal({
+      title: "确认删除",
+      content: "删除后评论和点赞会一并清理，是否继续？",
+      confirmText: "删除",
+      confirmColor: "#ff4d4f",
+      success: (res) => {
+        if (!res.confirm) return;
+
+        wx.showLoading({ title: "删除中...", mask: true });
+
+        wx.cloud
+          .callFunction({
+            name: "deletePost",
+            data: { postId }
+          })
+          .then((result) => {
+            const success = result && result.result && result.result.success;
+            if (!success) {
+              throw new Error(
+                (result && result.result && result.result.error) || "删除失败"
+              );
+            }
+
+            const posts = [...this.data.posts];
+            if (index >= 0) {
+              posts.splice(index, 1);
+            } else {
+              const next = posts.filter((item) => item._id !== postId);
+              posts.splice(0, posts.length, ...next);
+            }
+            this.setData({ posts });
+            wx.showToast({ title: "已删除", icon: "success" });
+          })
+          .catch((err) => {
+            console.error("删除帖子失败:", err);
+            wx.showToast({ title: "删除失败", icon: "none" });
+          })
+          .finally(() => {
+            wx.hideLoading();
+          });
+      }
+    });
   },
 
   sharePost: function () {

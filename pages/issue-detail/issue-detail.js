@@ -60,8 +60,13 @@ Page({
   previewImage: function (e) {
     const src = e.currentTarget.dataset.src;
     if (!src) return;
+    const issue = this.data.issue || {};
+    const urls = Array.isArray(issue.images) && issue.images.length > 0
+      ? issue.images
+      : [src];
     wx.previewImage({
-      urls: [src],
+      current: src,
+      urls
     });
   },
 

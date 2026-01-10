@@ -124,9 +124,13 @@
   background-color: #FF9800;
 }
 
-/* 帖子内容 */
-.post-content {
-  margin-bottom: 30rpx;
+.delete-btn {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: #ff4d4f;
+  color: #ffffff;
+  font-size: 22rpx;
+  margin-left: 16rpx;
 }
 
 .content-text {
