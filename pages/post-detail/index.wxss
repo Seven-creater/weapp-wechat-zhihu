@@ -16,22 +16,22 @@
 }
 
 /* 帖子头部 */
-.post-header {
+.user-info-card {
   display: flex;
   align-items: center;
-  margin-bottom: 30rpx;
+  margin-bottom: 20rpx;
 }
 
 .avatar {
-  width: 100rpx;
-  height: 100rpx;
+  width: 90rpx;
+  height: 90rpx;
   border-radius: 50%;
-  margin-right: 20rpx;
-  border: 3rpx solid var(--color-accent);
+  margin-right: 24rpx;
+  background-color: #eee;
   flex-shrink: 0;
 }
 
-.user-info {
+.info-right {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -41,61 +41,60 @@
 .name-row {
   display: flex;
   align-items: center;
+  margin-bottom: 8rpx;
 }
 
-.user-name {
-  font-size: 36rpx;
+.nickname {
+  font-size: 32rpx;
   font-weight: bold;
-  color: var(--color-text-primary);
+  color: #333;
   margin-right: 16rpx;
 }
 
-.post-type {
-  margin-left: 16rpx;
+/* 标签样式优化 */
+.tag-badge {
+  background: linear-gradient(90deg, #ff9800, #ffb74d);
+  color: #fff;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  line-height: 1;
 }
 
-.type-tag {
-  padding: 6rpx 16rpx;
-  border-radius: 12rpx;
-  font-size: 24rpx;
-  font-weight: bold;
-  color: #ffffff;
-  line-height: 1.4;
+.tag-help {
+  background: linear-gradient(90deg, #e64340, #ff6b6b);
 }
 
-.type-help {
-  background-color: var(--color-error);
+.tag-share {
+  background: linear-gradient(90deg, #00b42a, #34c759);
 }
 
-.type-share {
-  background-color: var(--color-success);
-}
-
-.type-issue {
-  background-color: #ff9800;
+.tag-icon {
+  margin-right: 4rpx;
+  font-size: 16rpx;
 }
 
 .time-row {
   display: flex;
   align-items: center;
-  margin-left: auto;
+  justify-content: space-between;
 }
 
-.post-time {
+.time {
   font-size: 24rpx;
-  color: var(--color-text-secondary);
+  color: #999;
 }
 
+/* 删除按钮样式 - 红色圆角 */
 .delete-btn {
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  background: transparent;
+  background-color: #ff4d4f;
+  color: #ffffff;
+  font-size: 22rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 20rpx;
   margin-left: 20rpx;
-}
-
-.delete-icon {
-  width: 32rpx;
-  height: 32rpx;
 }
 
 /* 帖子内容 */
@@ -465,100 +464,45 @@
 }
 
 /* 底部评论输入栏 - 关键修复 */
-.comment-input-bar {
+.footer-input-bar {
   position: fixed;
-  bottom: -100%;
+  bottom: 0;
   left: 0;
-  right: 0;
+  width: 100%;
+  height: 110rpx;
   background-color: #ffffff;
-  border-top: 1rpx solid #eee;
-  padding: 20rpx 40rpx;
-  transition: bottom 0.3s ease-in-out;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  padding: 0 30rpx;
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom);
   z-index: 999;
 }
 
-.comment-input-bar.active {
-  bottom: 0;
-}
-
-.input-container {
+.input-wrapper {
+  flex: 1;
+  height: 72rpx;
+  background-color: #f5f5f5;
+  border-radius: 36rpx;
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  padding: 0 30rpx;
+  margin-right: 20rpx;
 }
 
-.comment-input {
-  flex: 1;
-  background-color: #f5f5f5;
-  border-radius: 40rpx;
-  padding: 20rpx 30rpx;
+.input-field {
+  width: 100%;
+  height: 100%;
   font-size: 28rpx;
   color: #333;
-  min-height: 72rpx;
 }
 
-.input-actions {
-  display: flex;
-  gap: 15rpx;
-}
-
-.cancel-btn,
-.submit-btn {
-  padding: 15rpx 25rpx;
-  border-radius: 20rpx;
-  font-size: 28rpx;
+.send-btn {
+  font-size: 30rpx;
+  color: #002fa7;
   font-weight: bold;
-  transition: background-color var(--transition-fast);
-}
-
-.cancel-btn {
-  background-color: #f8f8f8;
-  color: #666;
-}
-
-.cancel-btn:active {
-  background-color: #e0e0e0;
-}
-
-.submit-btn {
-  background-color: var(--color-primary);
-  color: #ffffff;
-}
-
-.submit-btn:active {
-  background-color: var(--color-primary-dark);
-}
-
-/* 固定评论按钮 */
-.fixed-comment-btn {
-  position: fixed;
-  bottom: 40rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 15rpx;
-  background-color: var(--color-primary);
-  color: #ffffff;
-  padding: 20rpx 40rpx;
-  border-radius: 50rpx;
-  box-shadow: 0 8rpx 30rpx rgba(0, 47, 167, 0.4);
-  z-index: 900;
-  transition: transform var(--transition-normal);
-}
-
-.fixed-comment-btn:active {
-  transform: translateX(-50%) scale(0.95);
-}
-
-.comment-icon {
-  width: 32rpx;
-  height: 32rpx;
-}
-
-.btn-text {
-  font-size: 28rpx;
-  font-weight: bold;
+  padding: 10rpx;
 }
 
 /* 加载状态 */

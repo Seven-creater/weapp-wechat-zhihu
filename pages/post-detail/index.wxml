@@ -2,29 +2,42 @@
   <!-- 帖子详情内容 -->
   <view class="post-content-section" wx:if="{{post}}">
     <!-- 帖子头部 -->
-    <view class="post-header">
-      <image class="avatar" src="{{post.userInfo.avatarUrl}}" aria-hidden="true"></image>
-      <view class="user-info">
+    <view class="user-info-card">
+      <image class="avatar" src="{{post.userInfo.avatarUrl}}" mode="aspectFill" aria-hidden="true"></image>
+      
+      <view class="info-right">
+        <!-- 第一行：名字 + 标签 -->
         <view class="name-row">
-          <text class="user-name">{{post.userInfo.nickName}}</text>
-          <view class="post-type" wx:if="{{post.type}}">
-            <text class="type-tag type-{{post.type}}">
-              {{post.type === 'help' ? '求助' : post.type === 'share' ? '分享' : '路障反馈'}}
-            </text>
+          <text class="nickname">{{post.userInfo.nickName}}</text>
+          <!-- 路障反馈标签 -->
+          <view class="tag-badge" wx:if="{{post.type === 'issue'}}">
+            <text class="tag-icon">🚧</text>
+            <text>路障反馈</text>
+          </view>
+          <view class="tag-badge tag-help" wx:elif="{{post.type === 'help'}}">
+            <text class="tag-icon">❓</text>
+            <text>求助</text>
+          </view>
+          <view class="tag-badge tag-share" wx:elif="{{post.type === 'share'}}">
+            <text class="tag-icon">💬</text>
+            <text>分享</text>
           </view>
         </view>
+        
+        <!-- 第二行：时间 + 删除按钮 -->
         <view class="time-row">
-          <text class="post-time">{{post.createTime}}</text>
+          <text class="time">{{post.createTime}}</text>
+          
+          <!-- 删除按钮：红色圆角样式 -->
           <view 
             class="delete-btn" 
+            bindtap="deletePost" 
             wx:if="{{post.isOwner}}"
-            bindtap="deletePost"
             data-postid="{{post._id}}"
             aria-role="button"
             aria-label="删除帖子"
           >
-            <image class="delete-icon" src="/images/delete.png" aria-hidden="true"></image>
-            <text class="delete-text">删除</text>
+            <text>删除</text>
           </view>
         </view>
       </view>
@@ -219,47 +232,20 @@
   </view>
 
   <!-- 底部评论输入栏 -->
-  <view class="comment-input-bar {{showCommentInput ? 'active' : ''}}">
-    <view class="input-container">
+  <view class="footer-input-bar">
+    <view class="input-wrapper">
+      <!-- 这里的 placeholder 就是你要的这四个字 -->
       <input 
-        id="comment-input"
-        class="comment-input" 
-        placeholder="{{replyTo ? '回复某人...' : '发表评论...'}}" 
-        value="{{newComment}}" 
+        class="input-field" 
+        placeholder="发表评论" 
+        placeholder-style="color: #999;" 
         bindinput="onCommentInput"
+        value="{{newComment}}"
+        confirm-type="send"
         aria-label="评论输入框"
       />
-      <view class="input-actions">
-        <view 
-          class="cancel-btn" 
-          bindtap="hideCommentInput"
-          aria-role="button"
-          aria-label="取消评论"
-        >
-          <text>取消</text>
-        </view>
-        <view 
-          class="submit-btn" 
-          bindtap="submitComment"
-          aria-role="button"
-          aria-label="提交评论"
-        >
-          <text>发送</text>
-        </view>
-      </view>
     </view>
-  </view>
-
-  <!-- 固定评论按钮 -->
-  <view 
-    class="fixed-comment-btn" 
-    bindtap="showCommentInput"
-    wx:if="{{!showCommentInput}}"
-    aria-role="button"
-    aria-label="发表评论"
-  >
-    <image class="comment-icon" src="/images/comment-white.png" aria-hidden="true"></image>
-    <text class="btn-text">发表评论</text>
+    <view class="send-btn" bindtap="submitComment" aria-role="button" aria-label="发送评论">发送</view>
   </view>
 
   <!-- 加载状态 -->
