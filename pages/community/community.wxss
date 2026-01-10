@@ -1,4 +1,4 @@
-/* 社区页面样式 - 大卡片流设计 */
+/* 社区页面样式 - 修复版 */
 
 .community-container {
   min-height: 100vh;
@@ -58,16 +58,16 @@
 
 .post-item {
   background-color: var(--color-bg-card);
-  border-radius: var(--border-radius-md);
+  border-radius: 24rpx;
   margin-bottom: 30rpx;
   padding: var(--spacing-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
   transition: all var(--transition-normal);
 }
 
 .post-item:active {
   transform: scale(0.98);
-  box-shadow: var(--shadow-card-hover);
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.08);
 }
 
 /* 帖子头部 */
@@ -94,7 +94,7 @@
 }
 
 .user-name {
-  font-size: var(--font-size-base);
+  font-size: 32rpx;
   font-weight: bold;
   color: var(--color-text-primary);
   display: block;
@@ -102,18 +102,19 @@
 }
 
 .post-time {
-  font-size: var(--font-size-xs);
+  font-size: 24rpx;
   color: var(--color-text-secondary);
 }
 
 .post-type {
   margin-left: var(--spacing-sm);
+  flex-shrink: 0;
 }
 
 .type-tag {
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  font-size: var(--font-size-xs);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
   font-weight: bold;
   color: var(--color-text-inverse);
 }
@@ -136,9 +137,9 @@
 }
 
 .content-text {
-  font-size: var(--font-size-base);
+  font-size: 32rpx;
   line-height: 1.6;
-  color: var(--color-text-primary);
+  color: #333333;
   word-break: break-word;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -162,7 +163,7 @@
 }
 
 .tag-text {
-  font-size: var(--font-size-xs);
+  font-size: 24rpx;
   color: var(--color-primary);
   font-weight: 500;
 }
@@ -185,7 +186,7 @@
 }
 
 .location-text {
-  font-size: var(--font-size-xs);
+  font-size: 26rpx;
   color: var(--color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -225,31 +226,31 @@
   gap: var(--spacing-xs);
   padding: 16rpx 24rpx;
   border-radius: 999rpx;
-  background-color: var(--color-bg-page);
+  background-color: transparent;
   transition: background-color var(--transition-fast);
   min-width: 140rpx;
   justify-content: center;
 }
 
 .action-btn:active {
-  background-color: var(--color-border);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.liked {
-  background-color: rgba(230, 67, 64, 0.1);
+  background-color: rgba(230, 67, 64, 0.08);
 }
 
 .action-btn.collected {
-  background-color: rgba(255, 215, 0, 0.15);
+  background-color: rgba(255, 215, 0, 0.12);
 }
 
 .action-icon {
-  width: 44rpx;
-  height: 44rpx;
+  width: 40rpx;
+  height: 40rpx;
 }
 
 .action-text {
-  font-size: var(--font-size-sm);
+  font-size: 28rpx;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
@@ -262,16 +263,6 @@
   color: var(--color-accent);
 }
 
-.view-stats {
-  flex: 1;
-  text-align: right;
-}
-
-.view-text {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-disabled);
-}
-
 /* 加载更多 */
 .load-more {
   text-align: center;
@@ -279,12 +270,12 @@
 }
 
 .loading-text {
-  font-size: var(--font-size-base);
+  font-size: 32rpx;
   color: var(--color-text-secondary);
 }
 
 .no-more-text {
-  font-size: var(--font-size-base);
+  font-size: 32rpx;
   color: var(--color-text-disabled);
 }
 
@@ -333,14 +324,14 @@
 }
 
 .empty-text {
-  font-size: var(--font-size-lg);
+  font-size: 36rpx;
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-sm);
   font-weight: bold;
 }
 
 .empty-subtext {
-  font-size: var(--font-size-sm);
+  font-size: 28rpx;
   color: var(--color-text-disabled);
 }
 
@@ -373,15 +364,15 @@
 /* 大字体模式支持 */
 @media (prefers-font-size: large) {
   .content-text {
-    font-size: var(--font-size-lg);
+    font-size: 36rpx;
     line-height: 1.8;
   }
 
   .user-name {
-    font-size: var(--font-size-lg);
+    font-size: 40rpx;
   }
 
   .action-text {
-    font-size: var(--font-size-base);
+    font-size: 32rpx;
   }
 }

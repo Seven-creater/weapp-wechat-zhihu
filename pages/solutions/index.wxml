@@ -42,11 +42,14 @@
       
       <view class="solution-content">
         <text class="solution-title">{{item.title}}</text>
-        <text class="solution-category">{{item.category}}</text>
+        <text class="solution-desc">{{item.aiAnalysis}}</text>
         <view class="solution-meta">
-          <text class="view-count">{{item.viewCount}} 浏览</text>
-          <view class="collect-info" wx:if="{{item.collectCount !== undefined}}" 
-                bindtap="collectSolution" data-id="{{item._id}}" 
+          <text class="view-count">{{item.viewCount || 0}} 浏览</text>
+          <view class="collect-info" 
+                wx:if="{{item.collectCount !== undefined}}" 
+                bindtap="collectSolution" 
+                data-id="{{item._id}}" 
+                catchtap="true"
                 aria-role="button"
                 aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount}}人收藏">
             <image class="collect-icon {{item.isCollected ? 'collected' : ''}}" 

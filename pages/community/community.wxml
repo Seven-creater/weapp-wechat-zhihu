@@ -121,10 +121,6 @@
           <image class="action-icon" src="{{item.isCollected ? '/images/star2.png' : '/images/star.png'}}" aria-hidden="true"></image>
           <text class="action-text">{{item.collectCount || 0}}</text>
         </view>
-
-        <view class="view-stats">
-          <text class="view-text">{{item.stats.view}} 浏览</text>
-        </view>
       </view>
     </view>
 
