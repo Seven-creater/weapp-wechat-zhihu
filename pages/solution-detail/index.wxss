@@ -1,157 +1,174 @@
-/* 解决方案详情页样式 */
+/* 解决方案详情页样式 - 大卡片流设计 */
+
 .solution-detail-container {
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-page);
   min-height: 100vh;
-  padding-bottom: 140rpx;
+  padding-bottom: 160rpx;
 }
 
-/* 通用部分样式 */
-.section-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333333;
-  margin: 40rpx 30rpx 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.section-subtitle {
-  font-size: 24rpx;
-  font-weight: normal;
-  color: #999999;
-}
-
-/* 问题现场部分 */
-.problem-section {
-  background-color: #ffffff;
-  margin: 20rpx 0;
-  padding: 0 0 30rpx;
-}
-
-.problem-image {
-  margin: 0 30rpx;
-  border-radius: 12rpx;
+/* 封面图 Hero Section */
+.hero-section {
+  position: relative;
+  height: 400rpx;
   overflow: hidden;
 }
 
-.problem-image image {
+.hero-image {
   width: 100%;
-  border-radius: 12rpx;
+  height: 100%;
+  object-fit: cover;
 }
 
-.problem-description {
-  padding: 0 30rpx;
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.4) 60%, rgba(0, 0, 0, 0.7) 100%);
 }
 
-.problem-description .title {
-  display: block;
-  font-size: 28rpx;
+.hero-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--spacing-lg);
+  color: var(--color-text-inverse);
+}
+
+.hero-tags {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.hero-tag {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: var(--font-size-xs);
   font-weight: bold;
-  color: #333333;
-  margin-bottom: 16rpx;
-  line-height: 1.4;
+  backdrop-filter: blur(10rpx);
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1rpx solid rgba(255, 255, 255, 0.3);
 }
 
-.meta-info {
+.hero-tag.category {
+  background-color: rgba(0, 47, 167, 0.8);
+}
+
+.hero-tag.status.solved {
+  background-color: rgba(0, 180, 42, 0.8);
+}
+
+.hero-tag.status.processing {
+  background-color: rgba(255, 157, 0, 0.8);
+}
+
+.hero-title {
+  font-size: var(--font-size-xl);
+  font-weight: bold;
+  line-height: 1.4;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
+}
+
+/* 内容区域 */
+.content-section {
+  position: relative;
+  margin-top: -40rpx;
+  padding: 0 var(--spacing-lg);
+}
+
+/* AI 分析卡片 */
+.ai-analysis-card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--spacing-lg);
+  border-left: 8rpx solid var(--color-accent);
+}
+
+.ai-header {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
 }
 
-.category {
-  background-color: #e3f2fd;
-  color: #1976d2;
-  padding: 8rpx 16rpx;
-  border-radius: 12rpx;
-  font-size: 24rpx;
+.ai-icon {
+  width: 48rpx;
+  height: 48rpx;
 }
 
-.status {
-  padding: 8rpx 16rpx;
-  border-radius: 12rpx;
-  font-size: 24rpx;
-  color: #ffffff;
+.ai-title {
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+  color: var(--color-primary);
 }
 
-.status.solved {
-  background-color: #4caf50;
+.ai-content {
+  background-color: #FFFAE6;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  border-left: 4rpx solid var(--color-primary);
 }
 
-.status.processing {
-  background-color: #ff9800;
-}
-
-/* AI 诊断报告部分 */
-.ai-analysis-section {
-  background-color: #ffffff;
-  margin: 20rpx 0;
-  padding: 30rpx 0;
-}
-
-.analysis-content {
-  margin: 0 30rpx;
-  padding: 30rpx;
-  background-color: #e8f4fd;
-  border-radius: 12rpx;
-  border-left: 6rpx solid #2196f3;
-}
-
-.analysis-text {
-  font-size: 28rpx;
+.ai-text {
+  font-size: var(--font-size-base);
   line-height: 1.8;
-  color: #333333;
+  color: var(--color-text-primary);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.copy-tip {
-  font-size: 24rpx;
-  color: #999999;
-  text-align: center;
-  margin-top: 20rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #e0e0e0;
+/* 改造后效果 */
+.after-section {
+  margin-bottom: var(--spacing-lg);
 }
 
-/* 改造后效果部分 */
-.after-section {
-  background-color: #ffffff;
-  margin: 20rpx 0;
-  padding: 30rpx 0;
+.section-header {
+  margin-bottom: var(--spacing-md);
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.after-image-wrapper {
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .after-image {
-  margin: 0 30rpx;
-  border-radius: 12rpx;
-  overflow: hidden;
-}
-
-.after-image image {
   width: 100%;
-  border-radius: 12rpx;
+  height: 400rpx;
+  object-fit: cover;
 }
 
-/* 官方回复部分 */
+/* 官方回复 */
 .official-reply-section {
-  background-color: #ffffff;
-  margin: 20rpx 0;
-  padding: 30rpx 0;
+  margin-bottom: var(--spacing-lg);
 }
 
-.reply-content {
-  margin: 0 30rpx;
-  padding: 30rpx;
-  background-color: #f3e5f5;
-  border-radius: 12rpx;
-  border-left: 6rpx solid #9c27b0;
+.reply-card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
+  border-left: 4rpx solid var(--color-primary);
 }
 
 .reply-text {
-  font-size: 28rpx;
-  line-height: 1.6;
-  color: #333333;
+  font-size: var(--font-size-base);
+  line-height: 1.8;
+  color: var(--color-text-primary);
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 底部操作栏 */
@@ -160,26 +177,29 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #ffffff;
-  padding: 20rpx 30rpx;
-  border-top: 1rpx solid #e0e0e0;
+  background-color: var(--color-bg-card);
+  padding: var(--spacing-md) var(--spacing-lg);
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--color-border);
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.08);
   display: flex;
-  gap: 20rpx;
+  gap: var(--spacing-md);
   z-index: 100;
 }
 
 .action-btn {
   flex: 1;
-  height: 88rpx;
-  border-radius: 44rpx;
+  height: 96rpx;
+  border-radius: var(--border-radius-lg);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  font-size: 28rpx;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-base);
   font-weight: bold;
-  transition: all 0.3s ease;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-button);
 }
 
 .action-btn:active {
@@ -187,31 +207,35 @@
 }
 
 .collect-btn {
-  background-color: #f8f8f8;
-  color: #666666;
-  border: 2rpx solid #e0e0e0;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-secondary);
+  border: 2rpx solid var(--color-border);
+  box-shadow: none;
 }
 
 .collect-btn.collected {
-  background-color: #ffd700;
-  color: #002fa7;
-  border-color: #ffd700;
+  background-color: var(--color-accent);
+  color: var(--color-primary);
+  border-color: var(--color-accent);
 }
 
 .copy-btn {
-  background-color: #0a2463;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .generate-btn {
-  background-color: #ff4444;
-  color: #ffffff;
-  font-weight: bold;
+  background-color: var(--color-error);
+  color: var(--color-text-inverse);
 }
 
 .btn-icon {
-  width: 32rpx;
-  height: 32rpx;
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.btn-text {
+  font-size: var(--font-size-base);
 }
 
 /* 模态框样式 */
@@ -235,7 +259,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
 .modal-content {
@@ -243,30 +267,33 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80%;
-  max-width: 600rpx;
-  background-color: #ffffff;
-  border-radius: 20rpx;
+  width: 85%;
+  max-width: 640rpx;
+  max-height: 80vh;
+  background-color: var(--color-bg-card);
+  border-radius: var(--border-radius-lg);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
-  padding: 30rpx;
-  border-bottom: 1rpx solid #e0e0e0;
+  padding: var(--spacing-lg);
+  border-bottom: 1rpx solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .modal-title {
-  font-size: 32rpx;
+  font-size: var(--font-size-lg);
   font-weight: bold;
-  color: #333333;
+  color: var(--color-text-primary);
 }
 
 .modal-close {
-  font-size: 40rpx;
-  color: #999999;
+  font-size: 48rpx;
+  color: var(--color-text-secondary);
   width: 60rpx;
   height: 60rpx;
   text-align: center;
@@ -274,58 +301,80 @@
 }
 
 .modal-body {
-  max-height: 60vh;
+  flex: 1;
   overflow-y: auto;
-  padding: 30rpx;
+  padding: var(--spacing-lg);
 }
 
 .letter-content {
-  background-color: #f9f9f9;
-  padding: 30rpx;
-  border-radius: 12rpx;
+  background-color: var(--color-bg-page);
+  padding: var(--spacing-lg);
+  border-radius: var(--border-radius-md);
 }
 
 .letter-text {
-  font-size: 26rpx;
-  line-height: 1.6;
-  color: #333333;
+  font-size: var(--font-size-sm);
+  line-height: 1.8;
+  color: var(--color-text-primary);
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .modal-footer {
-  padding: 20rpx 30rpx;
-  border-top: 1rpx solid #e0e0e0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1rpx solid var(--color-border);
   display: flex;
-  gap: 20rpx;
+  gap: var(--spacing-md);
 }
 
 .modal-btn {
   flex: 1;
-  height: 72rpx;
-  border-radius: 36rpx;
+  height: 88rpx;
+  border-radius: var(--border-radius-lg);
   border: none;
-  font-size: 28rpx;
+  font-size: var(--font-size-base);
   font-weight: bold;
 }
 
 .copy-letter-btn {
-  background-color: #0a2463;
-  color: #ffffff;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .close-btn {
-  background-color: #f0f0f0;
-  color: #666666;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-secondary);
+  border: 2rpx solid var(--color-border);
 }
 
 /* 无障碍优化 */
 .action-btn,
 .modal-btn {
-  min-height: 88rpx;
-  line-height: 88rpx;
+  min-height: 96rpx;
 }
 
-.section-title {
-  min-height: 88rpx;
-  line-height: 88rpx;
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .ai-analysis-card,
+  .reply-card {
+    border: 3rpx solid var(--color-primary);
+  }
+
+  .action-btn {
+    border: 2rpx solid var(--color-primary);
+  }
+}
+
+/* 大字体模式支持 */
+@media (prefers-font-size: large) {
+  .ai-text,
+  .reply-text,
+  .letter-text {
+    font-size: var(--font-size-lg);
+    line-height: 2;
+  }
+
+  .hero-title {
+    font-size: 56rpx;
+  }
 }

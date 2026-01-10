@@ -46,8 +46,12 @@
           class="post-image" 
           wx:for="{{post.images}}" 
           wx:key="index" 
-          src="{{item}}" 
+          wx:for-item="img"
+          src="{{img}}" 
           mode="aspectFill"
+          bindtap="previewImage"
+          data-current="{{img}}"
+          data-urls="{{post.images}}"
           aria-label="帖子图片{{index + 1}}"
         ></image>
       </view>

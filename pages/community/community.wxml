@@ -35,22 +35,18 @@
             {{item.type === 'help' ? '求助' : item.type === 'share' ? '分享' : '路障反馈'}}
           </text>
         </view>
-        <view
-          class="delete-btn"
-          wx:if="{{item.isOwner}}"
-          bindtap="deletePost"
-          data-postid="{{item._id}}"
-          data-index="{{index}}"
-          aria-role="button"
-          aria-label="删除帖子"
-        >
-          <text>删除</text>
-        </view>
       </view>
 
       <!-- 帖子内容 -->
       <view class="post-content">
         <text class="content-text" user-select="true">{{item.content}}</text>
+      </view>
+
+      <!-- 标签区域 -->
+      <view class="post-tags" wx:if="{{item.tags && item.tags.length > 0}}">
+        <view class="tag-item" wx:for="{{item.tags}}" wx:key="index" wx:for-item="tag">
+          <text class="tag-text">{{tag}}</text>
+        </view>
       </view>
 
       <!-- 定位信息 -->
@@ -66,8 +62,13 @@
             class="post-image" 
             wx:for="{{item.images}}" 
             wx:key="index" 
-            src="{{item}}" 
+            wx:for-item="img"
+            src="{{img}}" 
             mode="aspectFill"
+            bindtap="previewImage"
+            data-postid="{{item._id}}"
+            data-current="{{img}}"
+            data-urls="{{item.images}}"
             aria-label="帖子图片{{index + 1}}"
           ></image>
         </view>

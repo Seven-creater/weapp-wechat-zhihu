@@ -11,13 +11,13 @@ Page({
     isUploading: false, // 是否正在上传
     hasLocationPermission: true, // 是否有定位权限
     currentAddress: "",
-    currentLocation: null
+    currentLocation: null,
   },
 
-  onLoad: function() {
+  onLoad: function () {
     if (!qqmapsdk) {
       qqmapsdk = new QQMapWX({
-        key: TENCENT_MAP_KEY
+        key: TENCENT_MAP_KEY,
       });
     }
     // 检查定位权限
@@ -26,7 +26,7 @@ Page({
     this.loadRecentReports();
   },
 
-  onPullDownRefresh: function() {
+  onPullDownRefresh: function () {
     // 下拉刷新，重新加载最近反馈
     this.loadRecentReports().then(() => {
       wx.stopPullDownRefresh();
@@ -36,35 +36,36 @@ Page({
   /**
    * 检查定位权限
    */
-  checkLocationPermission: function() {
+  checkLocationPermission: function () {
     wx.getSetting({
       success: (res) => {
-        if (!res.authSetting['scope.userLocation']) {
+        if (!res.authSetting["scope.userLocation"]) {
           this.setData({ hasLocationPermission: false });
         }
-      }
+      },
     });
   },
 
   /**
    * 加载最近反馈
    */
-  loadRecentReports: function() {
+  loadRecentReports: function () {
     const db = wx.cloud.database();
-    return db.collection('issues')
-      .orderBy('createTime', 'desc')
+    return db
+      .collection("issues")
+      .orderBy("createTime", "desc")
       .limit(5)
       .get()
-      .then(res => {
+      .then((res) => {
         this.setData({
-          recentReports: res.data
+          recentReports: res.data,
         });
       })
-      .catch(err => {
-        console.error('加载最近反馈失败:', err);
+      .catch((err) => {
+        console.error("加载最近反馈失败:", err);
         // 数据库集合不存在时，显示空列表
         this.setData({
-          recentReports: []
+          recentReports: [],
         });
       });
   },
@@ -72,16 +73,16 @@ Page({
   /**
    * 拍照反馈
    */
-  takePhoto: function() {
+  takePhoto: function () {
     const that = this;
 
     // 1. 调用相机或相册选择图片
     wx.chooseMedia({
       count: 9,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
       maxDuration: 30,
-      camera: 'back',
+      camera: "back",
       success: (res) => {
         const tempFilePaths = res.tempFiles
           .map((file) => file.tempFilePath)
@@ -89,8 +90,8 @@ Page({
 
         if (tempFilePaths.length === 0) {
           wx.showToast({
-            title: '未选择图片',
-            icon: 'none'
+            title: "未选择图片",
+            icon: "none",
           });
           return;
         }
@@ -100,66 +101,72 @@ Page({
         const existingAddress = that.data.currentAddress;
         const existingLocation = that.data.currentLocation;
 
-        if (existingAddress && existingAddress !== '定位中' && existingLocation) {
+        if (
+          existingAddress &&
+          existingAddress !== "定位中" &&
+          existingLocation
+        ) {
           // 首页已有有效定位，直接使用
-          console.log('使用首页已有的定位信息:', existingAddress);
+          console.log("使用首页已有的定位信息:", existingAddress);
           locationPromise = Promise.resolve({
             latitude: existingLocation.latitude,
             longitude: existingLocation.longitude,
             address: existingAddress,
-            formattedAddress: existingAddress
+            formattedAddress: existingAddress,
           });
         } else {
           // 没有有效定位，需要重新获取
-          console.log('首页暂无定位信息，开始获取...');
+          console.log("首页暂无定位信息，开始获取...");
           locationPromise = that.getLocation();
         }
 
-        locationPromise.then(location => {
-          // 保存临时草稿，进入编辑页
-          wx.setStorageSync("issueDraftTemp", {
-            images: tempFilePaths,
-            location: location
+        locationPromise
+          .then((location) => {
+            // 保存临时草稿，进入编辑页
+            wx.setStorageSync("issueDraftTemp", {
+              images: tempFilePaths,
+              location: location,
+            });
+            wx.navigateTo({
+              url: "/pages/issue-edit/index?fromCapture=1",
+            });
+          })
+          .catch((err) => {
+            console.error("获取位置失败:", err);
+            wx.showToast({
+              title: "定位失败，请检查权限",
+              icon: "none",
+            });
           });
-          wx.navigateTo({
-            url: "/pages/issue-edit/index?fromCapture=1"
-          });
-        }).catch(err => {
-          console.error('获取位置失败:', err);
-          wx.showToast({
-            title: '定位失败，请检查权限',
-            icon: 'none'
-          });
-        });
       },
       fail: (err) => {
-        console.error('选择图片失败:', err);
+        console.error("选择图片失败:", err);
         wx.showToast({
-          title: '选择图片失败',
-          icon: 'none'
+          title: "选择图片失败",
+          icon: "none",
         });
-      }
+      },
     });
   },
 
   /**
    * 重新选择位置
    */
-  reselectLocation: function() {
+  reselectLocation: function () {
     this.chooseLocationManual();
   },
 
   /**
    * 获取当前位置（优先自动定位）
    */
-  getLocation: function() {
+  getLocation: function () {
     return this.getAutoLocation().catch(() => this.chooseLocationManual());
   },
 
   /**
    * 自动定位 + 逆地理
    */
-  getAutoLocation: function() {
+  getAutoLocation: function () {
     return new Promise((resolve, reject) => {
       wx.getLocation({
         type: "gcj02",
@@ -172,11 +179,10 @@ Page({
           qqmapsdk.reverseGeocoder({
             location: {
               latitude,
-              longitude
+              longitude,
             },
             success: (result) => {
-              const address =
-                (result.result && result.result.address) || "";
+              const address = (result.result && result.result.address) || "";
               const formattedAddress =
                 (result.result &&
                   result.result.formatted_addresses &&
@@ -186,14 +192,14 @@ Page({
                 latitude,
                 longitude,
                 address: address || "定位成功",
-                formattedAddress: formattedAddress || address || "定位成功"
+                formattedAddress: formattedAddress || address || "定位成功",
               };
               this.setData({
                 currentAddress: location.formattedAddress || location.address,
                 currentLocation: {
                   latitude,
-                  longitude
-                }
+                  longitude,
+                },
               });
               resolve(location);
             },
@@ -202,22 +208,22 @@ Page({
                 latitude,
                 longitude,
                 address: "定位成功",
-                formattedAddress: "定位成功"
+                formattedAddress: "定位成功",
               };
               this.setData({
                 currentAddress: location.formattedAddress,
                 currentLocation: {
                   latitude,
-                  longitude
-                }
+                  longitude,
+                },
               });
               resolve(location);
-            }
+            },
           });
         },
         fail: (err) => {
           reject(err);
-        }
+        },
       });
     });
   },
@@ -225,7 +231,7 @@ Page({
   /**
    * 手动选点
    */
-  chooseLocationManual: function() {
+  chooseLocationManual: function () {
     return new Promise((resolve, reject) => {
       wx.chooseLocation({
         success: (res) => {
@@ -235,20 +241,20 @@ Page({
             latitude,
             longitude,
             address: res.address || res.name || "手动选点",
-            formattedAddress: res.address || res.name || "手动选点"
+            formattedAddress: res.address || res.name || "手动选点",
           };
           this.setData({
             currentAddress: location.formattedAddress || location.address,
             currentLocation: {
               latitude,
-              longitude
-            }
+              longitude,
+            },
           });
           resolve(location);
         },
         fail: (err) => {
           reject(err);
-        }
+        },
       });
     });
   },
@@ -256,7 +262,7 @@ Page({
   /**
    * 上传多张图片到云存储
    */
-  uploadImages: function(tempFilePaths) {
+  uploadImages: function (tempFilePaths) {
     if (!Array.isArray(tempFilePaths) || tempFilePaths.length === 0) {
       return Promise.resolve([]);
     }
@@ -269,15 +275,17 @@ Page({
   /**
    * 上传图片到云存储
    */
-  uploadImage: function(tempFilePath) {
+  uploadImage: function (tempFilePath) {
     const that = this;
     return new Promise((resolve, reject) => {
       // 显示上传中提示
       that.setData({ isUploading: true });
-      wx.showLoading({ title: '上传中...' });
+      wx.showLoading({ title: "上传中..." });
 
       // 生成唯一文件名
-      const cloudPath = `issues/${Date.now()}-${Math.floor(Math.random() * 1000)}.${tempFilePath.match(/\.(\w+)$/)[1]}`;
+      const cloudPath = `issues/${Date.now()}-${Math.floor(
+        Math.random() * 1000
+      )}.${tempFilePath.match(/\.(\w+)$/)[1]}`;
 
       // 上传文件
       wx.cloud.uploadFile({
@@ -288,13 +296,13 @@ Page({
           resolve(res.fileID);
         },
         fail: (err) => {
-          console.error('上传图片失败:', err);
+          console.error("上传图片失败:", err);
           reject(err);
         },
         complete: () => {
           that.setData({ isUploading: false });
           wx.hideLoading();
-        }
+        },
       });
     });
   },
@@ -302,29 +310,29 @@ Page({
   /**
    * 调用AI分析问题
    */
-  analyzeIssue: function(fileID, location) {
+  analyzeIssue: function (fileID, location) {
     return new Promise((resolve) => {
       // 显示加载提示，添加遮罩防止用户误操作
       wx.showLoading({
-        title: 'AI正在诊断现场...',
-        mask: true
+        title: "AI正在诊断现场...",
+        mask: true,
       });
 
       // 设置超时提醒，3秒后显示温馨提示
       const timeoutTimer = setTimeout(() => {
         wx.showToast({
-          title: '正在生成专业改造方案，请稍候...',
-          icon: 'none',
-          duration: 3000
+          title: "正在生成专业改造方案，请稍候...",
+          icon: "none",
+          duration: 3000,
         });
       }, 3000);
 
       // 调用云函数进行AI分析
       wx.cloud.callFunction({
-        name: 'analyzeIssue',
+        name: "analyzeIssue",
         data: {
           fileID: fileID,
-          location: location
+          location: location,
         },
         success: (res) => {
           clearTimeout(timeoutTimer);
@@ -332,14 +340,15 @@ Page({
           resolve(res.result.aiSolution);
         },
         fail: (err) => {
-          console.error('AI分析失败:', err);
+          console.error("AI分析失败:", err);
           clearTimeout(timeoutTimer);
           wx.hideLoading();
-          
+
           // 如果云函数调用失败，使用模拟数据
-          const mockSolution = '检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。';
+          const mockSolution =
+            "检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。";
           resolve(mockSolution);
-        }
+        },
       });
     });
   },
@@ -347,7 +356,7 @@ Page({
   /**
    * 保存问题到数据库
    */
-  saveIssue: function(fileIDs, location, aiSolution) {
+  saveIssue: function (fileIDs, location, aiSolution) {
     const db = wx.cloud.database();
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
     const coverImage = Array.isArray(fileIDs) ? fileIDs[0] : fileIDs;
@@ -361,57 +370,71 @@ Page({
       address: location.address, // 详细地址
       formattedAddress: location.formattedAddress, // 格式化地址
       aiSolution: aiSolution, // AI解决方案
-      status: 'pending', // 状态：待处理
-      createTime: db.serverDate() // 创建时间
+      status: "pending", // 状态：待处理
+      createTime: db.serverDate(), // 创建时间
     };
 
     // 保存到数据库
-    db.collection('issues').add({
+    db.collection("issues").add({
       data: issueData,
       success: (res) => {
         // 同时自动在社区发布一条帖子
-        this.createCommunityPost(res._id, images, location, aiSolution, userInfo).then(() => {
-          wx.showToast({
-            title: '反馈成功！已同步到社区',
-            icon: 'success',
-            duration: 2000
-          });
+        this.createCommunityPost(
+          res._id,
+          images,
+          location,
+          aiSolution,
+          userInfo
+        )
+          .then(() => {
+            wx.showToast({
+              title: "反馈成功！已同步到社区",
+              icon: "success",
+              duration: 2000,
+            });
 
-          // 重新加载最近反馈
-          this.loadRecentReports();
+            // 重新加载最近反馈
+            this.loadRecentReports();
 
-          // 跳转到详情页
-          wx.navigateTo({
-            url: '../issue-detail/issue-detail?id=' + res._id
+            // 跳转到详情页
+            wx.navigateTo({
+              url: "../issue-detail/issue-detail?id=" + res._id,
+            });
+          })
+          .catch((err) => {
+            console.error("创建社区帖子失败:", err);
+            // 即使社区发帖失败，也不影响主流程
+            wx.showToast({
+              title: "反馈成功！",
+              icon: "success",
+              duration: 2000,
+            });
+            this.loadRecentReports();
+            wx.navigateTo({
+              url: "../issue-detail/issue-detail?id=" + res._id,
+            });
           });
-        }).catch((err) => {
-          console.error('创建社区帖子失败:', err);
-          // 即使社区发帖失败，也不影响主流程
-          wx.showToast({
-            title: '反馈成功！',
-            icon: 'success',
-            duration: 2000
-          });
-          this.loadRecentReports();
-          wx.navigateTo({
-            url: '../issue-detail/issue-detail?id=' + res._id
-          });
-        });
       },
       fail: (err) => {
-        console.error('保存问题失败:', err);
+        console.error("保存问题失败:", err);
         wx.showToast({
-          title: '保存失败，请重试',
-          icon: 'none'
+          title: "保存失败，请重试",
+          icon: "none",
         });
-      }
+      },
     });
   },
 
   /**
    * 自动在社区创建帖子
    */
-  createCommunityPost: function(issueId, images, location, aiSolution, userInfo) {
+  createCommunityPost: function (
+    issueId,
+    images,
+    location,
+    aiSolution,
+    userInfo
+  ) {
     const db = wx.cloud.database();
     const postImages = Array.isArray(images) ? images : [images];
 
@@ -420,7 +443,7 @@ Page({
       issueId: issueId, // 关联的路障问题ID
       content: `自动同步：发现${location.address}存在无障碍问题。\nAI诊断：${aiSolution}\n欢迎大家讨论解决方案！`,
       images: postImages, // 使用同一组图片
-      type: 'issue', // 帖子类型：路障反馈
+      type: "issue", // 帖子类型：路障反馈
       location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
       address: location.address, // 详细地址
       stats: { view: 0, like: 0, comment: 0 }, // 初始统计数据
@@ -432,10 +455,10 @@ Page({
       },
     };
 
-    return db.collection('posts').add({
-      data: postData
+    return db.collection("posts").add({
+      data: postData,
     });
-  }
+  },
 });
 // 数据库 schema 定义
 /**

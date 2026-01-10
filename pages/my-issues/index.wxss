@@ -48,7 +48,7 @@
 }
 
 .tab-item.active .tab-text {
-  color: #FFD700;
+  color: #ffd700;
 }
 
 .tab-indicator {
@@ -58,7 +58,7 @@
   transform: translateX(-50%);
   width: 120rpx;
   height: 6rpx;
-  background-color: #FFD700;
+  background-color: #ffd700;
   border-radius: 3rpx 3rpx 0 0;
 }
 
@@ -153,11 +153,11 @@
 }
 
 .status-tag.waiting {
-  background-color: #FF9800;
+  background-color: #ff9800;
 }
 
 .status-tag.solved {
-  background-color: #4CAF50;
+  background-color: #4caf50;
 }
 
 .item-content {
@@ -188,17 +188,17 @@
 }
 
 .ai-suggestion {
-  background-color: #E8F4FD;
+  background-color: #e8f4fd;
   padding: 16rpx;
   border-radius: 12rpx;
-  border-left: 6rpx solid #2196F3;
+  border-left: 6rpx solid #2196f3;
   margin-top: auto;
 }
 
 .suggestion-label {
   font-size: 24rpx;
   font-weight: bold;
-  color: #1976D2;
+  color: #1976d2;
   margin-right: 8rpx;
 }
 

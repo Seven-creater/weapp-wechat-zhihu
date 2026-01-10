@@ -1,67 +1,96 @@
 <view class="accessibility-home">
-  <!-- 页面头部 -->
-  <view class="page-header" aria-label="无障碍随手拍首页">
-    <text class="page-title">无障碍随手拍</text>
-    <text class="page-subtitle">发现无障碍问题，一键反馈</text>
+  <view class="hero-section">
+    <view class="hero-bg"></view>
+    
+    <view class="location-capsule" bindtap="reselectLocation" aria-role="button" aria-label="当前位置：{{currentAddress}}，点击重新选择">
+      <view class="location-icon-wrap">
+        <image class="location-icon-small" src="/images/location.png" aria-hidden="true"></image>
+      </view>
+      <text class="location-address">{{currentAddress || "定位中..."}}</text>
+      <view class="refresh-btn">
+        <text class="refresh-text">重选</text>
+      </view>
+    </view>
+
+    <view class="hero-content">
+      <view 
+        class="camera-hero" 
+        bindtap="takePhoto" 
+        aria-role="button"
+        aria-label="点击拍照，反馈无障碍问题"
+        hover-class="camera-hero-hover"
+      >
+        <view class="camera-glow"></view>
+        <view class="camera-inner">
+          <image class="camera-icon-large" src="/images/camera.png" aria-hidden="true"></image>
+        </view>
+        <text class="camera-label">拍摄路障</text>
+      </view>
+    </view>
   </view>
 
-  <view class="location-card" aria-label="当前位置">
-    <view class="location-info">
-      <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
-      <text class="location-text">{{currentAddress || "定位中"}}</text>
+  <view class="features-section">
+    <view class="section-header">
+      <text class="section-title">快捷功能</text>
     </view>
-    <view class="location-action" bindtap="reselectLocation" aria-role="button" aria-label="重新选择位置">
-      <text class="location-action-text">重新选点</text>
+    
+    <view class="features-grid">
+      <view class="feature-card" bindtap="navigateToSolutions" aria-role="button" aria-label="AI无障碍方案库">
+        <view class="feature-icon-wrap bg-solution">
+          <image class="feature-icon-img" src="/images/ai.png" aria-hidden="true"></image>
+        </view>
+        <text class="feature-card-title">AI 方案</text>
+        <text class="feature-card-desc">智能生成整改建议</text>
+      </view>
+
+      <view class="feature-card" bindtap="navigateToCommunity" aria-role="button" aria-label="无障碍社区">
+        <view class="feature-icon-wrap bg-community">
+          <image class="feature-icon-img" src="/images/community.png" aria-hidden="true"></image>
+        </view>
+        <text class="feature-card-title">社区</text>
+        <text class="feature-card-desc">分享经验交流讨论</text>
+      </view>
+
+      <view class="feature-card" bindtap="navigateToReport" aria-role="button" aria-label="生成汇报文档">
+        <view class="feature-icon-wrap bg-report">
+          <image class="feature-icon-img" src="/images/report.png" aria-hidden="true"></image>
+        </view>
+        <text class="feature-card-title">公文</text>
+        <text class="feature-card-desc">一键生成汇报材料</text>
+      </view>
+
+      <view class="feature-card" bindtap="navigateToHistory" aria-role="button" aria-label="我的发布历史">
+        <view class="feature-icon-wrap bg-history">
+          <image class="feature-icon-img" src="/images/history.png" aria-hidden="true"></image>
+        </view>
+        <text class="feature-card-title">历史</text>
+        <text class="feature-card-desc">查看我的记录</text>
+      </view>
     </view>
   </view>
 
-  <!-- 主要内容区域 -->
-  <view class="main-content">
-    <!-- 拍照按钮 -->
-    <view 
-      class="camera-button" 
-      bindtap="takePhoto" 
-      aria-role="button"
-      aria-label="点击拍照反馈无障碍问题"
-      hover-class="camera-button-hover"
-    >
-      <image class="camera-icon" src="/images/camera.png" aria-hidden="true"></image>
-      <text class="camera-text">拍照反馈</text>
-    </view>
-
-    <!-- 功能说明 -->
-    <view class="feature-intro">
-      <view class="feature-item" aria-label="自动定位问题地点功能">
-        <image class="feature-icon" src="/images/location.png" aria-hidden="true"></image>
-        <text class="feature-text">自动定位问题地点</text>
-      </view>
-      <view class="feature-item" aria-label="AI智能分析解决方案功能">
-        <image class="feature-icon" src="/images/ai.png" aria-hidden="true"></image>
-        <text class="feature-text">AI智能分析解决方案</text>
-      </view>
-      <view class="feature-item" aria-label="生成专业汇报材料功能">
-        <image class="feature-icon" src="/images/report.png" aria-hidden="true"></image>
-        <text class="feature-text">生成专业汇报材料</text>
-      </view>
-    </view>
-
-    <!-- 最近反馈列表（可选） -->
-    <view class="recent-reports" wx:if="{{recentReports.length > 0}}">
+  <view class="recent-section" wx:if="{{recentReports.length > 0}}">
+    <view class="section-header">
       <text class="section-title">最近反馈</text>
-      <view class="report-list">
-        <view class="report-item" wx:for="{{recentReports}}" wx:key="_id">
-          <image class="report-image" src="{{item.imageUrl}}" aria-label="问题图片"></image>
-          <view class="report-info">
-            <text class="report-location">{{item.address}}</text>
-            <text class="report-status {{item.status === 'pending' ? 'waiting' : 'submitted'}}">{{item.status === 'pending' ? '待处理' : '已上报'}}</text>
+      <text class="section-more" bindtap="viewAllReports">查看全部</text>
+    </view>
+    
+    <scroll-view class="recent-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
+      <view class="recent-list">
+        <view class="recent-card" wx:for="{{recentReports}}" wx:key="_id" bindtap="viewReportDetail" data-id="{{item._id}}">
+          <image class="recent-image" src="{{item.imageUrl}}" mode="aspectFill" aria-label="问题图片"></image>
+          <view class="recent-info">
+            <text class="recent-address">{{item.address || "未知地点"}}</text>
+            <view class="recent-status {{item.status === 'pending' ? 'status-pending' : 'status-done'}}">
+              <text class="status-text">{{item.status === 'pending' ? '待处理' : '已解决'}}</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 
-  <!-- 底部说明 -->
-  <view class="page-footer">
-    <text class="footer-text">我们一起让城市更美好</text>
+  <view class="footer-note">
+    <text class="footer-slogan">让城市更无障碍 · 让出行更自由</text>
   </view>
 </view>

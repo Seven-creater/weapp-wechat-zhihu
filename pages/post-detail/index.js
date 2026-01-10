@@ -637,6 +637,19 @@ Page({
     });
   },
 
+  // 预览图片
+  previewImage: function (e) {
+    const current = e.currentTarget.dataset.current;
+    const urls = e.currentTarget.dataset.urls;
+    
+    if (current && urls && urls.length > 0) {
+      wx.previewImage({
+        current: current,
+        urls: urls
+      });
+    }
+  },
+
   formatTime: function (timestamp) {
     if (!timestamp) return "";
 

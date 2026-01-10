@@ -1,44 +1,48 @@
 <view class="solution-detail-container">
-  <!-- 问题现场图片 -->
-  <view class="problem-section">
-    <view class="section-title">问题现场</view>
-    <view class="problem-image">
-      <image src="{{solution.beforeImg}}" mode="widthFix" bindtap="previewImage" data-src="{{solution.beforeImg}}"></image>
+  <!-- 封面图 Hero Section -->
+  <view class="hero-section">
+    <image class="hero-image" src="{{solution.beforeImg}}" mode="aspectFill" bindtap="previewImage" data-src="{{solution.beforeImg}}"></image>
+    <view class="hero-overlay"></view>
+    <view class="hero-content">
+      <view class="hero-tags">
+        <text class="hero-tag category">{{solution.category}}</text>
+        <text class="hero-tag status {{solution.status === '已解决' ? 'solved' : 'processing'}}">{{solution.status}}</text>
+      </view>
+      <text class="hero-title">{{solution.title}}</text>
     </view>
-    <view class="problem-description">
-      <text class="title">{{solution.title}}</text>
-      <view class="meta-info">
-        <text class="category">{{solution.category}}</text>
-        <text class="status {{solution.status === '已解决' ? 'solved' : 'processing'}}">{{solution.status}}</text>
+  </view>
+
+  <!-- 内容区域 -->
+  <view class="content-section">
+    <!-- AI 诊断报告 -->
+    <view class="ai-analysis-card">
+      <view class="ai-header">
+        <image class="ai-icon" src="/images/ai.png" aria-hidden="true"></image>
+        <text class="ai-title">AI 智能分析</text>
+      </view>
+      <view class="ai-content">
+        <text class="ai-text" user-select="true">{{solution.aiAnalysis}}</text>
       </view>
     </view>
-  </view>
 
-  <!-- AI 诊断报告 -->
-  <view class="ai-analysis-section">
-    <view class="section-title">
-      AI 诊断报告
-      <text class="section-subtitle">AI 智能分析，专业整改建议</text>
+    <!-- 改造后效果（可选） -->
+    <view class="after-section" wx:if="{{solution.afterImg}}">
+      <view class="section-header">
+        <text class="section-title">改造后效果</text>
+      </view>
+      <view class="after-image-wrapper">
+        <image class="after-image" src="{{solution.afterImg}}" mode="aspectFill" bindtap="previewImage" data-src="{{solution.afterImg}}"></image>
+      </view>
     </view>
-    <view class="analysis-content">
-      <text class="analysis-text" user-select="true">{{solution.aiAnalysis}}</text>
-      <view class="copy-tip">长按文本可复制</view>
-    </view>
-  </view>
 
-  <!-- 改造后效果（可选） -->
-  <view class="after-section" wx:if="{{solution.afterImg}}">
-    <view class="section-title">改造后效果</view>
-    <view class="after-image">
-      <image src="{{solution.afterImg}}" mode="widthFix" bindtap="previewImage" data-src="{{solution.afterImg}}"></image>
-    </view>
-  </view>
-
-  <!-- 官方回复（可选） -->
-  <view class="official-reply-section" wx:if="{{solution.officialReply}}">
-    <view class="section-title">官方回复</view>
-    <view class="reply-content">
-      <text class="reply-text">{{solution.officialReply}}</text>
+    <!-- 官方回复（可选） -->
+    <view class="official-reply-section" wx:if="{{solution.officialReply}}">
+      <view class="section-header">
+        <text class="section-title">官方回复</text>
+      </view>
+      <view class="reply-card">
+        <text class="reply-text">{{solution.officialReply}}</text>
+      </view>
     </view>
   </view>
 
@@ -55,15 +59,15 @@
         class="btn-icon" 
         aria-hidden="true"
       ></image>
-      <text>{{collectCount}}</text>
+      <text class="btn-text">{{collectCount}}</text>
     </view>
     <view class="action-btn copy-btn" bindtap="copySolutionText" aria-role="button" aria-label="复制方案文本">
       <image src="/images/copy.png" class="btn-icon" aria-hidden="true"></image>
-      <text>复制方案文本</text>
+      <text class="btn-text">复制方案</text>
     </view>
     <view class="action-btn generate-btn" bindtap="generateFeedbackLetter" aria-role="button" aria-label="生成致书记的一封信">
       <image src="/images/letter.png" class="btn-icon" aria-hidden="true"></image>
-      <text>生成致书记的一封信</text>
+      <text class="btn-text">生成公文</text>
     </view>
   </view>
 
