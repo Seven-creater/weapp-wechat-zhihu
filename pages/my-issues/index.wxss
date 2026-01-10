@@ -1,10 +1,8 @@
-/* 我的随手拍页面样式 - 无障碍设计 */
 .my-issues-container {
   background-color: #f5f5f5;
   min-height: 100vh;
 }
 
-/* 页面标题 */
 .page-header {
   background-color: #002fa7;
   padding: 40rpx 30rpx;
@@ -13,7 +11,7 @@
 
 .page-title {
   display: block;
-  font-size: 40rpx;
+  font-size: 42rpx;
   font-weight: bold;
   margin-bottom: 12rpx;
 }
@@ -24,7 +22,51 @@
   opacity: 0.8;
 }
 
-/* 空状态 */
+.tab-bar {
+  display: flex;
+  background-color: #002fa7;
+  padding: 0 20rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.tab-text {
+  font-size: 30rpx;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.tab-item.active .tab-text {
+  color: #FFD700;
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120rpx;
+  height: 6rpx;
+  background-color: #FFD700;
+  border-radius: 3rpx 3rpx 0 0;
+}
+
+.tab-content {
+  padding: 30rpx;
+  min-height: calc(100vh - 200rpx);
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -64,45 +106,45 @@
   padding: 0 60rpx;
   height: 80rpx;
   line-height: 80rpx;
+  min-height: 80rpx;
 }
 
-/* 问题列表 */
-.issues-list {
-  padding: 30rpx;
+.issues-list,
+.posts-list {
+  padding-bottom: 20rpx;
 }
 
-.issue-item {
+.issue-item,
+.post-item {
   background-color: #ffffff;
   border-radius: 20rpx;
   margin-bottom: 30rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  min-height: 200rpx;
+  overflow: hidden;
   transition: all 0.3s ease;
 }
 
-.issue-item:active {
+.issue-item:active,
+.post-item:active {
   transform: scale(0.98);
 }
 
-.issue-image {
+.item-image {
   position: relative;
   width: 200rpx;
   height: 200rpx;
-  overflow: hidden;
-  border-radius: 20rpx 0 0 20rpx;
+  flex-shrink: 0;
 }
 
-.issue-image image {
+.item-image image {
   width: 100%;
   height: 100%;
 }
 
 .status-tag {
   position: absolute;
-  top: 20rpx;
-  right: 20rpx;
+  top: 16rpx;
+  right: 16rpx;
   padding: 8rpx 16rpx;
   border-radius: 20rpx;
   font-size: 24rpx;
@@ -114,17 +156,18 @@
   background-color: #FF9800;
 }
 
-.status-tag.submitted {
+.status-tag.solved {
   background-color: #4CAF50;
 }
 
-.issue-content {
+.item-content {
   flex: 1;
-  padding: 30rpx;
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
 }
 
-.issue-title {
-  display: block;
+.item-title {
   font-size: 32rpx;
   font-weight: bold;
   color: #333333;
@@ -132,15 +175,13 @@
   line-height: 1.4;
 }
 
-.issue-location {
-  display: block;
+.item-location {
   font-size: 26rpx;
   color: #666666;
   margin-bottom: 8rpx;
 }
 
-.issue-time {
-  display: block;
+.item-time {
   font-size: 24rpx;
   color: #999999;
   margin-bottom: 16rpx;
@@ -150,7 +191,8 @@
   background-color: #E8F4FD;
   padding: 16rpx;
   border-radius: 12rpx;
-  border-left: 4rpx solid #2196F3;
+  border-left: 6rpx solid #2196F3;
+  margin-top: auto;
 }
 
 .suggestion-label {
@@ -166,8 +208,10 @@
   line-height: 1.4;
 }
 
-.issue-arrow {
-  padding: 0 30rpx 0 20rpx;
+.item-arrow {
+  padding: 0 24rpx 0 16rpx;
+  display: flex;
+  align-items: center;
 }
 
 .arrow-icon {
@@ -175,7 +219,87 @@
   height: 32rpx;
 }
 
-/* 加载状态 */
+.post-item {
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx;
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.post-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background-color: #f0f0f0;
+}
+
+.post-user-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.post-user-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 6rpx;
+}
+
+.post-time {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.post-content {
+  margin-bottom: 20rpx;
+}
+
+.post-text {
+  font-size: 30rpx;
+  color: #333333;
+  line-height: 1.6;
+}
+
+.post-footer {
+  margin-bottom: 20rpx;
+}
+
+.post-thumbnail {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+}
+
+.post-stats {
+  display: flex;
+  gap: 40rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx solid #f0f0f0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.stat-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.stat-text {
+  font-size: 28rpx;
+  color: #666666;
+}
+
 .loading-state {
   text-align: center;
   padding: 60rpx;
@@ -183,8 +307,8 @@
   font-size: 28rpx;
 }
 
-/* 加载更多 */
-.load-more, .no-more {
+.load-more,
+.no-more {
   text-align: center;
   padding: 40rpx;
   color: #999999;
@@ -195,32 +319,20 @@
   color: #002fa7;
 }
 
-/* 无障碍优化 */
-.issue-item {
-  min-height: 200rpx;
-}
+@media (min-width: 768px) {
+  .issue-item {
+    display: flex;
+  }
 
-.empty-btn {
-  min-height: 80rpx;
-  line-height: 80rpx;
-}
+  .tab-text {
+    font-size: 32rpx;
+  }
 
-/* 高对比度优化 */
-.issue-title {
-  font-weight: bold;
-  font-size: 34rpx;
-}
+  .item-title {
+    font-size: 34rpx;
+  }
 
-.page-title {
-  font-size: 42rpx;
-}
-
-/* 大触摸目标 */
-.issue-item {
-  min-height: 200rpx;
-}
-
-button {
-  min-height: 80rpx;
-  min-width: 80rpx;
+  .post-text {
+    font-size: 32rpx;
+  }
 }
