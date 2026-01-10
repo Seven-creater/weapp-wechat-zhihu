@@ -198,18 +198,19 @@
 }
 
 .action-icon {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 8rpx;
 }
 
 .action-text {
   font-size: 28rpx;
-  color: var(--color-text-secondary);
+  color: #666;
   font-weight: 500;
 }
 
 .like-btn.liked .action-text {
-  color: var(--color-error);
+  color: #ff4d4f;
 }
 
 .collect-btn.collected .action-text {

@@ -83,8 +83,13 @@
         aria-role="button"
         aria-label="{{post.liked ? '取消点赞' : '点赞'}}，当前{{post.stats.like}}个赞"
       >
-        <image class="action-icon" src="/images/like{{post.liked ? '-active' : ''}}.png" aria-hidden="true"></image>
-        <text class="action-text">{{post.stats.like}}</text>
+        <image 
+          class="action-icon" 
+          src="{{post.liked ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
+          mode="aspectFit"
+          aria-hidden="true"
+        ></image>
+        <text class="action-text {{post.liked ? 'liked-text' : ''}}">{{post.stats.like}}</text>
       </view>
 
       <view 
