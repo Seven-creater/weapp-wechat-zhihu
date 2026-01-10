@@ -235,14 +235,31 @@
 }
 
 .action-btn .icon {
-  width: 36rpx;
-  height: 36rpx;
+  width: 44rpx;
+  height: 44rpx;
   margin-right: 8rpx;
 }
 
 .action-btn .num {
   font-size: 26rpx;
   color: #666;
+}
+
+/* 点赞和收藏变亮效果 */
+.action-btn.liked {
+  background-color: rgba(230, 67, 64, 0.08);
+}
+
+.action-btn.collected {
+  background-color: rgba(255, 215, 0, 0.12);
+}
+
+.like-btn.liked .num {
+  color: #ff4d4f;
+}
+
+.collect-btn.collected .num {
+  color: #ffd700;
 }
 
 /* 加载更多 */

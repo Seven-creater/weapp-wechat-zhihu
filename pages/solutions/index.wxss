@@ -171,20 +171,24 @@
 }
 
 .collect-icon {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
   flex-shrink: 0;
 }
 
 .collect-icon.collected {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
 }
 
 .collect-count {
   font-size: 26rpx;
   color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+.collect-count.collected-text {
+  color: #FFD700;
 }
 
 /* 加载更多样式 */

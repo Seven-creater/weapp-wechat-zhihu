@@ -53,8 +53,9 @@
                 aria-role="button"
                 aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount}}人收藏">
             <image class="collect-icon {{item.isCollected ? 'collected' : ''}}" 
-                   src="{{item.isCollected ? '/images/star2.png' : '/images/star.png'}}"></image>
-            <text class="collect-count">{{item.collectCount}}</text>
+                   src="{{item.isCollected ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
+                   mode="aspectFit"></image>
+            <text class="collect-count {{item.isCollected ? 'collected-text' : ''}}">{{item.collectCount}}</text>
           </view>
         </view>
       </view>

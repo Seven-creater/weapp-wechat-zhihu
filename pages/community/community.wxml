@@ -77,15 +77,20 @@
       <!-- 3. 底部操作栏 -->
       <view class="card-footer">
         <view 
-          class="action-btn" 
+          class="action-btn like-btn {{item.liked ? 'liked' : ''}}" 
           catchtap="likePost" 
           data-postid="{{item._id}}" 
           data-index="{{index}}"
           aria-role="button"
           aria-label="{{item.liked ? '取消点赞' : '点赞'}}，当前{{item.stats.like}}个赞"
         >
-          <image class="icon" src="/images/like{{item.liked ? '-active' : ''}}.png" aria-hidden="true"></image>
-          <text class="num">{{item.stats.like}}</text>
+          <image 
+            class="icon" 
+            src="{{item.liked ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
+            mode="aspectFit"
+            aria-hidden="true"
+          ></image>
+          <text class="num {{item.liked ? 'liked-text' : ''}}">{{item.stats.like}}</text>
         </view>
 
         <view 
@@ -111,15 +116,20 @@
         </view>
 
         <view 
-          class="action-btn" 
+          class="action-btn collect-btn {{item.isCollected ? 'collected' : ''}}" 
           catchtap="collectPost" 
           data-postid="{{item._id}}"
           data-index="{{index}}"
           aria-role="button"
           aria-label="{{item.isCollected ? '取消收藏' : '收藏'}}，当前{{item.collectCount || 0}}人收藏"
         >
-          <image class="icon" src="{{item.isCollected ? '/images/star2.png' : '/images/star.png'}}" aria-hidden="true"></image>
-          <text class="num">{{item.collectCount || 0}}</text>
+          <image 
+            class="icon" 
+            src="{{item.isCollected ? 'https://s1.ax1x.com/2022/04/27/LqVd34.png' : 'https://s1.ax1x.com/2022/04/27/LqVuOU.png'}}"
+            mode="aspectFit"
+            aria-hidden="true"
+          ></image>
+          <text class="num {{item.isCollected ? 'collected-text' : ''}}">{{item.collectCount || 0}}</text>
         </view>
       </view>
     </view>
