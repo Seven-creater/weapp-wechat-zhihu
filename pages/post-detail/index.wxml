@@ -5,24 +5,28 @@
     <view class="post-header">
       <image class="avatar" src="{{post.userInfo.avatarUrl}}" aria-hidden="true"></image>
       <view class="user-info">
-        <text class="user-name">{{post.userInfo.nickName}}</text>
-        <text class="post-time">{{post.createTime}}</text>
+        <view class="name-row">
+          <text class="user-name">{{post.userInfo.nickName}}</text>
+          <view class="post-type" wx:if="{{post.type}}">
+            <text class="type-tag type-{{post.type}}">
+              {{post.type === 'help' ? '求助' : post.type === 'share' ? '分享' : '路障反馈'}}
+            </text>
+          </view>
+        </view>
+        <view class="time-row">
+          <text class="post-time">{{post.createTime}}</text>
+          <view 
+            class="delete-btn" 
+            wx:if="{{post.isOwner}}"
+            bindtap="deletePost"
+            data-postid="{{post._id}}"
+            aria-role="button"
+            aria-label="删除帖子"
+          >
+            <image class="delete-icon" src="/images/delete.png" aria-hidden="true"></image>
+          </view>
+        </view>
       </view>
-      <view class="post-type" wx:if="{{post.type}}">
-        <text class="type-tag type-{{post.type}}">
-          {{post.type === 'help' ? '求助' : post.type === 'share' ? '分享' : '路障反馈'}}
-        </text>
-      </view>
-    </view>
-    <view
-      class="delete-btn"
-      wx:if="{{post.isOwner}}"
-      bindtap="deletePost"
-      data-postid="{{post._id}}"
-      aria-role="button"
-      aria-label="删除帖子"
-    >
-      删除
     </view>
 
     <!-- 帖子内容 -->
@@ -54,22 +58,6 @@
           data-urls="{{post.images}}"
           aria-label="帖子图片{{index + 1}}"
         ></image>
-      </view>
-    </view>
-
-    <!-- 帖子统计信息 -->
-    <view class="post-stats">
-      <view class="stat-item">
-        <text class="stat-number">{{post.stats.view}}</text>
-        <text class="stat-label">浏览</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-number">{{post.stats.like}}</text>
-        <text class="stat-label">点赞</text>
-      </view>
-      <view class="stat-item">
-        <text class="stat-number">{{post.stats.comment}}</text>
-        <text class="stat-label">评论</text>
       </view>
     </view>
 

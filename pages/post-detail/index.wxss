@@ -1,8 +1,8 @@
-/* 帖子详情页样式 - 无障碍设计规范 */
+/* 帖子详情页样式 - 修复版 */
 
 .post-detail-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--color-bg-page);
   padding-bottom: 160rpx;
 }
 
@@ -11,8 +11,8 @@
   background-color: #ffffff;
   border-radius: 0 0 30rpx 30rpx;
   padding: 40rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 47, 167, 0.1);
+  margin: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
 /* 帖子头部 */
@@ -20,64 +20,81 @@
   display: flex;
   align-items: center;
   margin-bottom: 30rpx;
-  gap: 20rpx;
 }
 
 .avatar {
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
-  margin-right: 0;
-  border: 3rpx solid #ffd700;
+  margin-right: 20rpx;
+  border: 3rpx solid var(--color-accent);
+  flex-shrink: 0;
 }
 
 .user-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
 }
 
 .user-name {
   font-size: 36rpx;
   font-weight: bold;
-  color: #002fa7;
-  display: block;
-  margin-bottom: 10rpx;
-}
-
-.post-time {
-  font-size: 28rpx;
-  color: #999999;
+  color: var(--color-text-primary);
+  margin-right: 16rpx;
 }
 
 .post-type {
-  margin-left: 0;
+  margin-left: 16rpx;
 }
 
 .type-tag {
-  padding: 8rpx 20rpx;
-  border-radius: 20rpx;
-  font-size: 24rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
   font-weight: bold;
   color: #ffffff;
 }
 
 .type-help {
-  background-color: #ff4444;
+  background-color: var(--color-error);
 }
 
 .type-share {
-  background-color: #4caf50;
+  background-color: var(--color-success);
 }
 
 .type-issue {
-  background-color: #ff9800;
+  background-color: var(--color-warning);
+}
+
+.time-row {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.post-time {
+  font-size: 24rpx;
+  color: var(--color-text-secondary);
 }
 
 .delete-btn {
-  padding: 6rpx 16rpx;
+  padding: 8rpx 16rpx;
   border-radius: 999rpx;
-  background: #ff4d4f;
-  color: #ffffff;
-  font-size: 22rpx;
+  background: transparent;
+  margin-left: 20rpx;
+}
+
+.delete-icon {
+  width: 32rpx;
+  height: 32rpx;
 }
 
 /* 帖子内容 */
@@ -88,7 +105,7 @@
 .content-text {
   font-size: 32rpx;
   line-height: 1.6;
-  color: #333333;
+  color: #333;
   word-break: break-word;
 }
 
@@ -98,10 +115,9 @@
   align-items: center;
   gap: 20rpx;
   padding: 24rpx 30rpx;
-  background-color: #f0f4ff;
+  background-color: rgba(0, 47, 167, 0.05);
   border-radius: 16rpx;
   margin-bottom: 30rpx;
-  border: 2rpx solid #e0e7ff;
 }
 
 .location-icon {
@@ -119,13 +135,13 @@
 
 .location-label {
   font-size: 24rpx;
-  color: #002fa7;
+  color: var(--color-primary);
   font-weight: bold;
 }
 
 .location-text {
   font-size: 28rpx;
-  color: #333333;
+  color: var(--color-text-primary);
   line-height: 1.4;
   word-break: break-word;
 }
@@ -144,36 +160,8 @@
 .post-image {
   width: 100%;
   height: 200rpx;
-  border-radius: 10rpx;
+  border-radius: 16rpx;
   object-fit: cover;
-}
-
-/* 帖子统计信息 */
-.post-stats {
-  display: flex;
-  justify-content: space-around;
-  margin-bottom: 30rpx;
-  padding: 20rpx 0;
-  border-top: 2rpx solid #e0e0e0;
-  border-bottom: 2rpx solid #e0e0e0;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #002fa7;
-}
-
-.stat-label {
-  font-size: 24rpx;
-  color: #999999;
-  margin-top: 5rpx;
 }
 
 /* 底部操作栏 */
@@ -181,30 +169,32 @@
   display: flex;
   justify-content: space-around;
   align-items: center;
+  padding-top: 30rpx;
+  border-top: 2rpx solid var(--color-border);
 }
 
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 15rpx;
-  padding: 20rpx 40rpx;
-  border-radius: 50rpx;
-  background-color: #f8f8f8;
-  transition: background-color 0.3s;
+  gap: 8rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 999rpx;
+  background-color: transparent;
+  transition: background-color var(--transition-fast);
   min-width: 140rpx;
   justify-content: center;
 }
 
 .action-btn:active {
-  background-color: #e0e0e0;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.liked {
-  background-color: #ffebee;
+  background-color: rgba(230, 67, 64, 0.08);
 }
 
 .action-btn.collected {
-  background-color: #fff3e0;
+  background-color: rgba(255, 215, 0, 0.12);
 }
 
 .action-icon {
@@ -214,24 +204,25 @@
 
 .action-text {
   font-size: 28rpx;
-  color: #666666;
-  font-weight: bold;
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
 .like-btn.liked .action-text {
-  color: #ff4444;
+  color: var(--color-error);
 }
 
 .collect-btn.collected .action-text {
-  color: #ff9800;
+  color: var(--color-accent);
 }
 
 /* 评论区 */
 .comments-section {
   background-color: #ffffff;
-  border-radius: 30rpx;
+  border-radius: 30rpx 30rpx;
   padding: 40rpx;
-  margin: 0 20rpx;
+  margin: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
 .section-header {
@@ -240,18 +231,18 @@
   align-items: center;
   margin-bottom: 30rpx;
   padding-bottom: 20rpx;
-  border-bottom: 2rpx solid #e0e0e0;
+  border-bottom: 2rpx solid var(--color-border);
 }
 
 .section-title {
   font-size: 36rpx;
   font-weight: bold;
-  color: #002fa7;
+  color: var(--color-text-primary);
 }
 
 .comment-count {
   font-size: 28rpx;
-  color: #999999;
+  color: var(--color-text-secondary);
 }
 
 /* 评论列表 */
@@ -263,6 +254,7 @@
   margin-bottom: 40rpx;
 }
 
+/* 主评论 */
 .main-comment {
   display: flex;
   margin-bottom: 20rpx;
@@ -273,7 +265,8 @@
   height: 80rpx;
   border-radius: 50%;
   margin-right: 20rpx;
-  border: 2rpx solid #ffd700;
+  border: 2rpx solid var(--color-accent);
+  flex-shrink: 0;
 }
 
 .comment-content {
@@ -290,25 +283,25 @@
 .comment-author {
   font-size: 30rpx;
   font-weight: bold;
-  color: #002fa7;
+  color: var(--color-text-primary);
 }
 
 .comment-time {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--color-text-secondary);
 }
 
 .comment-text {
   font-size: 28rpx;
   line-height: 1.5;
-  color: #333333;
+  color: #333;
   word-break: break-word;
   margin-bottom: 15rpx;
 }
 
 .comment-actions {
   display: flex;
-  gap: 30rpx;
+  gap: 20rpx;
 }
 
 .comment-action {
@@ -317,46 +310,46 @@
   gap: 8rpx;
   padding: 10rpx 20rpx;
   border-radius: 20rpx;
-  background-color: #f8f8f8;
-  transition: background-color 0.3s;
+  background-color: var(--color-bg-page);
+  transition: background-color var(--transition-fast);
 }
 
 .comment-action:active {
-  background-color: #e0e0e0;
+  background-color: var(--color-border);
 }
 
 .comment-action.liked {
-  background-color: #ffebee;
+  background-color: rgba(230, 67, 64, 0.08);
 }
 
-.action-icon {
+.comment-action .action-icon {
   width: 24rpx;
   height: 24rpx;
 }
 
-.action-text {
+.comment-action .action-text {
   font-size: 24rpx;
-  color: #666666;
+  color: var(--color-text-secondary);
 }
 
 .like-action.liked .action-text {
-  color: #ff4444;
+  color: var(--color-error);
 }
 
 .reply-action.delete-action,
 .comment-action.delete-action {
-  background-color: #fff1f0;
+  background-color: rgba(255, 77, 77, 0.08);
 }
 
 .reply-action.delete-action .action-text,
 .comment-action.delete-action .action-text {
-  color: #ff4d4f;
+  color: var(--color-error);
 }
 
 /* 回复列表 */
 .replies-list {
   margin-left: 100rpx;
-  border-left: 4rpx solid #e0e0e0;
+  border-left: 4rpx solid var(--color-border);
   padding-left: 20rpx;
 }
 
@@ -370,7 +363,8 @@
   height: 60rpx;
   border-radius: 50%;
   margin-right: 15rpx;
-  border: 2rpx solid #ffd700;
+  border: 2rpx solid var(--color-accent);
+  flex-shrink: 0;
 }
 
 .reply-content {
@@ -387,25 +381,25 @@
 .reply-author {
   font-size: 26rpx;
   font-weight: bold;
-  color: #002fa7;
+  color: var(--color-text-primary);
 }
 
 .reply-time {
   font-size: 22rpx;
-  color: #999999;
+  color: var(--color-text-secondary);
 }
 
 .reply-text {
   font-size: 26rpx;
   line-height: 1.4;
-  color: #333333;
+  color: #333;
   word-break: break-word;
   margin-bottom: 10rpx;
 }
 
 .reply-actions {
   display: flex;
-  gap: 20rpx;
+  gap: 15rpx;
 }
 
 .reply-action {
@@ -414,16 +408,30 @@
   gap: 6rpx;
   padding: 8rpx 16rpx;
   border-radius: 15rpx;
-  background-color: #f8f8f8;
-  transition: background-color 0.3s;
+  background-color: var(--color-bg-page);
+  transition: background-color var(--transition-fast);
 }
 
 .reply-action:active {
-  background-color: #e0e0e0;
+  background-color: var(--color-border);
 }
 
 .reply-action.liked {
-  background-color: #ffebee;
+  background-color: rgba(230, 67, 64, 0.08);
+}
+
+.reply-action .action-icon {
+  width: 20rpx;
+  height: 20rpx;
+}
+
+.reply-action .action-text {
+  font-size: 22rpx;
+  color: var(--color-text-secondary);
+}
+
+.like-action.liked .action-text {
+  color: var(--color-error);
 }
 
 /* 空评论状态 */
@@ -445,27 +453,27 @@
 
 .empty-text {
   font-size: 32rpx;
-  color: #666666;
+  color: var(--color-text-secondary);
   margin-bottom: 15rpx;
   font-weight: bold;
 }
 
 .empty-subtext {
   font-size: 26rpx;
-  color: #999999;
+  color: var(--color-text-disabled);
 }
 
-/* 底部评论输入栏 */
+/* 底部评论输入栏 - 关键修复 */
 .comment-input-bar {
   position: fixed;
   bottom: -100%;
   left: 0;
   right: 0;
   background-color: #ffffff;
-  border-top: 2rpx solid #e0e0e0;
+  border-top: 1rpx solid #eee;
   padding: 20rpx 40rpx;
   transition: bottom 0.3s ease-in-out;
-  z-index: 1000;
+  z-index: 999;
 }
 
 .comment-input-bar.active {
@@ -480,11 +488,12 @@
 
 .comment-input {
   flex: 1;
-  background-color: #f8f8f8;
-  border-radius: 25rpx;
+  background-color: #f5f5f5;
+  border-radius: 40rpx;
   padding: 20rpx 30rpx;
   font-size: 28rpx;
-  min-height: 50rpx;
+  color: #333;
+  min-height: 72rpx;
 }
 
 .input-actions {
@@ -498,12 +507,12 @@
   border-radius: 20rpx;
   font-size: 28rpx;
   font-weight: bold;
-  transition: background-color 0.3s;
+  transition: background-color var(--transition-fast);
 }
 
 .cancel-btn {
   background-color: #f8f8f8;
-  color: #666666;
+  color: #666;
 }
 
 .cancel-btn:active {
@@ -511,12 +520,12 @@
 }
 
 .submit-btn {
-  background-color: #002fa7;
+  background-color: var(--color-primary);
   color: #ffffff;
 }
 
 .submit-btn:active {
-  background-color: #001f7a;
+  background-color: var(--color-primary-dark);
 }
 
 /* 固定评论按钮 */
@@ -528,13 +537,13 @@
   display: flex;
   align-items: center;
   gap: 15rpx;
-  background-color: #002fa7;
+  background-color: var(--color-primary);
   color: #ffffff;
   padding: 20rpx 40rpx;
   border-radius: 50rpx;
   box-shadow: 0 8rpx 30rpx rgba(0, 47, 167, 0.4);
   z-index: 900;
-  transition: transform 0.3s;
+  transition: transform var(--transition-normal);
 }
 
 .fixed-comment-btn:active {
@@ -559,13 +568,15 @@
 
 .loading-text {
   font-size: 32rpx;
-  color: #666666;
+  color: var(--color-text-secondary);
 }
 
 /* 无障碍优化 */
 .action-btn,
 .comment-action,
-.reply-action {
+.reply-action,
+.cancel-btn,
+.submit-btn {
   min-height: 60rpx;
   min-width: 80rpx;
 }
@@ -579,13 +590,13 @@
 @media (prefers-contrast: high) {
   .post-content-section,
   .comments-section {
-    border: 3rpx solid #002fa7;
+    border: 3rpx solid var(--color-primary);
   }
 
   .action-btn,
   .comment-action,
   .reply-action {
-    border: 2rpx solid #002fa7;
+    border: 2rpx solid var(--color-primary);
   }
 }
 
