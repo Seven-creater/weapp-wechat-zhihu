@@ -50,9 +50,11 @@ Page({
         });
 
         // 初始化收藏状态
-        collectUtil.initCollectStatus(this, "collect_post", postId).catch(() => {
-          // 初始化失败不影响主要功能
-        });
+        collectUtil
+          .initCollectStatus(this, "collect_post", postId)
+          .catch(() => {
+            // 初始化失败不影响主要功能
+          });
 
         // 初始化点赞状态
         if (openid && post) {
@@ -230,11 +232,14 @@ Page({
             })
             .remove()
             .then(() => {
-              return db.collection("posts").doc(post._id).update({
-                data: {
-                  "stats.like": db.command.inc(-1),
-                },
-              });
+              return db
+                .collection("posts")
+                .doc(post._id)
+                .update({
+                  data: {
+                    "stats.like": db.command.inc(-1),
+                  },
+                });
             })
             .catch((err) => {
               console.error("取消点赞失败:", err);
@@ -253,11 +258,14 @@ Page({
             },
           })
           .then(() => {
-            return db.collection("posts").doc(post._id).update({
-              data: {
-                "stats.like": db.command.inc(1),
-              },
-            });
+            return db
+              .collection("posts")
+              .doc(post._id)
+              .update({
+                data: {
+                  "stats.like": db.command.inc(1),
+                },
+              });
           })
           .catch((err) => {
             console.error("点赞失败:", err);
@@ -299,7 +307,7 @@ Page({
   },
 
   // 提交评论
-  submitComment: function () {
+  submitComment: async function () {
     const { newComment, replyTo, post } = this.data;
 
     if (!newComment.trim()) {
@@ -309,6 +317,32 @@ Page({
       });
       return;
     }
+
+    // 显示检测中状态
+    wx.showLoading({
+      title: "内容检测中...",
+      mask: true,
+    });
+
+    // 先检测文本内容
+    const textCheckResult = await wx.cloud.callFunction({
+      name: "checkContent",
+      data: {
+        type: "text",
+        value: newComment,
+      },
+    });
+
+    if (textCheckResult.result.code !== 0) {
+      wx.hideLoading();
+      wx.showToast({
+        title: textCheckResult.result.msg || "评论包含敏感信息",
+        icon: "none",
+      });
+      return;
+    }
+
+    wx.hideLoading();
 
     if (!post) return;
 
@@ -335,7 +369,8 @@ Page({
         });
       })
       .then(() => {
-        const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+        const userInfo =
+          app.globalData.userInfo || wx.getStorageSync("userInfo");
         const commentData = {
           postId: post._id,
           parentId: replyTo || "",
@@ -393,11 +428,14 @@ Page({
               },
             });
 
-            return db.collection("posts").doc(post._id).update({
-              data: {
-                "stats.comment": db.command.inc(1),
-              },
-            });
+            return db
+              .collection("posts")
+              .doc(post._id)
+              .update({
+                data: {
+                  "stats.comment": db.command.inc(1),
+                },
+              });
           })
           .then(() => {
             wx.showToast({
@@ -482,11 +520,14 @@ Page({
             })
             .remove()
             .then(() => {
-              return db.collection("comments").doc(commentId).update({
-                data: {
-                  likes: db.command.inc(-1),
-                },
-              });
+              return db
+                .collection("comments")
+                .doc(commentId)
+                .update({
+                  data: {
+                    likes: db.command.inc(-1),
+                  },
+                });
             })
             .catch((err) => {
               console.error("取消评论点赞失败:", err);
@@ -507,11 +548,14 @@ Page({
             },
           })
           .then(() => {
-            return db.collection("comments").doc(commentId).update({
-              data: {
-                likes: db.command.inc(1),
-              },
-            });
+            return db
+              .collection("comments")
+              .doc(commentId)
+              .update({
+                data: {
+                  likes: db.command.inc(1),
+                },
+              });
           })
           .catch((err) => {
             console.error("评论点赞失败:", err);
@@ -641,11 +685,11 @@ Page({
   previewImage: function (e) {
     const current = e.currentTarget.dataset.current;
     const urls = e.currentTarget.dataset.urls;
-    
+
     if (current && urls && urls.length > 0) {
       wx.previewImage({
         current: current,
-        urls: urls
+        urls: urls,
       });
     }
   },
