@@ -130,11 +130,11 @@ Page({
   // 提交帖子
   submitPost: function() {
     const { content, images, type, submitting } = this.data;
-
+    
     if (submitting) return;
 
     const imagePaths = images.map((item) => item.path || item);
-
+    
     // 验证内容
     if (!content.trim()) {
       wx.showToast({
@@ -152,6 +152,53 @@ Page({
       return;
     }
 
+    // 显示检测中状态
+    wx.showLoading({
+      title: '内容检测中...',
+      mask: true
+    });
+
+    // 先检测文本内容
+    const textCheckResult = await wx.cloud.callFunction({
+      name: 'checkContent',
+      data: {
+        type: 'text',
+        value: content
+      }
+    });
+
+    if (textCheckResult.result.code !== 0) {
+      wx.hideLoading();
+      wx.showToast({
+        title: textCheckResult.result.msg || '内容包含违规信息',
+        icon: 'none'
+      });
+      return;
+    }
+
+    // 检测图片内容
+    if (imagePaths.length > 0) {
+      for (let i = 0; i < imagePaths.length; i++) {
+        const imageCheckResult = await wx.cloud.callFunction({
+          name: 'checkContent',
+          data: {
+            type: 'image',
+            value: imagePaths[i]
+          }
+        });
+
+        if (imageCheckResult.result.code !== 0) {
+          wx.hideLoading();
+          wx.showToast({
+            title: `第${i + 1}张图片${imageCheckResult.result.msg || '包含违规信息'}`,
+            icon: 'none'
+          });
+          return;
+        }
+      }
+    }
+
+    wx.hideLoading();
     this.setData({ submitting: true });
 
     // 显示提交中状态
