@@ -30,6 +30,15 @@
       <text class="content-text" user-select="true">{{post.content}}</text>
     </view>
 
+    <!-- 定位信息 -->
+    <view class="location-card" wx:if="{{post.address}}">
+      <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
+      <view class="location-info">
+        <text class="location-label">问题位置</text>
+        <text class="location-text">{{post.address}}</text>
+      </view>
+    </view>
+
     <!-- 图片展示 -->
     <view class="post-images" wx:if="{{post.images && post.images.length > 0}}">
       <view class="image-grid">

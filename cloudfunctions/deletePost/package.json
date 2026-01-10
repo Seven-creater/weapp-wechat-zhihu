@@ -1,5 +1,8 @@
 {
   "name": "deletePost",
   "version": "1.0.0",
-  "description": "Delete post with cascade cleanup"
+  "description": "Delete post with cascade cleanup",
+  "dependencies": {
+    "wx-server-sdk": "^3.0.1"
+  }
 }

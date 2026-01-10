@@ -53,6 +53,12 @@
         <text class="content-text" user-select="true">{{item.content}}</text>
       </view>
 
+      <!-- 定位信息 -->
+      <view class="post-location" wx:if="{{item.address}}">
+        <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
+        <text class="location-text">{{item.address}}</text>
+      </view>
+
       <!-- 图片展示（九宫格） -->
       <view class="post-images" wx:if="{{item.images && item.images.length > 0}}">
         <view class="image-grid">

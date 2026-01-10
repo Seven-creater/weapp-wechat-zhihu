@@ -1,5 +1,8 @@
 {
   "name": "deleteComment",
   "version": "1.0.0",
-  "description": "Delete comment and replies"
+  "description": "Delete comment and replies",
+  "dependencies": {
+    "wx-server-sdk": "^3.0.1"
+  }
 }
