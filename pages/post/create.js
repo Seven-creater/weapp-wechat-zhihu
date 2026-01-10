@@ -128,7 +128,7 @@ Page({
   },
 
   // 提交帖子
-  submitPost: function() {
+  submitPost: async function() {
     const { content, images, type, submitting } = this.data;
     
     if (submitting) return;
