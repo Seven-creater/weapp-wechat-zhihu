@@ -55,11 +55,12 @@
 }
 
 .type-tag {
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
   font-weight: bold;
   color: #ffffff;
+  line-height: 1.4;
 }
 
 .type-help {
@@ -71,7 +72,7 @@
 }
 
 .type-issue {
-  background-color: var(--color-warning);
+  background-color: #ff9800;
 }
 
 .time-row {
