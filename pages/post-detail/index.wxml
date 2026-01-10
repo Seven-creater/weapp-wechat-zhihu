@@ -24,6 +24,7 @@
             aria-label="删除帖子"
           >
             <image class="delete-icon" src="/images/delete.png" aria-hidden="true"></image>
+            <text class="delete-text">删除</text>
           </view>
         </view>
       </view>
