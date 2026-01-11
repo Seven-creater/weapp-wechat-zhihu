@@ -225,10 +225,16 @@ Page({
   },
 
   onAiSolutionInput: function (e) {
+    const newValue = e.detail.value;
+    console.log("AI方案输入变化:", newValue);
+
     this.setData({
-      aiSolution: e.detail.value,
+      aiSolution: newValue,
     });
     this.draftDirty = true;
+
+    // 验证数据是否更新成功
+    console.log("当前aiSolution值:", this.data.aiSolution);
   },
 
   onSyncChange: function (e) {

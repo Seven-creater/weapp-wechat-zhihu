@@ -97,16 +97,16 @@
       </view>
     </view>
     <view class="ai-content">
-      <textarea
-        class="ai-textarea"
-        auto-height
-        maxlength="1000"
-        placeholder="AI 正在分析中..."
-        value="{{aiSolution}}"
-        bindinput="onAiSolutionInput"
-        aria-label="AI方案内容"
-      ></textarea>
-    </view>
+        <textarea
+          class="ai-textarea"
+          auto-height
+          maxlength="1000"
+          placeholder="AI 正在分析中..."
+          value="{{aiSolution}}"
+          bindinput="onAiSolutionInput"
+          aria-label="AI方案内容"
+        ></textarea>
+      </view>
   </view>
 
   <view class="section">
