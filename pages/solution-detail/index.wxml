@@ -29,7 +29,7 @@
       <text class="value">{{solution.address || '未知地点'}}</text>
     </view>
 
-    <view class="user-suggestion-card" wx:if="{{solution.userSuggestion}}">
+    <view class="user-suggestion-card" wx:if="{{solution.userSuggestion && solution.userSuggestion.length > 0}}">
       <view class="suggestion-header">
         <text class="suggestion-icon">👤</text>
         <text class="suggestion-title">我的建议</text>

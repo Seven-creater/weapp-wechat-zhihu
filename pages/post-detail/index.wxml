@@ -49,7 +49,7 @@
     </view>
 
     <!-- 用户建议 -->
-    <view class="user-suggestion-block" wx:if="{{post.userSuggestion}}">
+    <view class="user-suggestion-block" wx:if="{{post.userSuggestion && post.userSuggestion.length > 0}}">
       <view class="suggestion-blue-line"></view>
       <view class="suggestion-content">
         <text class="suggestion-label">👤 我的建议</text>
