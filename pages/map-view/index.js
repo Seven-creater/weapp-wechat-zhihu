@@ -16,12 +16,12 @@ Page({
   },
 
   onReady: function () {
-    this.mapCtx = wx.createMapContext('map', this);
+    this.mapCtx = wx.createMapContext("map", this);
   },
 
   getUserLocation: function () {
     wx.getLocation({
-      type: 'gcj02',
+      type: "gcj02",
       success: (res) => {
         const { latitude, longitude } = res;
         this.setData({
@@ -31,10 +31,10 @@ Page({
         });
       },
       fail: (err) => {
-        console.error('获取位置失败:', err);
+        console.error("获取位置失败:", err);
         wx.showModal({
-          title: '定位失败',
-          content: '需要获取您的位置信息来显示路障地图',
+          title: "定位失败",
+          content: "需要获取您的位置信息来显示路障地图",
           showCancel: false,
           success: () => {
             wx.openSetting();
@@ -46,9 +46,9 @@ Page({
 
   loadIssues: function () {
     this.setData({ loading: true });
-    
-    db.collection('issues')
-      .orderBy('createTime', 'desc')
+
+    db.collection("issues")
+      .orderBy("createTime", "desc")
       .limit(100)
       .get()
       .then((res) => {
@@ -57,11 +57,11 @@ Page({
         this.setData({ markers, loading: false });
       })
       .catch((err) => {
-        console.error('加载路障数据失败:', err);
+        console.error("加载路障数据失败:", err);
         this.setData({ loading: false });
         wx.showToast({
-          title: '加载失败',
-          icon: 'none',
+          title: "加载失败",
+          icon: "none",
         });
       });
   },
@@ -71,26 +71,26 @@ Page({
       .filter((issue) => issue.location && issue.location.coordinates)
       .map((issue) => {
         const [longitude, latitude] = issue.location.coordinates;
-        const address = issue.address || issue.formattedAddress || '未知地点';
-        const description = issue.description || issue.aiSolution || '无描述';
-        
+        const address = issue.address || issue.formattedAddress || "未知地点";
+        const description = issue.description || issue.aiSolution || "无描述";
+
         return {
           id: issue._id,
           latitude,
           longitude,
-          iconPath: '/images/marker_alert.png',
+          iconPath: "/images/marker_alert.png",
           width: 40,
           height: 40,
           alpha: 0.9,
           callout: {
             content: address,
-            color: '#333333',
+            color: "#333333",
             fontSize: 12,
             borderRadius: 4,
-            bgColor: '#ffffff',
+            bgColor: "#ffffff",
             padding: 8,
-            display: 'ALWAYS',
-            textAlign: 'center',
+            display: "ALWAYS",
+            textAlign: "center",
           },
         };
       });
@@ -99,14 +99,14 @@ Page({
   onMarkerTap: function (e) {
     const markerId = e.detail.markerId;
     if (!markerId) return;
-    
+
     wx.navigateTo({
       url: `/pages/solution-detail/index?id=${markerId}`,
     });
   },
 
   onRegionChange: function (e) {
-    if (e.type === 'end') {
+    if (e.type === "end") {
       const { latitude, longitude } = e.detail.region;
       this.setData({
         latitude,

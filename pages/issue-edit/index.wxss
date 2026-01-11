@@ -1,4 +1,4 @@
-page{
+page {
   background-color: #0a2463;
 }
 
@@ -94,7 +94,7 @@ page{
   align-items: center;
   gap: 8rpx;
   padding: 12rpx 24rpx;
-  background-color: #FFD700;
+  background-color: #ffd700;
   border-radius: 40rpx;
   font-size: 24rpx;
   font-weight: bold;
@@ -105,18 +105,19 @@ page{
 }
 
 .voice-btn:active {
-  background-color: #E6C200;
+  background-color: #e6c200;
   transform: scale(0.95);
 }
 
 .voice-btn.recording {
-  background-color: #FF4444;
+  background-color: #ff4444;
   color: #ffffff;
   animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

@@ -108,6 +108,21 @@ Page({
       .get()
       .then((res) => {
         const solution = res.data;
+
+        if (!solution) {
+          wx.hideLoading();
+          wx.showModal({
+            title: "提示",
+            content: "该方案不存在或已被删除",
+            showCancel: false,
+            confirmText: "返回",
+            success: () => {
+              wx.navigateBack();
+            },
+          });
+          return;
+        }
+
         this.setData({ solution });
 
         // 动态设置页面标题
@@ -131,10 +146,24 @@ Page({
       .catch((err) => {
         console.error("加载解决方案详情失败:", err);
         wx.hideLoading();
-        wx.showToast({
-          title: "加载失败",
-          icon: "none",
-        });
+
+        // 处理文档不存在的情况
+        if (err.errMsg && err.errMsg.includes("cannot find document")) {
+          wx.showModal({
+            title: "提示",
+            content: "该方案不存在或已被删除",
+            showCancel: false,
+            confirmText: "返回",
+            success: () => {
+              wx.navigateBack();
+            },
+          });
+        } else {
+          wx.showToast({
+            title: "加载失败",
+            icon: "none",
+          });
+        }
       });
   },
 

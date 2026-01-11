@@ -19,7 +19,8 @@
   z-index: 100;
 }
 
-.cancel-btn, .submit-btn {
+.cancel-btn,
+.submit-btn {
   padding: 20rpx 40rpx;
   border-radius: 25rpx;
   font-size: 32rpx;
@@ -43,12 +44,12 @@
 }
 
 .submit-btn.active {
-  background-color: #FFD700;
+  background-color: #ffd700;
   color: #002fa7;
 }
 
 .submit-btn.active:active {
-  background-color: #E6C200;
+  background-color: #e6c200;
 }
 
 .title {
@@ -156,7 +157,7 @@
   align-items: center;
   gap: 10rpx;
   padding: 15rpx 30rpx;
-  background-color: #FFD700;
+  background-color: #ffd700;
   border-radius: 50rpx;
   font-size: 28rpx;
   font-weight: bold;
@@ -167,18 +168,19 @@
 }
 
 .voice-btn:active {
-  background-color: #E6C200;
+  background-color: #e6c200;
   transform: scale(0.95);
 }
 
 .voice-btn.recording {
-  background-color: #FF4444;
+  background-color: #ff4444;
   color: #ffffff;
   animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -406,7 +408,11 @@
 }
 
 /* 无障碍优化 */
-.cancel-btn, .submit-btn, .type-option, .add-image-btn, .clear-btn {
+.cancel-btn,
+.submit-btn,
+.type-option,
+.add-image-btn,
+.clear-btn {
   min-height: 80rpx;
   min-width: 120rpx;
 }
@@ -418,14 +424,15 @@
 
 /* 高对比度模式支持 */
 @media (prefers-contrast: high) {
-  .editor-section, .footer-tips {
+  .editor-section,
+  .footer-tips {
     border: 3rpx solid #002fa7;
   }
-  
+
   .type-option {
     border: 2rpx solid #002fa7;
   }
-  
+
   .content-input {
     border: 3rpx solid #002fa7;
   }
@@ -437,12 +444,15 @@
     font-size: 36rpx;
     line-height: 1.8;
   }
-  
-  .selector-label, .upload-title {
+
+  .selector-label,
+  .upload-title {
     font-size: 36rpx;
   }
-  
-  .type-option, .add-text, .tip-text {
+
+  .type-option,
+  .add-text,
+  .tip-text {
     font-size: 30rpx;
   }
 }
