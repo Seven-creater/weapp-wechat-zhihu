@@ -1,4 +1,15 @@
 <view class="accessibility-home">
+  <!-- 地图模式入口按钮 -->
+  <view 
+    class="map-mode-btn" 
+    bindtap="navigateToMapView"
+    aria-role="button"
+    aria-label="进入地图模式"
+  >
+    <text class="map-mode-icon">🗺️</text>
+    <text class="map-mode-text">地图模式</text>
+  </view>
+
   <view class="hero-section">
     <view class="hero-bg"></view>
     

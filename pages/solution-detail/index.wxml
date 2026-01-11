@@ -10,6 +10,14 @@
     <view class="card-header">
       <view class="blue-line"></view>
       <text class="section-title">AI 智能分析报告</text>
+      <view 
+        class="voice-play-btn {{isPlaying ? 'playing' : ''}}"
+        bindtap="toggleVoicePlay"
+        aria-role="button"
+        aria-label="{{isPlaying ? '停止朗读' : '朗读AI分析'}}"
+      >
+        <text class="voice-icon">{{isPlaying ? '🔊' : '🔇'}}</text>
+      </view>
     </view>
     
     <view class="report-box">

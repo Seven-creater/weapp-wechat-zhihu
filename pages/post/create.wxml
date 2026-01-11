@@ -67,8 +67,20 @@
         show-confirm-bar="false"
         aria-label="帖子内容输入框"
       ></textarea>
-      <view class="word-count">
-        <text class="count-text">{{content.length}}/500</text>
+      <view class="editor-footer">
+        <view class="word-count">
+          <text class="count-text">{{content.length}}/500</text>
+        </view>
+        <view 
+          class="voice-btn {{isRecording ? 'recording' : ''}}"
+          catchtouchstart="streamRecord"
+          catchtouchend="endStreamRecord"
+          aria-role="button"
+          aria-label="{{isRecording ? '正在录音，松开结束' : '按住说话'}}"
+        >
+          <text class="voice-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
+          <text class="voice-text">{{isRecording ? '录音中' : '按住说话'}}</text>
+        </view>
       </view>
     </view>
 

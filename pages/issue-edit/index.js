@@ -14,9 +14,11 @@ Page({
     syncToCommunity: true,
     generatingAI: false,
     submitting: false,
+    isRecording: false,
   },
 
   onLoad: function (options) {
+    this.initVoiceInput();
     const fromCapture = options.fromCapture === "1";
     if (fromCapture) {
       this.initFromCapture();
@@ -29,6 +31,80 @@ Page({
     if (this.skipDraftSave) return;
     if (this.draftDirty && !this.data.submitting) {
       this.saveDraft(true);
+    }
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
+    }
+  },
+
+  initVoiceInput: function () {
+    try {
+      const plugin = requirePlugin("WeChatSI");
+      this.recognitionManager = plugin.getRecordRecognitionManager();
+
+      this.recognitionManager.onStart = () => {
+        console.log("开始录音");
+        this.setData({ isRecording: true });
+      };
+
+      this.recognitionManager.onStop = (res) => {
+        console.log("录音结束", res);
+        this.setData({ isRecording: false });
+        const result = res.result;
+
+        if (result && result.trim()) {
+          const currentDescription = this.data.description;
+          const newDescription = currentDescription
+            ? currentDescription + result
+            : result;
+          this.setData({ description: newDescription });
+          this.draftDirty = true;
+        } else {
+          wx.vibrateShort();
+          wx.showToast({
+            title: "未识别到语音，请重试",
+            icon: "none",
+          });
+        }
+      };
+
+      this.recognitionManager.onError = (err) => {
+        console.error("语音识别错误:", err);
+        this.setData({ isRecording: false });
+        wx.vibrateShort();
+        wx.showToast({
+          title: "语音识别失败，请重试",
+          icon: "none",
+        });
+      };
+    } catch (err) {
+      console.error("初始化语音插件失败:", err);
+    }
+  },
+
+  streamRecord: function () {
+    if (!this.recognitionManager) {
+      wx.showToast({
+        title: "语音功能初始化失败",
+        icon: "none",
+      });
+      return;
+    }
+    wx.vibrateShort();
+    this.recognitionManager.start({
+      lang: "zh_CN",
+      duration: 60000,
+    });
+    wx.showToast({
+      title: "正在听...",
+      icon: "none",
+      duration: 1000,
+    });
+  },
+
+  endStreamRecord: function () {
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
     }
   },
 

@@ -144,6 +144,56 @@
   color: #999999;
 }
 
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15rpx;
+}
+
+.voice-btn {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 15rpx 30rpx;
+  background-color: #FFD700;
+  border-radius: 50rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #002fa7;
+  transition: all 0.3s;
+  min-height: 60rpx;
+  min-width: 160rpx;
+}
+
+.voice-btn:active {
+  background-color: #E6C200;
+  transform: scale(0.95);
+}
+
+.voice-btn.recording {
+  background-color: #FF4444;
+  color: #ffffff;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.voice-icon {
+  font-size: 32rpx;
+}
+
+.voice-text {
+  font-size: 26rpx;
+}
+
 /* 图片上传区域 */
 .image-upload-section {
   margin-top: 40rpx;

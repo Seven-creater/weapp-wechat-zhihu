@@ -26,6 +26,12 @@ Page({
     this.loadRecentReports();
   },
 
+  navigateToMapView: function () {
+    wx.navigateTo({
+      url: "/pages/map-view/index",
+    });
+  },
+
   onPullDownRefresh: function () {
     // 下拉刷新，重新加载最近反馈
     this.loadRecentReports().then(() => {

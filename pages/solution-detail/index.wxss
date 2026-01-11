@@ -56,6 +56,42 @@ page {
   font-size: 36rpx;
   font-weight: bold;
   color: #333;
+  flex: 1;
+}
+
+.voice-play-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  background-color: #ffd700;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.voice-play-btn:active {
+  transform: scale(0.95);
+  background-color: #e6c200;
+}
+
+.voice-play-btn.playing {
+  background-color: #ff4444;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.voice-icon {
+  font-size: 32rpx;
 }
 
 /* 报告文本框 - 修复那个丑陋的黄框 */

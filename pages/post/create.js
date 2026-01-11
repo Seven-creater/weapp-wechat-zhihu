@@ -8,16 +8,90 @@ Page({
     images: [],
     type: "share", // 默认分享类型
     submitting: false,
+    isRecording: false, // 是否正在录音
   },
 
   onLoad: function () {
     this.restoreDraft();
+    this.initVoiceInput();
   },
 
   onUnload: function () {
     if (this.skipDraftSave) return;
     if (this.draftDirty && !this.data.submitting) {
       this.saveDraft(true);
+    }
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
+    }
+  },
+
+  initVoiceInput: function () {
+    try {
+      const plugin = requirePlugin("WeChatSI");
+      this.recognitionManager = plugin.getRecordRecognitionManager();
+
+      this.recognitionManager.onStart = () => {
+        console.log("开始录音");
+        this.setData({ isRecording: true });
+      };
+
+      this.recognitionManager.onStop = (res) => {
+        console.log("录音结束", res);
+        this.setData({ isRecording: false });
+        const result = res.result;
+
+        if (result && result.trim()) {
+          const currentContent = this.data.content;
+          const newContent = currentContent ? currentContent + result : result;
+          this.setData({ content: newContent });
+          this.draftDirty = true;
+        } else {
+          wx.vibrateShort();
+          wx.showToast({
+            title: "未识别到语音，请重试",
+            icon: "none",
+          });
+        }
+      };
+
+      this.recognitionManager.onError = (err) => {
+        console.error("语音识别错误:", err);
+        this.setData({ isRecording: false });
+        wx.vibrateShort();
+        wx.showToast({
+          title: "语音识别失败，请重试",
+          icon: "none",
+        });
+      };
+    } catch (err) {
+      console.error("初始化语音插件失败:", err);
+    }
+  },
+
+  streamRecord: function () {
+    if (!this.recognitionManager) {
+      wx.showToast({
+        title: "语音功能初始化失败",
+        icon: "none",
+      });
+      return;
+    }
+    wx.vibrateShort();
+    this.recognitionManager.start({
+      lang: "zh_CN",
+      duration: 60000, // 最长60秒
+    });
+    wx.showToast({
+      title: "正在听...",
+      icon: "none",
+      duration: 1000,
+    });
+  },
+
+  endStreamRecord: function () {
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
     }
   },
 

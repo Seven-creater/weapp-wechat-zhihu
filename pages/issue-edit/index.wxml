@@ -18,7 +18,19 @@
       bindinput="onDescriptionInput"
       aria-label="问题说明"
     ></textarea>
-    <view class="word-count">{{description.length}}/500</view>
+    <view class="input-footer">
+      <view class="word-count">{{description.length}}/500</view>
+      <view 
+        class="voice-btn {{isRecording ? 'recording' : ''}}"
+        catchtouchstart="streamRecord"
+        catchtouchend="endStreamRecord"
+        aria-role="button"
+        aria-label="{{isRecording ? '正在录音，松开结束' : '按住说话'}}"
+      >
+        <text class="voice-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
+        <text class="voice-text">{{isRecording ? '录音中' : '按住说话'}}</text>
+      </view>
+    </view>
   </view>
 
   <view class="section">
