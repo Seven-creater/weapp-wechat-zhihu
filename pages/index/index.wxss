@@ -302,17 +302,15 @@ image {
 .footer-note {
   padding: var(--spacing-xl) var(--spacing-lg);
   text-align: center;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    var(--color-bg-page) 100%
-  );
+  background: var(--color-primary);
+  margin-top: var(--spacing-lg);
 }
 
 .footer-slogan {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: var(--color-text-inverse);
   letter-spacing: 2rpx;
+  font-weight: 500;
 }
 
 /* ============================================
