@@ -8,7 +8,6 @@ cloud.init({
 
 // 阿里云百炼 API 配置
 // API Key：优先从环境变量读取，否则使用默认值
-// 请在微信开发者工具的云开发控制台中设置环境变量：DASHSCOPE_API_KEY
 const DASHSCOPE_API_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const MODEL_NAME = 'qwen-vl-max';
 
@@ -17,18 +16,52 @@ const DEFAULT_API_KEY = 'sk-2f0c1ef0d3d343e39e893c47211ad541';
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { imageUrl, location } = event;
+  const { fileID, imageUrl, location } = event;
   
-  if (!imageUrl) {
+  if (!fileID && !imageUrl) {
     return {
       success: false,
-      error: '缺少图片URL参数'
+      error: '缺少图片参数（需要 fileID 或 imageUrl）'
     };
   }
   
   try {
+    let accessibleImageUrl = imageUrl;
+    
+    // 如果传入的是 fileID，需要转换为可访问的 URL
+    if (fileID && !imageUrl) {
+      // 方法1：使用云存储临时URL
+      try {
+        const tempUrlResult = await cloud.getTempFileURL({
+          fileList: [fileID],
+        });
+        
+        if (tempUrlResult.fileList && tempUrlResult.fileList.length > 0) {
+          const result = tempUrlResult.fileList[0];
+          if (result.tempFileURL) {
+            accessibleImageUrl = result.tempFileURL;
+            console.log('获取临时URL成功:', accessibleImageUrl);
+          } else {
+            throw new Error('无法获取临时URL');
+          }
+        } else {
+          throw new Error('临时URL结果为空');
+        }
+      } catch (urlErr) {
+        console.error('获取临时URL失败:', urlErr);
+        // 备用方案：使用fileID转换
+        const envId = process.env.WXENV || 'your-env-id';
+        accessibleImageUrl = fileID.replace('cloud://', `https://${envId}.cloud.tcb.qcloud.la/`);
+        console.log('使用备用URL:', accessibleImageUrl);
+      }
+    }
+    
+    if (!accessibleImageUrl) {
+      throw new Error('无法获取图片访问地址');
+    }
+    
     // 调用 AI 服务进行分析
-    const aiSolution = await analyzeWithQwenVL(imageUrl, location);
+    const aiSolution = await analyzeWithQwenVL(accessibleImageUrl, location);
     
     return {
       success: true,
@@ -126,15 +159,4 @@ async function analyzeWithQwenVL(imageUrl, location) {
   }
   
   throw new Error('AI返回结果为空');
-}
-
-/**
- * 将本地文件路径转换为 Base64（备用方案）
- * @param {string} filePath - 文件路径
- * @returns {string} - Base64 字符串
- */
-function fileToBase64(filePath) {
-  const fs = require('fs');
-  const fileBuffer = fs.readFileSync(filePath);
-  return fileBuffer.toString('base64');
 }

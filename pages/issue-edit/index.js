@@ -335,22 +335,12 @@ Page({
 
     this.uploadSingleImage(imagePath, "issues/ai")
       .then((fileID) => {
-        // 将 fileID 转换为 HTTP URL
-        // 云存储 fileID 格式: cloud://envId/filePath
-        // 需要转换为 HTTPS URL 格式
-        const envInfo = wx.getAccountInfoSync();
-        const envId = envInfo.envId || "your-env-id";
-        const httpUrl = fileID.replace(
-          "cloud://",
-          `https://${envId}.cloud.tcb.qcloud.la/`
-        );
-
-        console.log("图片URL:", httpUrl);
+        console.log("上传成功，fileID:", fileID);
 
         return wx.cloud.callFunction({
           name: "analyzeIssue",
           data: {
-            imageUrl: httpUrl,
+            fileID,
             location,
           },
         });
