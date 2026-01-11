@@ -109,6 +109,56 @@
   word-break: break-word;
 }
 
+/* 内容体容器 */
+.content-body {
+  padding: 0 10rpx;
+}
+
+/* 用户正文 */
+.user-content {
+  font-size: 34rpx;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
+  font-weight: 500;
+}
+
+/* AI 诊断卡片 */
+.ai-card {
+  background-color: #f7f9fc;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  border: 1rpx solid #e0e0e0;
+}
+
+/* AI 标题行 */
+.ai-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx dashed #dcdcdc;
+}
+
+.ai-icon {
+  font-size: 36rpx;
+  margin-right: 14rpx;
+}
+
+.ai-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #002fa7;
+}
+
+/* AI 内容文本 */
+.ai-body {
+  font-size: 30rpx;
+  color: #555;
+  line-height: 1.7;
+  text-align: justify;
+}
+
 /* 用户建议块 */
 .user-suggestion-block {
   margin-bottom: 30rpx;

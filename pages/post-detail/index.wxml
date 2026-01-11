@@ -43,19 +43,34 @@
       </view>
     </view>
 
-    <!-- 帖子内容 -->
-    <view class="post-content">
-      <text class="content-text" user-select="true">{{post.content}}</text>
-    </view>
+    <!-- 帖子内容区 -->
+    <view class="post-content-section">
+      <!-- 1. 用户正文区 -->
+      <view class="content-body">
+        <view class="user-content">
+          <text user-select="true">{{post.content}}</text>
+        </view>
 
-    <!-- 用户建议 -->
-    <view class="user-suggestion-block" wx:if="{{post.userSuggestion && post.userSuggestion.length > 0}}">
-      <view class="suggestion-blue-line"></view>
-      <view class="suggestion-content">
-        <text class="suggestion-label">👤 我的建议</text>
-        <text class="suggestion-text" user-select="true">{{post.userSuggestion}}</text>
+        <!-- 2. AI 诊断卡片 (仅当有诊断结果时显示) -->
+        <view class="ai-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
+          <view class="ai-header">
+            <text class="ai-icon">🤖</text>
+            <text class="ai-title">AI 智能诊断</text>
+          </view>
+          <view class="ai-body">
+            <text user-select="true">{{post.aiDiagnosis || post.aiSolution}}</text>
+          </view>
+        </view>
       </view>
-    </view>
+
+      <!-- 用户建议 -->
+      <view class="user-suggestion-block" wx:if="{{post.userSuggestion && post.userSuggestion.length > 0}}">
+        <view class="suggestion-blue-line"></view>
+        <view class="suggestion-content">
+          <text class="suggestion-label">👤 我的建议</text>
+          <text class="suggestion-text" user-select="true">{{post.userSuggestion}}</text>
+        </view>
+      </view>
 
     <!-- 定位信息 -->
     <view class="location-card" wx:if="{{post.address}}">
