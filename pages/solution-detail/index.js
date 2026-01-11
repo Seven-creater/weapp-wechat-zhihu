@@ -29,17 +29,17 @@ Page({
 
   initVoicePlayer: function () {
     this.innerAudioContext = wx.createInnerAudioContext();
-    
+
     this.innerAudioContext.onEnded = () => {
       this.setData({ isPlaying: false });
     };
-    
+
     this.innerAudioContext.onError = (err) => {
-      console.error('音频播放错误:', err);
+      console.error("音频播放错误:", err);
       this.setData({ isPlaying: false });
       wx.showToast({
-        title: '播放失败',
-        icon: 'none'
+        title: "播放失败",
+        icon: "none",
       });
     };
   },
@@ -47,11 +47,11 @@ Page({
   toggleVoicePlay: function () {
     const { solution, isPlaying } = this.data;
     const aiAnalysisText = solution.aiAnalysis;
-    
+
     if (!aiAnalysisText) {
       wx.showToast({
-        title: '暂无AI分析内容',
-        icon: 'none'
+        title: "暂无AI分析内容",
+        icon: "none",
       });
       return;
     }
@@ -67,32 +67,32 @@ Page({
   playVoice: function (text) {
     try {
       const plugin = requirePlugin("WeChatSI");
-      
+
       plugin.textToSpeech({
         lang: "zh_CN",
         tts: true,
         content: text,
         success: (res) => {
-          console.log('语音合成成功:', res);
+          console.log("语音合成成功:", res);
           const audioPath = res.filename;
-          
+
           this.innerAudioContext.src = audioPath;
           this.innerAudioContext.play();
           this.setData({ isPlaying: true });
         },
         fail: (err) => {
-          console.error('语音合成失败:', err);
+          console.error("语音合成失败:", err);
           wx.showToast({
-            title: '语音合成失败',
-            icon: 'none'
+            title: "语音合成失败",
+            icon: "none",
           });
-        }
+        },
       });
     } catch (err) {
-      console.error('初始化语音插件失败:', err);
+      console.error("初始化语音插件失败:", err);
       wx.showToast({
-        title: '语音功能初始化失败',
-        icon: 'none'
+        title: "语音功能初始化失败",
+        icon: "none",
       });
     }
   },
