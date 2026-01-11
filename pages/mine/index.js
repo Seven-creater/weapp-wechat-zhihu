@@ -93,7 +93,7 @@ Page({
       });
   },
 
-  // 处理登录
+  // 处理登录（优先读取云端资料）
   handleLogin: function () {
     if (this.data.userInfo) {
       wx.navigateTo({
@@ -102,43 +102,71 @@ Page({
       return;
     }
 
-    wx.getUserProfile({
-      desc: "用于完善用户资料",
-      success: (res) => {
-        const userInfo = res.userInfo;
+    wx.showLoading({ title: '正在同步数据...' });
 
-        // 保存到本地存储
-        wx.setStorageSync("userInfo", userInfo);
+    // 1. 先调用云函数 'login' 获取用户的 OpenID
+    wx.cloud.callFunction({
+      name: 'login',
+      success: async (res) => {
+        const openid = res.result.openid;
+        const db = wx.cloud.database();
 
-        // 更新页面数据
-        this.setData({ userInfo });
+        try {
+          // 2. 拿着 OpenID 去数据库 'users' 表里查
+          const dbRes = await db.collection('users').where({
+            _openid: openid
+          }).get();
 
-        // 同步到云端
-        this.syncUserData();
+          let userData = null;
 
-        // 隐藏登录模态框
-        this.hideLoginModal();
+          if (dbRes.data.length > 0) {
+            // ✅ 情况 A：老用户，数据库里有资料
+            console.log('找到云端历史资料');
+            userData = dbRes.data[0];
+          } else {
+            // 🆕 情况 B：完全的新用户，数据库里没资料
+            console.log('新用户，使用默认信息');
+            // 这里可以先用微信默认的，等用户去"编辑资料"页面修改
+            // 或者弹窗提示用户授权获取基础信息(虽然现在只能拿到默认的)
+            const profileRes = await wx.getUserProfile({ desc: '完善用户信息' });
+            userData = {
+              ...profileRes.userInfo,
+              _openid: openid,
+              createTime: db.serverDate()
+            };
+            // 自动帮新用户在数据库建个档
+            await db.collection('users').add({ data: userData });
+          }
 
-        // 如果有待处理的跳转，执行跳转
-        if (this.data.pendingNavUrl) {
-          wx.navigateTo({
-            url: this.data.pendingNavUrl,
-          });
-          this.setData({ pendingNavUrl: "" });
+          // 3. 更新本地状态
+          this.setData({ userInfo: userData });
+          wx.setStorageSync('userInfo', userData);
+
+          // 隐藏登录模态框
+          this.hideLoginModal();
+
+          // 如果有待处理的跳转，执行跳转
+          if (this.data.pendingNavUrl) {
+            wx.navigateTo({
+              url: this.data.pendingNavUrl,
+            });
+            this.setData({ pendingNavUrl: "" });
+          }
+
+          wx.hideLoading();
+          wx.showToast({ title: '登录成功' });
+
+        } catch (err) {
+          console.error('登录流程出错', err);
+          wx.hideLoading();
+          wx.showToast({ title: '同步失败', icon: 'none' });
         }
-
-        wx.showToast({
-          title: "登录成功",
-          icon: "success",
-        });
       },
-      fail: (err) => {
-        console.error("登录失败:", err);
-        wx.showToast({
-          title: "登录失败",
-          icon: "none",
-        });
-      },
+      fail: err => {
+        wx.hideLoading();
+        console.error('云函数调用失败', err);
+        wx.showToast({ title: '登录失败', icon: 'none' });
+      }
     });
   },
 
