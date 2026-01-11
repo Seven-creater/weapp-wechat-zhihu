@@ -8,6 +8,7 @@ Page({
     hasMore: true,
     page: 1,
     pageSize: 10,
+    searchKeyword: "",
   },
 
   onLoad: function () {
@@ -141,6 +142,83 @@ Page({
       hasMore: true,
     });
     this.loadPosts();
+  },
+
+  // 搜索输入
+  onSearchInput: function (e) {
+    const keyword = e.detail.value;
+    this.setData({
+      searchKeyword: keyword,
+    });
+
+    // 防抖搜索
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      if (keyword.trim()) {
+        // 有搜索关键词时，使用智能搜索
+        this.smartSearch(keyword);
+      } else {
+        // 没有关键词时，恢复普通列表
+        this.setData({
+          page: 1,
+          posts: [],
+          hasMore: true,
+        });
+        this.loadPosts();
+      }
+    }, 500);
+  },
+
+  // 智能搜索（调用云函数）
+  smartSearch: function (keyword) {
+    if (!keyword.trim()) return;
+
+    wx.showLoading({
+      title: "AI 正在深度搜索...",
+      mask: true,
+    });
+
+    wx.cloud.callFunction({
+      name: "smartSearch",
+      data: {
+        keyword: keyword,
+        collection: "posts",
+      },
+      success: (res) => {
+        wx.hideLoading();
+
+        if (res.result && res.result.success) {
+          const newPosts = res.result.data.map((post) => ({
+            ...post,
+            createTime: this.formatTime(post.createTime),
+          }));
+
+          this.setData({
+            posts: newPosts,
+            hasMore: false, // 智能搜索不分页
+            loading: false,
+          });
+
+          // 同步操作状态
+          this.attachActionStatus(newPosts);
+
+          console.log("智能搜索完成，找到", newPosts.length, "条结果");
+        } else {
+          wx.showToast({
+            title: res.result?.error || "搜索失败",
+            icon: "none",
+          });
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.error("智能搜索失败:", err);
+        wx.showToast({
+          title: "搜索失败，请重试",
+          icon: "none",
+        });
+      },
+    });
   },
 
   // 加载更多帖子

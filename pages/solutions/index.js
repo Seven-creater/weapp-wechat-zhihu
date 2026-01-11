@@ -45,13 +45,13 @@ Page({
 
     // 调用云函数获取数据（云函数端可绕过权限限制，并自动转换图片URL）
     return wx.cloud.callFunction({
-      name: 'getPublicData',
+      name: "getPublicData",
       data: {
-        collection: 'solutions',
+        collection: "solutions",
         page: page,
         pageSize: limit,
-        orderBy: 'createTime',
-        order: 'desc'
+        orderBy: "createTime",
+        order: "desc",
       },
       success: (res) => {
         wx.hideLoading();
@@ -60,7 +60,7 @@ Page({
           let newSolutions = res.result.data;
 
           // 字段兼容处理：将 beforeImg 映射到 imageUrl
-          newSolutions = newSolutions.map(item => ({
+          newSolutions = newSolutions.map((item) => ({
             ...item,
             // 确保图片字段存在（兼容 beforeImg 和 imageUrl）
             imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
@@ -68,7 +68,10 @@ Page({
             title: item.title || "无障碍方案",
           }));
 
-          const solutions = page === 1 ? newSolutions : [...this.data.solutions, ...newSolutions];
+          const solutions =
+            page === 1
+              ? newSolutions
+              : [...this.data.solutions, ...newSolutions];
 
           // 更新分页状态
           this.setData({
@@ -85,18 +88,18 @@ Page({
             this.updateViewCount(newSolutions);
           }
         } else {
-          throw new Error(res.result?.error || '获取数据失败');
+          throw new Error(res.result?.error || "获取数据失败");
         }
       },
       fail: (err) => {
         wx.hideLoading();
-        console.error('加载解决方案失败:', err);
+        console.error("加载解决方案失败:", err);
         this.setData({ loading: false });
         wx.showToast({
           title: "加载失败",
           icon: "none",
         });
-      }
+      },
     });
   },
 
@@ -121,7 +124,7 @@ Page({
         );
 
         // 更新收藏状态
-        const updatedSolutions = this.data.solutions.map(item => ({
+        const updatedSolutions = this.data.solutions.map((item) => ({
           ...item,
           isCollected: collectedIds.has(item._id),
         }));
@@ -171,13 +174,75 @@ Page({
     // 防抖搜索
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
-      this.setData({
-        page: 1,
-        solutions: [],
-        hasMore: true,
-      });
-      this.loadSolutions();
+      if (keyword.trim()) {
+        // 有搜索关键词时，使用智能搜索
+        this.smartSearch(keyword);
+      } else {
+        // 没有关键词时，恢复普通列表
+        this.setData({
+          page: 1,
+          solutions: [],
+          hasMore: true,
+        });
+        this.loadSolutions();
+      }
     }, 500);
+  },
+
+  // 智能搜索（调用云函数）
+  smartSearch: function (keyword) {
+    if (!keyword.trim()) return;
+
+    wx.showLoading({
+      title: "AI 正在深度搜索...",
+      mask: true,
+    });
+
+    wx.cloud.callFunction({
+      name: "smartSearch",
+      data: {
+        keyword: keyword,
+        collection: "solutions",
+      },
+      success: (res) => {
+        wx.hideLoading();
+
+        if (res.result && res.result.success) {
+          let newSolutions = res.result.data;
+
+          // 字段兼容处理：将 beforeImg 映射到 imageUrl
+          newSolutions = newSolutions.map((item) => ({
+            ...item,
+            imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
+            title: item.title || "无障碍方案",
+          }));
+
+          this.setData({
+            solutions: newSolutions,
+            hasMore: false, // 智能搜索不分页
+            loading: false,
+          });
+
+          // 同步收藏状态
+          this.attachCollectStatus(newSolutions);
+
+          console.log("智能搜索完成，找到", newSolutions.length, "条结果");
+        } else {
+          wx.showToast({
+            title: res.result?.error || "搜索失败",
+            icon: "none",
+          });
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.error("智能搜索失败:", err);
+        wx.showToast({
+          title: "搜索失败，请重试",
+          icon: "none",
+        });
+      },
+    });
   },
 
   // 加载更多
