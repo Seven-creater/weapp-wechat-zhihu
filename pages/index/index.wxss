@@ -15,7 +15,7 @@ image {
 /* 页面主容器 */
 .accessibility-home {
   min-height: 100vh;
-  background-color: var(--color-bg-page);
+  background-color: var(--color-primary);
 }
 
 /* 顶部定位信息胶囊 */
