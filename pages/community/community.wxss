@@ -6,49 +6,52 @@
   padding-bottom: 160rpx;
 }
 
-/* 页面头部 */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md) var(--spacing-lg);
+/* 页面头部：搜索栏 */
+.custom-header {
   background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  padding: 20rpx 30rpx;
+  display: flex;
+  align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
 }
 
-.title {
-  font-size: var(--font-size-xl);
-  font-weight: bold;
-  color: var(--color-accent);
-}
-
-.header-right {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.icon-btn {
-  width: 80rpx;
-  height: 80rpx;
+/* 白色搜索条 */
+.search-bar {
+  flex: 1;
+  background: #ffffff;
+  height: 72rpx;
+  border-radius: 36rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.2);
-  transition: background-color var(--transition-fast);
+  padding: 0 24rpx;
+  margin-right: 20rpx;
 }
 
-.icon-btn:active {
-  background-color: rgba(255, 255, 255, 0.4);
+.search-input {
+  flex: 1;
+  height: 100%;
+  font-size: 28rpx;
+  margin-left: 10rpx;
+  color: #333;
 }
 
-.icon {
-  width: 40rpx;
-  height: 40rpx;
+.ph-style {
+  color: #999;
+}
+
+.search-btn {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: bold;
+}
+
+.clear-btn {
+  color: #999;
+  padding: 10rpx;
+  font-size: 28rpx;
 }
 
 /* 帖子列表 */

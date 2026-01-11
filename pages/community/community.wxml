@@ -1,15 +1,19 @@
 <view class="community-container">
-  <!-- 页面头部 -->
-  <view class="header">
-    <text class="title" aria-label="无障碍社区">社区</text>
-    <view class="header-right">
-      <view class="icon-btn" bindtap="refreshPosts" aria-role="button" aria-label="刷新社区内容">
-        <image class="icon" src="/images/refresh.png" aria-hidden="true"></image>
-      </view>
-      <view class="icon-btn" aria-role="button" aria-label="搜索社区内容">
-        <image class="icon" src="/images/search.png" aria-hidden="true"></image>
-      </view>
+  <!-- 页面头部：搜索栏 -->
+  <view class="custom-header">
+    <view class="search-bar">
+      <icon type="search" size="16" color="#999"></icon>
+      <input
+        class="search-input"
+        placeholder="搜索帖子..."
+        placeholder-class="ph-style"
+        value="{{searchVal}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+      <view class="clear-btn" wx:if="{{searchVal}}" bindtap="onClearSearch">✕</view>
     </view>
+    <view class="search-btn" bindtap="onSearch">搜索</view>
   </view>
 
   <!-- 帖子列表 -->

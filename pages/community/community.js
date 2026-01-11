@@ -8,7 +8,7 @@ Page({
     hasMore: true,
     page: 1,
     pageSize: 10,
-    searchKeyword: "",
+    searchVal: "",
   },
 
   onLoad: function () {
@@ -144,29 +144,40 @@ Page({
     this.loadPosts();
   },
 
-  // 搜索输入
+  // 搜索输入处理
   onSearchInput: function (e) {
-    const keyword = e.detail.value;
     this.setData({
-      searchKeyword: keyword,
+      searchVal: e.detail.value,
     });
+  },
 
-    // 防抖搜索
-    clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => {
-      if (keyword.trim()) {
-        // 有搜索关键词时，使用智能搜索
-        this.smartSearch(keyword);
-      } else {
-        // 没有关键词时，恢复普通列表
-        this.setData({
-          page: 1,
-          posts: [],
-          hasMore: true,
-        });
-        this.loadPosts();
-      }
-    }, 500);
+  // 触发搜索
+  onSearch: function () {
+    const keyword = this.data.searchVal.trim();
+
+    if (keyword) {
+      // 有搜索关键词时，使用关键词搜索
+      this.keywordSearch(keyword);
+    } else {
+      // 没有关键词时，恢复普通列表
+      this.setData({
+        page: 1,
+        posts: [],
+        hasMore: true,
+      });
+      this.loadPosts();
+    }
+  },
+
+  // 清除搜索
+  onClearSearch: function () {
+    this.setData({
+      searchVal: "",
+      page: 1,
+      posts: [],
+      hasMore: true,
+    });
+    this.loadPosts();
   },
 
   // 关键词搜索（调用云函数）
@@ -199,7 +210,7 @@ Page({
 
           this.setData({
             posts: newPosts,
-            hasMore: false, // 搜索结果不分页
+            hasMore: false,
             loading: false,
             page: 1,
           });
@@ -207,7 +218,14 @@ Page({
           // 同步操作状态
           this.attachActionStatus(newPosts);
 
-          console.log("关键词搜索完成，找到", newPosts.length, "条结果");
+          if (newPosts.length === 0) {
+            wx.showToast({
+              title: "暂无相关内容",
+              icon: "none",
+            });
+          }
+
+          console.log("搜索完成，找到", newPosts.length, "条结果");
         } else {
           wx.showToast({
             title: res.result?.error || "搜索失败",
