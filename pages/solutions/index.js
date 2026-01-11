@@ -175,8 +175,8 @@ Page({
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
       if (keyword.trim()) {
-        // 有搜索关键词时，使用智能搜索
-        this.smartSearch(keyword);
+        // 有搜索关键词时，使用关键词搜索
+        this.keywordSearch(keyword);
       } else {
         // 没有关键词时，恢复普通列表
         this.setData({
@@ -189,20 +189,24 @@ Page({
     }, 500);
   },
 
-  // 智能搜索（调用云函数）
-  smartSearch: function (keyword) {
+  // 关键词搜索（调用云函数）
+  keywordSearch: function (keyword) {
     if (!keyword.trim()) return;
 
     wx.showLoading({
-      title: "AI 正在深度搜索...",
+      title: "搜索中...",
       mask: true,
     });
 
     wx.cloud.callFunction({
-      name: "smartSearch",
+      name: "getPublicData",
       data: {
-        keyword: keyword,
         collection: "solutions",
+        keyword: keyword,
+        page: 1,
+        pageSize: 50,
+        orderBy: "createTime",
+        order: "desc",
       },
       success: (res) => {
         wx.hideLoading();
@@ -219,14 +223,15 @@ Page({
 
           this.setData({
             solutions: newSolutions,
-            hasMore: false, // 智能搜索不分页
+            hasMore: false, // 搜索结果不分页
             loading: false,
+            page: 1,
           });
 
           // 同步收藏状态
           this.attachCollectStatus(newSolutions);
 
-          console.log("智能搜索完成，找到", newSolutions.length, "条结果");
+          console.log("关键词搜索完成，找到", newSolutions.length, "条结果");
         } else {
           wx.showToast({
             title: res.result?.error || "搜索失败",
@@ -236,7 +241,7 @@ Page({
       },
       fail: (err) => {
         wx.hideLoading();
-        console.error("智能搜索失败:", err);
+        console.error("搜索失败:", err);
         wx.showToast({
           title: "搜索失败，请重试",
           icon: "none",
