@@ -209,7 +209,7 @@ image {
    ============================================ */
 .features-section {
   padding: var(--spacing-xl) var(--spacing-lg);
-  background-color: var(--color-bg-page);
+  background-color: var(--color-primary);
 }
 
 .section-header {
@@ -303,7 +303,8 @@ image {
   padding: var(--spacing-xl) var(--spacing-lg);
   text-align: center;
   background: var(--color-primary);
-  margin-top: var(--spacing-lg);
+  margin-top: 0;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
 .footer-slogan {
