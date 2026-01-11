@@ -580,7 +580,8 @@ Page({
               location,
               aiSolution,
               description,
-              userInfo
+              userInfo,
+              userSuggestion
             )
           );
         }
@@ -595,7 +596,8 @@ Page({
     location,
     aiSolution,
     description,
-    userInfo
+    userInfo,
+    userSuggestion
   ) {
     const postData = {
       issueId,
