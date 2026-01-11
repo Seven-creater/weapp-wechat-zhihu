@@ -1,4 +1,4 @@
-// 云函数：获取公开数据（解决云存储权限问题，同时处理帖子图片和用户头像）
+// 云函数：获取公开数据（解决云存储权限问题，支持列表和单条详情查询）
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -8,7 +8,7 @@ cloud.init({
 const db = cloud.database();
 
 exports.main = async (event, context) => {
-  const { collection, page = 1, pageSize = 10, orderBy = 'createTime', order = 'desc' } = event;
+  const { collection, page = 1, pageSize = 10, orderBy = 'createTime', order = 'desc', docId } = event;
   
   // 验证参数
   const validCollections = ['posts', 'solutions', 'issues'];
@@ -21,6 +21,108 @@ exports.main = async (event, context) => {
   }
   
   try {
+    // ============================================
+    // A. 如果传了 docId，查单条详情
+    // ============================================
+    if (docId) {
+      console.log(`开始查询单条详情: ${collection}, _id: ${docId}`);
+      
+      const res = await db.collection(collection).doc(docId).get();
+      let data = res.data;
+      
+      if (!data) {
+        return {
+          success: false,
+          error: '记录不存在'
+        };
+      }
+      
+      console.log('查询到单条记录');
+      
+      // 收集需要转换的链接 (图片数组 + 用户头像)
+      const fileList = [];
+      
+      if (Array.isArray(data.images)) {
+        data.images.forEach(imgUrl => {
+          if (imgUrl && imgUrl.startsWith('cloud://')) {
+            fileList.push(imgUrl);
+          }
+        });
+      }
+      
+      if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
+        fileList.push(data.userInfo.avatarUrl);
+      }
+      
+      // 换取临时链接
+      if (fileList.length > 0) {
+        console.log(`开始转换 ${fileList.length} 个URL...`);
+        
+        const urlRes = await cloud.getTempFileURL({
+          fileList: fileList,
+        });
+        
+        if (urlRes.fileList) {
+          urlRes.fileList.forEach((item, index) => {
+            if (item.tempFileURL) {
+              fileList[index] = item.tempFileURL;
+            }
+          });
+        }
+        
+        console.log('URL转换完成');
+        
+        // 替换 images 数组中的 URL
+        if (Array.isArray(data.images)) {
+          data.images = data.images.map(imgUrl => {
+            if (imgUrl && imgUrl.startsWith('cloud://')) {
+              const tempUrl = urlRes.fileList.find(f => f.fileID === imgUrl)?.tempFileURL;
+              return tempUrl || imgUrl;
+            }
+            return imgUrl;
+          });
+        }
+        
+        // 替换用户头像 URL
+        if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
+          const tempUrl = urlRes.fileList.find(f => f.fileID === data.userInfo.avatarUrl)?.tempFileURL;
+          if (tempUrl) {
+            data.userInfo.avatarUrl = tempUrl;
+          }
+        }
+      }
+      
+      // 确保 userInfo 存在
+      if (!data.userInfo) {
+        data.userInfo = {
+          nickName: '匿名用户',
+          avatarUrl: '/images/default-avatar.png'
+        };
+      } else if (!data.userInfo.nickName) {
+        data.userInfo.nickName = '匿名用户';
+      }
+      
+      // 更新浏览量
+      try {
+        await db.collection(collection).doc(docId).update({
+          data: {
+            viewCount: db.command.inc(1)
+          }
+        });
+      } catch (viewErr) {
+        console.error('更新浏览量失败:', viewErr);
+      }
+      
+      return {
+        success: true,
+        data: data,
+        isDetail: true
+      };
+    }
+    
+    // ============================================
+    // B. 原有的列表查询逻辑
+    // ============================================
     console.log(`开始查询集合: ${collection}, 页码: ${page}, 每页: ${pageSize}`);
     
     // 1. 管理员查询：无视读写权限，直接获取数据
@@ -111,7 +213,6 @@ exports.main = async (event, context) => {
         console.log(`成功转换 ${allUrls.length} 个URL`);
       } catch (urlErr) {
         console.error('获取临时URL失败:', urlErr);
-        // 继续处理，不中断返回
       }
     }
     
@@ -119,15 +220,13 @@ exports.main = async (event, context) => {
     const processedData = data.map(doc => {
       const processedDoc = { ...doc };
       
-      // 4.1 处理用户头像（确保 userInfo 存在且头像已转换）
+      // 4.1 处理用户头像
       if (!processedDoc.userInfo) {
-        // 如果 userInfo 为空，设置为默认匿名用户信息
         processedDoc.userInfo = {
           nickName: '匿名用户',
           avatarUrl: '/images/default-avatar.png'
         };
       } else {
-        // 转换头像 URL
         if (processedDoc.userInfo.avatarUrl && 
             processedDoc.userInfo.avatarUrl.startsWith('cloud://')) {
           const tempUrl = urlMap.get(processedDoc.userInfo.avatarUrl);
@@ -136,7 +235,6 @@ exports.main = async (event, context) => {
           }
         }
         
-        // 确保 nickName 存在
         if (!processedDoc.userInfo.nickName) {
           processedDoc.userInfo.nickName = '匿名用户';
         }
@@ -160,7 +258,7 @@ exports.main = async (event, context) => {
           processedDoc[field] = processedDoc[field].map(imgUrl => {
             if (imgUrl && imgUrl.startsWith('cloud://')) {
               const tempUrl = urlMap.get(imgUrl);
-              return tempUrl || imgUrl; // 如果转换失败，保留原URL
+              return tempUrl || imgUrl;
             }
             return imgUrl;
           });

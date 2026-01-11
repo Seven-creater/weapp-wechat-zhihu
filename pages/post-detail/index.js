@@ -41,68 +41,50 @@ Page({
     this.setData({ loading: true });
     const openid = app.globalData.openid || wx.getStorageSync("openid");
 
-    db.collection("posts")
-      .doc(postId)
-      .get()
-      .then((res) => {
-        const post = res.data || null;
+    // 调用云函数获取详情（云函数会自动转换图片URL）
+    wx.cloud.callFunction({
+      name: "getPublicData",
+      data: {
+        collection: "posts",
+        docId: postId,
+      },
+      success: (res) => {
+        wx.hideLoading();
 
-        if (post) {
-          // 转换图片URL：将 fileID 转换为临时HTTPS URL
-          const imageUrls = post.images || [];
-          if (imageUrls.length > 0) {
-            const cloudFileIds = imageUrls.filter((url) =>
-              url.startsWith("cloud://")
-            );
+        if (res.result && res.result.success) {
+          const post = res.result.data;
 
-            if (cloudFileIds.length > 0) {
-              wx.cloud
-                .getTempFileURL({
-                  fileList: cloudFileIds,
-                })
-                .then((urlResult) => {
-                  // 创建 URL 映射
-                  const urlMap = {};
-                  urlResult.fileList.forEach((item, index) => {
-                    if (item.tempFileURL) {
-                      urlMap[cloudFileIds[index]] = item.tempFileURL;
-                    }
-                  });
-
-                  // 替换图片 URL
-                  post.images = imageUrls.map((url) => urlMap[url] || url);
-
-                  this.updatePostData(post, openid);
-
-                  // 初始化点赞状态
-                  this.initLikeStatus(postId, openid);
-                })
-                .catch((err) => {
-                  console.error("获取图片临时URL失败:", err);
-                  this.updatePostData(post, openid);
-                  this.initLikeStatus(postId, openid);
-                });
-              return; // 等待异步操作完成
+          if (post) {
+            // 确保 userInfo 存在
+            if (!post.userInfo) {
+              post.userInfo = {
+                nickName: "匿名用户",
+                avatarUrl: "/images/default-avatar.png",
+              };
+            } else if (!post.userInfo.nickName) {
+              post.userInfo.nickName = "匿名用户";
             }
+
+            this.updatePostData(post, openid);
+            this.initLikeStatus(postId, openid);
+          } else {
+            this.setData({ post: null, loading: false });
+            wx.showToast({ title: "帖子不存在", icon: "none" });
           }
-
-          // 如果没有需要转换的图片，直接设置数据
-          this.updatePostData(post, openid);
-
-          // 初始化点赞状态
-          this.initLikeStatus(postId, openid);
         } else {
-          this.setData({ post: null, loading: false });
+          throw new Error(res.result?.error || "获取数据失败");
         }
-      })
-      .catch((err) => {
+      },
+      fail: (err) => {
+        wx.hideLoading();
         console.error("加载帖子详情失败:", err);
         this.setData({ loading: false });
         wx.showToast({
           title: "加载失败",
           icon: "none",
         });
-      });
+      },
+    });
   },
 
   // 更新帖子数据
