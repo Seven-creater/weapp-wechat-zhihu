@@ -35,72 +35,79 @@ Page({
     }
   },
 
-  // 加载解决方案列表
+  // 加载解决方案列表（使用云函数获取公开数据）
   loadSolutions: function () {
     if (this.data.loading) return Promise.resolve();
 
     this.setData({ loading: true });
 
     const { page, limit, currentCategory, searchKeyword } = this.data;
-    const skip = (page - 1) * limit;
 
-    // 构建查询条件
-    let query = db.collection("solutions");
+    // 调用云函数获取数据（云函数端可绕过权限限制，并自动转换图片URL）
+    return wx.cloud.callFunction({
+      name: 'getPublicData',
+      data: {
+        collection: 'solutions',
+        page: page,
+        pageSize: limit,
+        orderBy: 'createTime',
+        order: 'desc'
+      },
+      success: (res) => {
+        wx.hideLoading();
 
-    if (currentCategory) {
-      query = query.where({
-        category: currentCategory,
-      });
-    }
+        if (res.result && res.result.success) {
+          let newSolutions = res.result.data;
 
-    if (searchKeyword) {
-      query = query.where({
-        title: db.RegExp({
-          regexp: searchKeyword,
-          options: "i",
-        }),
-      });
-    }
+          // 字段兼容处理：将 beforeImg 映射到 imageUrl
+          newSolutions = newSolutions.map(item => ({
+            ...item,
+            // 确保图片字段存在（兼容 beforeImg 和 imageUrl）
+            imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
+            // 确保标题字段存在
+            title: item.title || "无障碍方案",
+          }));
 
-    return query
-      .orderBy("createTime", "desc")
-      .skip(skip)
-      .limit(limit)
-      .get()
-      .then((res) => {
-        const newSolutions = res.data;
-        const solutions =
-          page === 1 ? newSolutions : [...this.data.solutions, ...newSolutions];
+          const solutions = page === 1 ? newSolutions : [...this.data.solutions, ...newSolutions];
 
-        return this.attachCollectStatus(solutions).then((mergedSolutions) => {
+          // 更新分页状态
           this.setData({
-            solutions: mergedSolutions,
-            hasMore: newSolutions.length === limit,
+            solutions: solutions,
+            hasMore: res.result.pagination.hasMore,
             loading: false,
           });
 
+          // 同步收藏状态
+          this.attachCollectStatus(solutions);
+
           // 更新浏览量
-          this.updateViewCount(newSolutions);
-        });
-      })
-      .catch((err) => {
-        console.error("加载解决方案失败:", err);
+          if (page === 1) {
+            this.updateViewCount(newSolutions);
+          }
+        } else {
+          throw new Error(res.result?.error || '获取数据失败');
+        }
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.error('加载解决方案失败:', err);
         this.setData({ loading: false });
         wx.showToast({
           title: "加载失败",
           icon: "none",
         });
-      });
+      }
+    });
   },
 
+  // 同步收藏状态
   attachCollectStatus: function (solutions) {
     const ids = solutions.map((item) => item._id).filter(Boolean);
     if (ids.length === 0) {
-      return Promise.resolve(solutions);
+      return;
     }
 
-    return db
-      .collection("actions")
+    db.collection("actions")
       .where(
         _.or([
           { type: "collect_solution", targetId: _.in(ids) },
@@ -113,15 +120,16 @@ Page({
           res.data.map((item) => item.targetId || item.postId)
         );
 
-        return solutions.map((item) => ({
+        // 更新收藏状态
+        const updatedSolutions = this.data.solutions.map(item => ({
           ...item,
           isCollected: collectedIds.has(item._id),
-          collectCount: item.collectCount || 0,
         }));
+
+        this.setData({ solutions: updatedSolutions });
       })
       .catch((err) => {
         console.error("同步收藏状态失败:", err);
-        return solutions;
       });
   },
 
@@ -134,6 +142,9 @@ Page({
           data: {
             viewCount: db.command.inc(1),
           },
+        })
+        .catch((err) => {
+          console.error("更新浏览量失败:", err);
         });
     });
   },
