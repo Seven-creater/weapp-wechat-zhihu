@@ -57,8 +57,7 @@ Page({
           isOwner: openid ? post._openid === openid : false,
         }));
 
-        const posts =
-          page === 1 ? newPosts : [...this.data.posts, ...newPosts];
+        const posts = page === 1 ? newPosts : [...this.data.posts, ...newPosts];
 
         return this.attachActionStatus(posts).then((mergedPosts) => {
           this.setData({
@@ -227,11 +226,14 @@ Page({
             })
             .remove()
             .then(() => {
-              return db.collection("posts").doc(postId).update({
-                data: {
-                  "stats.like": db.command.inc(-1),
-                },
-              });
+              return db
+                .collection("posts")
+                .doc(postId)
+                .update({
+                  data: {
+                    "stats.like": db.command.inc(-1),
+                  },
+                });
             })
             .catch((err) => {
               console.error("取消点赞失败:", err);
@@ -251,11 +253,14 @@ Page({
             },
           })
           .then(() => {
-            return db.collection("posts").doc(postId).update({
-              data: {
-                "stats.like": db.command.inc(1),
-              },
-            });
+            return db
+              .collection("posts")
+              .doc(postId)
+              .update({
+                data: {
+                  "stats.like": db.command.inc(1),
+                },
+              });
           })
           .catch((err) => {
             console.error("点赞失败:", err);
@@ -361,7 +366,7 @@ Page({
         wx.cloud
           .callFunction({
             name: "deletePost",
-            data: { postId }
+            data: { postId },
           })
           .then((result) => {
             const success = result && result.result && result.result.success;
@@ -388,7 +393,7 @@ Page({
           .finally(() => {
             wx.hideLoading();
           });
-      }
+      },
     });
   },
 
@@ -401,11 +406,11 @@ Page({
   previewImage: function (e) {
     const current = e.currentTarget.dataset.current;
     const urls = e.currentTarget.dataset.urls;
-    
+
     if (current && urls && urls.length > 0) {
       wx.previewImage({
         current: current,
-        urls: urls
+        urls: urls,
       });
     }
   },

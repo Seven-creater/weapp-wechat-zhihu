@@ -13,6 +13,10 @@ Page({
     showCommentInput: false,
     isCollected: false, // 是否已收藏
     collectCount: 0, // 收藏数量
+    // 动态输入相关状态
+    placeholderText: "发表评论",
+    isInputFocus: false,
+    replyTarget: null,
   },
 
   onLoad: function (options) {
@@ -279,15 +283,41 @@ Page({
   // 显示评论输入框
   showCommentInput: function (e) {
     const replyTo = e.currentTarget.dataset.replyto;
+    let placeholderText = "发表评论";
+    let replyTarget = null;
+
+    // 如果是回复评论，获取被回复用户的信息
+    if (replyTo) {
+      // 查找被回复的评论
+      const comments = this.data.comments;
+      let targetComment = null;
+
+      // 先在主评论中查找
+      targetComment = comments.find((c) => c._id === replyTo);
+
+      // 如果没找到，在回复中查找
+      if (!targetComment) {
+        for (const comment of comments) {
+          if (comment.replies) {
+            targetComment = comment.replies.find((r) => r._id === replyTo);
+            if (targetComment) break;
+          }
+        }
+      }
+
+      if (targetComment) {
+        placeholderText = `回复 @${targetComment.userInfo.nickName}`;
+        replyTarget = targetComment;
+      }
+    }
+
     this.setData({
       showCommentInput: true,
       replyTo: replyTo || null,
+      placeholderText: placeholderText,
+      replyTarget: replyTarget,
+      isInputFocus: true,
     });
-
-    // 自动聚焦输入框
-    setTimeout(() => {
-      this.selectComponent("#comment-input").focus();
-    }, 100);
   },
 
   // 隐藏评论输入框
@@ -296,7 +326,15 @@ Page({
       showCommentInput: false,
       newComment: "",
       replyTo: null,
+      placeholderText: "发表评论",
+      isInputFocus: false,
+      replyTarget: null,
     });
+  },
+
+  // 输入框失去焦点
+  onInputBlur: function () {
+    this.setData({ isInputFocus: false });
   },
 
   // 输入评论内容
@@ -318,37 +356,26 @@ Page({
       return;
     }
 
-    // 显示检测中状态
-    wx.showLoading({
-      title: "内容检测中...",
-      mask: true,
-    });
-
-    // 先检测文本内容
-    const textCheckResult = await wx.cloud.callFunction({
-      name: "checkContent",
-      data: {
-        type: "text",
-        value: newComment,
-      },
-    });
-
-    if (textCheckResult.result.code !== 0) {
-      wx.hideLoading();
-      wx.showToast({
-        title: textCheckResult.result.msg || "评论包含敏感信息",
-        icon: "none",
-      });
-      return;
-    }
-
-    wx.hideLoading();
-
     if (!post) return;
 
-    app
-      .checkLogin()
-      .catch(() => {
+    try {
+      // 1. 开始 Loading
+      wx.showLoading({ title: "正在审核...", mask: true });
+
+      // --- 第一关：安全检测 ---
+      const textCheckResult = await wx.cloud.callFunction({
+        name: "checkContent",
+        data: {
+          type: "text",
+          value: newComment,
+        },
+      });
+      if (textCheckResult.result.code !== 0) {
+        throw new Error(textCheckResult.result.msg || "评论包含敏感信息");
+      }
+
+      // --- 第二关：登录检查 ---
+      await app.checkLogin().catch(() => {
         return new Promise((resolve, reject) => {
           wx.showModal({
             title: "提示",
@@ -367,88 +394,98 @@ Page({
             },
           });
         });
-      })
-      .then(() => {
-        const userInfo =
-          app.globalData.userInfo || wx.getStorageSync("userInfo");
-        const commentData = {
-          postId: post._id,
-          parentId: replyTo || "",
-          content: newComment.trim(),
-          postTitle: post.content ? post.content.substring(0, 30) : "",
-          userInfo: userInfo || {
-            nickName: "匿名用户",
-            avatarUrl: "/images/default-avatar.png",
+      });
+
+      // --- 第三关：写入数据库 ---
+      const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+      const commentData = {
+        postId: post._id,
+        parentId: replyTo || "",
+        content: newComment.trim(),
+        postTitle: post.content ? post.content.substring(0, 30) : "",
+        userInfo: userInfo || {
+          nickName: "匿名用户",
+          avatarUrl: "/images/default-avatar.png",
+        },
+        createTime: db.serverDate(),
+        likes: 0,
+      };
+
+      const addRes = await db.collection("comments").add({ data: commentData });
+      const updateRes = await db
+        .collection("posts")
+        .doc(post._id)
+        .update({
+          data: {
+            "stats.comment": db.command.inc(1),
           },
-          createTime: db.serverDate(),
-          likes: 0,
-        };
+        });
 
-        return db
-          .collection("comments")
-          .add({ data: commentData })
-          .then((res) => {
-            const createdComment = {
-              ...commentData,
-              _id: res._id,
-              createTime: this.formatTime(new Date()),
-              liked: false,
-              replies: [],
-            };
+      // ==========================================
+      // ✅ 只有到了这里，才是真正的成功！
+      // ==========================================
 
-            const comments = [...this.data.comments];
-            if (replyTo) {
-              const parentIndex = comments.findIndex((c) => c._id === replyTo);
-              if (parentIndex !== -1) {
-                const parent = comments[parentIndex];
-                const replies = parent.replies ? [...parent.replies] : [];
-                replies.unshift(createdComment);
-                comments[parentIndex] = {
-                  ...parent,
-                  replies,
-                };
-              } else {
-                comments.unshift(createdComment);
-              }
-            } else {
-              comments.unshift(createdComment);
-            }
+      wx.hideLoading();
+      wx.showToast({
+        title: "评论成功",
+        icon: "success",
+      });
 
-            this.setData({
-              comments,
-              newComment: "",
-              showCommentInput: false,
-              replyTo: null,
-              post: {
-                ...post,
-                stats: {
-                  ...post.stats,
-                  comment: (post.stats?.comment || 0) + 1,
-                },
-              },
-            });
+      // 1. 创建评论对象
+      const createdComment = {
+        ...commentData,
+        _id: addRes._id,
+        createTime: this.formatTime(new Date()),
+        liked: false,
+        replies: [],
+      };
 
-            return db
-              .collection("posts")
-              .doc(post._id)
-              .update({
-                data: {
-                  "stats.comment": db.command.inc(1),
-                },
-              });
-          })
-          .then(() => {
-            wx.showToast({
-              title: "评论成功",
-              icon: "success",
-            });
-          })
-          .catch((err) => {
-            console.error("评论失败:", err);
-            wx.showToast({ title: "操作失败", icon: "none" });
-          });
-      })
-      .catch(() => {});
+      // 2. 更新评论列表 (UI 更新)
+      const comments = [...this.data.comments];
+      if (replyTo) {
+        const parentIndex = comments.findIndex((c) => c._id === replyTo);
+        if (parentIndex !== -1) {
+          const parent = comments[parentIndex];
+          const replies = parent.replies ? [...parent.replies] : [];
+          replies.unshift(createdComment);
+          comments[parentIndex] = {
+            ...parent,
+            replies,
+          };
+        } else {
+          comments.unshift(createdComment);
+        }
+      } else {
+        comments.unshift(createdComment);
+      }
+
+      // 3. 清空输入框并隐藏输入框 (UI 更新)
+      this.setData({
+        comments,
+        newComment: "",
+        showCommentInput: false,
+        replyTo: null,
+        post: {
+          ...post,
+          stats: {
+            ...post.stats,
+            comment: (post.stats?.comment || 0) + 1,
+          },
+        },
+      });
+    } catch (err) {
+      // ❌ 失败处理
+      wx.hideLoading();
+      console.error("拦截成功或出错:", err);
+
+      // 弹出红色警告，且**不清空输入框**（方便用户修改）
+      wx.showModal({
+        title: "发布失败",
+        content: err.message || "内容包含敏感信息",
+        showCancel: false,
+        confirmText: "我知道了",
+      });
+    }
   },
 
   // 点赞评论

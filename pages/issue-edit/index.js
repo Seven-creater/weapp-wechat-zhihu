@@ -13,7 +13,7 @@ Page({
     formattedAddress: "",
     syncToCommunity: true,
     generatingAI: false,
-    submitting: false
+    submitting: false,
   },
 
   onLoad: function (options) {
@@ -47,7 +47,7 @@ Page({
       .then((savedPaths) => {
         const images = savedPaths.map((path) => ({
           path,
-          isSaved: true
+          isSaved: true,
         }));
 
         this.setData({
@@ -55,7 +55,7 @@ Page({
           location,
           address: location ? location.address : "",
           formattedAddress: location ? location.formattedAddress : "",
-          syncToCommunity: true
+          syncToCommunity: true,
         });
 
         this.draftDirty = true;
@@ -64,7 +64,7 @@ Page({
       .catch(() => {
         wx.showToast({
           title: "图片保存失败",
-          icon: "none"
+          icon: "none",
         });
       });
   },
@@ -87,7 +87,7 @@ Page({
           this.clearDraftFiles(draft.images || []);
           wx.removeStorageSync(ISSUE_DRAFT_KEY);
         }
-      }
+      },
     });
   },
 
@@ -103,7 +103,7 @@ Page({
     const location = this.normalizeLocation(draft.location);
     const images = (draft.images || []).map((path) => ({
       path,
-      isSaved: true
+      isSaved: true,
     }));
 
     this.setData({
@@ -112,8 +112,12 @@ Page({
       aiSolution: draft.aiSolution || "",
       location,
       address: draft.address || (location ? location.address : ""),
-      formattedAddress: draft.formattedAddress || (location ? location.formattedAddress : ""),
-      syncToCommunity: typeof draft.syncToCommunity === "boolean" ? draft.syncToCommunity : true
+      formattedAddress:
+        draft.formattedAddress || (location ? location.formattedAddress : ""),
+      syncToCommunity:
+        typeof draft.syncToCommunity === "boolean"
+          ? draft.syncToCommunity
+          : true,
     });
 
     this.draftDirty = false;
@@ -125,20 +129,20 @@ Page({
       latitude: Number(location.latitude) || 0,
       longitude: Number(location.longitude) || 0,
       address: location.address || "",
-      formattedAddress: location.formattedAddress || ""
+      formattedAddress: location.formattedAddress || "",
     };
   },
 
   onDescriptionInput: function (e) {
     this.setData({
-      description: e.detail.value
+      description: e.detail.value,
     });
     this.draftDirty = true;
   },
 
   onSyncChange: function (e) {
     this.setData({
-      syncToCommunity: e.detail.value
+      syncToCommunity: e.detail.value,
     });
     this.draftDirty = true;
   },
@@ -159,7 +163,7 @@ Page({
           const images = this.data.images.concat(
             savedPaths.map((path) => ({
               path,
-              isSaved: true
+              isSaved: true,
             }))
           );
           this.setData({ images });
@@ -170,9 +174,9 @@ Page({
         console.error("选择图片失败:", err);
         wx.showToast({
           title: "选择图片失败",
-          icon: "none"
+          icon: "none",
         });
-      }
+      },
     });
   },
 
@@ -196,7 +200,7 @@ Page({
 
     wx.previewImage({
       current,
-      urls
+      urls,
     });
   },
 
@@ -207,12 +211,12 @@ Page({
           latitude: res.latitude,
           longitude: res.longitude,
           address: res.address || res.name || "",
-          formattedAddress: res.address || res.name || ""
+          formattedAddress: res.address || res.name || "",
         };
         this.setData({
           location,
           address: location.address,
-          formattedAddress: location.formattedAddress
+          formattedAddress: location.formattedAddress,
         });
         this.draftDirty = true;
       },
@@ -220,9 +224,9 @@ Page({
         console.error("选择位置失败:", err);
         wx.showToast({
           title: "选点失败",
-          icon: "none"
+          icon: "none",
         });
-      }
+      },
     });
   },
 
@@ -231,7 +235,7 @@ Page({
     if (this.data.images.length === 0) {
       wx.showToast({
         title: "请先添加图片",
-        icon: "none"
+        icon: "none",
       });
       return;
     }
@@ -242,7 +246,7 @@ Page({
     this.setData({ generatingAI: true });
     wx.showLoading({
       title: "AI生成中...",
-      mask: true
+      mask: true,
     });
 
     this.uploadSingleImage(imagePath, "issues/ai")
@@ -251,8 +255,8 @@ Page({
           name: "analyzeIssue",
           data: {
             fileID,
-            location
-          }
+            location,
+          },
         });
       })
       .then((res) => {
@@ -271,7 +275,7 @@ Page({
         console.error("生成AI方案失败:", err);
         wx.showToast({
           title: "生成失败，请重试",
-          icon: "none"
+          icon: "none",
         });
       })
       .finally(() => {
@@ -280,7 +284,7 @@ Page({
       });
   },
 
-  submitIssue: function () {
+  submitIssue: async function () {
     const { description, images, aiSolution, location, syncToCommunity } =
       this.data;
 
@@ -289,7 +293,7 @@ Page({
     if (!description.trim()) {
       wx.showToast({
         title: "请填写问题说明",
-        icon: "none"
+        icon: "none",
       });
       return;
     }
@@ -297,7 +301,7 @@ Page({
     if (!aiSolution.trim()) {
       wx.showToast({
         title: "请先生成AI方案",
-        icon: "none"
+        icon: "none",
       });
       return;
     }
@@ -305,7 +309,7 @@ Page({
     if (!location) {
       wx.showToast({
         title: "请先定位",
-        icon: "none"
+        icon: "none",
       });
       return;
     }
@@ -313,20 +317,20 @@ Page({
     if (!images || images.length === 0) {
       wx.showToast({
         title: "请添加图片",
-        icon: "none"
+        icon: "none",
       });
       return;
     }
 
     this.setData({ submitting: true });
-    wx.showLoading({
-      title: "提交中...",
-      mask: true
-    });
+    // 1. 开启 Loading (防止用户重复点击)
+    wx.showLoading({ title: "正在安全检测...", mask: true });
 
-    app
-      .checkLogin()
-      .catch(() => {
+    try {
+      // ==========================================
+      // 🛑 第一道关卡：登录检查
+      // ==========================================
+      await app.checkLogin().catch(() => {
         return new Promise((resolve, reject) => {
           wx.showModal({
             title: "提示",
@@ -342,45 +346,90 @@ Page({
               } else {
                 reject(new Error("未登录"));
               }
-            }
+            },
           });
         });
-      })
-      .then(() => {
-        return this.uploadImagesToCloud(images.map((item) => item.path));
-      })
-      .then((fileIDs) => {
-        return this.saveIssueAndSolution(
-          fileIDs,
-          description.trim(),
-          aiSolution.trim(),
-          location,
-          syncToCommunity
-        );
-      })
-      .then((issueId) => {
-        this.clearDraft();
-        wx.hideLoading();
-        wx.showToast({
-          title: "提交成功",
-          icon: "success"
-        });
-        wx.navigateTo({
-          url: "/pages/issue-detail/issue-detail?id=" + issueId
-        });
-      })
-      .catch((err) => {
-        if (err && err.message === "未登录") return;
-        console.error("提交失败:", err);
-        wx.showToast({
-          title: "提交失败，请重试",
-          icon: "none"
-        });
-      })
-      .finally(() => {
-        wx.hideLoading();
-        this.setData({ submitting: false });
       });
+
+      // ==========================================
+      // 🛑 第二道关卡：调用云函数检测问题描述
+      // ==========================================
+      const descSecRes = await wx.cloud.callFunction({
+        name: "checkContent",
+        data: { type: "text", value: description.trim() },
+      });
+
+      // 调试日志：看看云函数到底返回了什么
+      console.log("问题描述安全检测结果:", descSecRes);
+
+      // 🛑 检查检测结果
+      if (descSecRes.result.code !== 0) {
+        throw new Error("问题描述含有违法违规信息，禁止发布！");
+      }
+
+      // ==========================================
+      // 🛑 第三道关卡：调用云函数检测AI方案
+      // ==========================================
+      const aiSecRes = await wx.cloud.callFunction({
+        name: "checkContent",
+        data: { type: "text", value: aiSolution.trim() },
+      });
+
+      // 调试日志：看看云函数到底返回了什么
+      console.log("AI方案安全检测结果:", aiSecRes);
+
+      // 🛑 检查检测结果
+      if (aiSecRes.result.code !== 0) {
+        throw new Error("AI方案含有违法违规信息，禁止发布！");
+      }
+
+      // ==========================================
+      // ✅ 只有通过了上面三关，才能执行下面的代码！
+      // ==========================================
+
+      // 上传图片到云存储
+      const fileIDs = await this.uploadImagesToCloud(
+        images.map((item) => item.path)
+      );
+
+      // 保存问题和解决方案到数据库
+      const issueId = await this.saveIssueAndSolution(
+        fileIDs,
+        description.trim(),
+        aiSolution.trim(),
+        location,
+        syncToCommunity
+      );
+
+      this.clearDraft();
+      wx.hideLoading();
+      wx.showToast({
+        title: "提交成功",
+        icon: "success",
+      });
+      wx.navigateTo({
+        url: "/pages/issue-detail/issue-detail?id=" + issueId,
+      });
+    } catch (err) {
+      // ❌ 失败处理
+      wx.hideLoading();
+      console.error("拦截成功或出错:", err);
+
+      if (err && err.message === "未登录") {
+        this.setData({ submitting: false });
+        return;
+      }
+
+      // 弹出红色警告，且**不清空输入框**（方便用户修改）
+      wx.showModal({
+        title: "发布失败",
+        content: err.message || "内容包含敏感信息",
+        showCancel: false,
+        confirmText: "我知道了",
+      });
+    } finally {
+      this.setData({ submitting: false });
+    }
   },
 
   saveIssueAndSolution: function (
@@ -400,7 +449,7 @@ Page({
       formattedAddress: location.formattedAddress,
       aiSolution,
       status: "pending",
-      createTime: db.serverDate()
+      createTime: db.serverDate(),
     };
 
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
@@ -431,12 +480,10 @@ Page({
           sourceIssueId: issueId,
           address: location.address,
           formattedAddress: location.formattedAddress,
-          location: locationPoint
+          location: locationPoint,
         };
 
-        const tasks = [
-          db.collection("solutions").add({ data: solutionData })
-        ];
+        const tasks = [db.collection("solutions").add({ data: solutionData })];
 
         if (syncToCommunity) {
           tasks.push(
@@ -475,8 +522,8 @@ Page({
       updateTime: db.serverDate(),
       userInfo: userInfo || {
         nickName: "匿名用户",
-        avatarUrl: "/images/default-avatar.png"
-      }
+        avatarUrl: "/images/default-avatar.png",
+      },
     };
 
     return db.collection("posts").add({ data: postData });
@@ -489,7 +536,7 @@ Page({
       return wx.cloud
         .uploadFile({
           cloudPath,
-          filePath
+          filePath,
         })
         .then((res) => res.fileID);
     });
@@ -503,7 +550,7 @@ Page({
     return wx.cloud
       .uploadFile({
         cloudPath,
-        filePath
+        filePath,
       })
       .then((res) => res.fileID);
   },
@@ -521,7 +568,7 @@ Page({
           wx.saveFile({
             tempFilePath: path,
             success: (res) => resolve(res.savedFilePath),
-            fail: () => resolve(path)
+            fail: () => resolve(path),
           });
         });
       })
@@ -531,7 +578,7 @@ Page({
   removeSavedFile: function (path) {
     wx.removeSavedFile({
       filePath: path,
-      fail: () => {}
+      fail: () => {},
     });
   },
 
@@ -550,7 +597,7 @@ Page({
       address: this.data.address,
       formattedAddress: this.data.formattedAddress,
       syncToCommunity: this.data.syncToCommunity,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
 
     wx.setStorageSync(ISSUE_DRAFT_KEY, draft);
@@ -558,7 +605,7 @@ Page({
     if (!silent) {
       wx.showToast({
         title: "草稿已保存",
-        icon: "success"
+        icon: "success",
       });
     }
   },
@@ -572,11 +619,13 @@ Page({
   },
 
   handleCancel: function () {
-    if (!this.hasDraftContent({
-      description: this.data.description,
-      images: this.data.images.map((item) => item.path),
-      aiSolution: this.data.aiSolution
-    })) {
+    if (
+      !this.hasDraftContent({
+        description: this.data.description,
+        images: this.data.images.map((item) => item.path),
+        aiSolution: this.data.aiSolution,
+      })
+    ) {
       wx.navigateBack();
       return;
     }
@@ -592,7 +641,7 @@ Page({
           this.clearDraft();
           wx.navigateBack();
         }
-      }
+      },
     });
-  }
+  },
 });

@@ -93,7 +93,7 @@
         aria-role="button"
         aria-label="发表评论，当前{{post.stats.comment}}条评论"
       >
-        <image class="action-icon" src="/images/comment.png" aria-hidden="true"></image>
+        <text class="action-icon comment-icon">💬</text>
         <text class="action-text">{{post.stats.comment}}</text>
       </view>
 
@@ -146,7 +146,7 @@
                 aria-role="button"
                 aria-label="{{item.liked ? '取消点赞' : '点赞'}}评论，当前{{item.likes}}个赞"
               >
-                <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
+                <text class="action-icon heart-icon">{{item.liked ? '❤️' : '🤍'}}</text>
                 <text class="action-text">{{item.likes}}</text>
               </view>
               <view
@@ -192,7 +192,7 @@
                   aria-role="button"
                   aria-label="{{item.liked ? '取消点赞' : '点赞'}}回复，当前{{item.likes}}个赞"
                 >
-                  <image class="action-icon" src="/images/like{{item.liked ? '-active' : ''}}-small.png" aria-hidden="true"></image>
+                  <text class="action-icon heart-icon">{{item.liked ? '❤️' : '🤍'}}</text>
                   <text class="action-text">{{item.likes}}</text>
                 </view>
                 <view
@@ -236,10 +236,13 @@
     <view class="input-wrapper">
       <!-- 这里的 placeholder 就是你要的这四个字 -->
       <input 
+        id="comment-input"
         class="input-field" 
-        placeholder="发表评论" 
+        placeholder="{{placeholderText}}" 
         placeholder-style="color: #999;" 
+        focus="{{isInputFocus}}"
         bindinput="onCommentInput"
+        bindblur="onInputBlur"
         value="{{newComment}}"
         confirm-type="send"
         aria-label="评论输入框"

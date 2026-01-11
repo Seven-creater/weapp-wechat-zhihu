@@ -188,11 +188,12 @@
 }
 
 .collect-count.collected-text {
-  color: #FFD700;
+  color: #ffd700;
 }
 
 /* 加载更多样式 */
-.load-more, .no-more {
+.load-more,
+.no-more {
   text-align: center;
   padding: var(--spacing-xl);
   color: var(--color-text-secondary);
@@ -232,7 +233,8 @@
   min-height: 200rpx;
 }
 
-.filter-item, .load-more {
+.filter-item,
+.load-more {
   min-height: 88rpx;
   line-height: 88rpx;
 }
