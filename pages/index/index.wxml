@@ -66,27 +66,6 @@
     </view>
   </view>
 
-  <view class="recent-section" wx:if="{{recentReports.length > 0}}">
-    <view class="section-header">
-      <text class="section-title">最近反馈</text>
-      <text class="section-more" bindtap="viewAllReports">查看全部</text>
-    </view>
-    
-    <scroll-view class="recent-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
-      <view class="recent-list">
-        <view class="recent-card" wx:for="{{recentReports}}" wx:key="_id" bindtap="viewReportDetail" data-id="{{item._id}}">
-          <image class="recent-image" src="{{item.imageUrl}}" mode="aspectFill" aria-label="问题图片"></image>
-          <view class="recent-info">
-            <text class="recent-address">{{item.address || "未知地点"}}</text>
-            <view class="recent-status {{item.status === 'pending' ? 'status-pending' : 'status-done'}}">
-              <text class="status-text">{{item.status === 'pending' ? '待处理' : '已解决'}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
-
   <view class="footer-note">
     <text class="footer-slogan">让城市更无障碍 · 让出行更自由</text>
   </view>

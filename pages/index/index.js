@@ -7,7 +7,6 @@ let qqmapsdk = null;
 
 Page({
   data: {
-    recentReports: [], // 最近反馈列表
     isUploading: false, // 是否正在上传
     hasLocationPermission: true, // 是否有定位权限
     currentAddress: "",
@@ -22,20 +21,11 @@ Page({
     }
     // 检查定位权限
     this.checkLocationPermission();
-    // 加载最近反馈
-    this.loadRecentReports();
-  },
-
-  navigateToMore: function (e) {
-    const type = e.currentTarget.dataset.type;
-    wx.navigateTo({ url: `/pages/more/more?type=${type}` });
   },
 
   onPullDownRefresh: function () {
-    // 下拉刷新，重新加载最近反馈
-    this.loadRecentReports().then(() => {
-      wx.stopPullDownRefresh();
-    });
+    // 下拉刷新
+    wx.stopPullDownRefresh();
   },
 
   /**
@@ -49,59 +39,6 @@ Page({
         }
       },
     });
-  },
-
-  /**
-   * 加载最近反馈
-   */
-  loadRecentReports: function () {
-    const db = wx.cloud.database();
-    return db
-      .collection("issues")
-      .orderBy("createTime", "desc")
-      .limit(5)
-      .get()
-      .then((res) => {
-        const reports = res.data;
-
-        // 转换图片URL：将 fileID 转换为临时HTTPS URL
-        const imagePromises = reports.map((report) => {
-          if (report.imageUrl && report.imageUrl.startsWith("cloud://")) {
-            return wx.cloud
-              .getTempFileURL({
-                fileList: [report.imageUrl],
-              })
-              .then((urlResult) => {
-                if (
-                  urlResult.fileList &&
-                  urlResult.fileList[0] &&
-                  urlResult.fileList[0].tempFileURL
-                ) {
-                  report.imageUrl = urlResult.fileList[0].tempFileURL;
-                }
-                return report;
-              })
-              .catch((err) => {
-                console.error("获取图片临时URL失败:", err);
-                return report;
-              });
-          }
-          return Promise.resolve(report);
-        });
-
-        return Promise.all(imagePromises).then((updatedReports) => {
-          this.setData({
-            recentReports: updatedReports,
-          });
-        });
-      })
-      .catch((err) => {
-        console.error("加载最近反馈失败:", err);
-        // 数据库集合不存在时，显示空列表
-        this.setData({
-          recentReports: [],
-        });
-      });
   },
 
   /**
