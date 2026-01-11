@@ -1,0 +1,14 @@
+{
+  "name": "getPublicData",
+  "version": "1.0.0",
+  "description": "获取公开数据并转换云存储图片URL为可访问的临时URL",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

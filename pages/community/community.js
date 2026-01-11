@@ -29,62 +29,61 @@ Page({
     }
   },
 
-  // 加载帖子列表
+  // 加载帖子列表（使用云函数获取公开数据）
   loadPosts: function () {
     if (this.data.loading) return;
 
     this.setData({ loading: true });
-
-    const db = wx.cloud.database();
     const { page, pageSize } = this.data;
-    const skip = (page - 1) * pageSize;
 
-    db.collection("posts")
-      .orderBy("createTime", "desc")
-      .skip(skip)
-      .limit(pageSize)
-      .get()
-      .then((res) => {
-        const openid = app.globalData.openid || wx.getStorageSync("openid");
-        const newPosts = res.data.map((post) => ({
-          ...post,
-          userInfo: post.userInfo || {
-            nickName: "匿名用户",
-            avatarUrl: "/images/default-avatar.png",
-          },
-          stats: post.stats || { view: 0, like: 0, comment: 0 },
-          createTime: this.formatTime(post.createTime),
-          isOwner: openid ? post._openid === openid : false,
-        }));
+    // 使用云函数获取数据（云函数端可绕过权限限制）
+    wx.cloud.callFunction({
+      name: "getPublicData",
+      data: {
+        collection: "posts",
+        page: page,
+        pageSize: pageSize,
+        orderBy: "createTime",
+        order: "desc",
+      },
+      success: (res) => {
+        console.log("云函数返回:", res);
 
-        const posts = page === 1 ? newPosts : [...this.data.posts, ...newPosts];
+        if (res.result && res.result.success) {
+          const newPosts = res.result.data.map((post) => ({
+            ...post,
+            createTime: this.formatTime(post.createTime),
+          }));
 
-        return this.attachActionStatus(posts).then((mergedPosts) => {
-          this.setData({
-            posts: mergedPosts,
-            loading: false,
-            hasMore: newPosts.length >= pageSize,
+          const posts =
+            page === 1 ? newPosts : [...this.data.posts, ...newPosts];
+
+          this.attachActionStatus(posts).then((mergedPosts) => {
+            this.setData({
+              posts: mergedPosts,
+              loading: false,
+              hasMore: res.result.pagination.hasMore,
+            });
+            wx.stopPullDownRefresh();
           });
-          wx.stopPullDownRefresh();
-        });
-      })
-      .catch((err) => {
-        console.error("加载社区帖子失败:", err);
-        const errMsg = err && err.errMsg ? err.errMsg : String(err || "");
+        } else {
+          throw new Error(res.result?.error || "获取数据失败");
+        }
+      },
+      fail: (err) => {
+        console.error("调用云函数失败:", err);
         this.setData({
           loading: false,
-          posts: page === 1 ? [] : this.data.posts,
+          posts: this.data.page === 1 ? [] : this.data.posts,
           hasMore: false,
         });
         wx.stopPullDownRefresh();
-        if (errMsg.includes("PERMISSION_DENIED")) {
-          wx.showToast({ title: "云权限不足，请检查posts权限", icon: "none" });
-        } else if (errMsg.includes("COLLECTION_NOT_EXISTS")) {
-          wx.showToast({ title: "posts集合不存在", icon: "none" });
-        } else {
-          wx.showToast({ title: "加载失败", icon: "none" });
-        }
-      });
+        wx.showToast({
+          title: "加载失败",
+          icon: "none",
+        });
+      },
+    });
   },
 
   attachActionStatus: function (posts) {
