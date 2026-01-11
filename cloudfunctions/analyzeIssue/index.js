@@ -7,9 +7,13 @@ cloud.init({
 });
 
 // 阿里云百炼 API 配置
-// 请在微信开发者工具中设置环境变量：cloud.DASHSCOPE_API_KEY
+// API Key：优先从环境变量读取，否则使用默认值
+// 请在微信开发者工具的云开发控制台中设置环境变量：DASHSCOPE_API_KEY
 const DASHSCOPE_API_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const MODEL_NAME = 'qwen-vl-max';
+
+// 阿里云 API Key（请勿泄露给他人）
+const DEFAULT_API_KEY = 'sk-2f0c1ef0d3d343e39e893c47211ad541';
 
 // 云函数入口函数
 exports.main = async (event, context) => {
@@ -58,12 +62,11 @@ exports.main = async (event, context) => {
  * @returns {string} - AI分析结果
  */
 async function analyzeWithQwenVL(imageUrl, location) {
-  // 获取 API Key（从环境变量或配置中获取）
-  // 建议在云开发控制台中设置环境变量 DASHSCOPE_API_KEY
-  const apiKey = process.env.DASHSCOPE_API_KEY || cloud.env.DASHSCOPE_API_KEY;
+  // 获取 API Key：优先从环境变量读取，否则使用默认值
+  const apiKey = process.env.DASHSCOPE_API_KEY || DEFAULT_API_KEY;
   
-  if (!apiKey) {
-    throw new Error('未配置阿里云百炼 API Key，请在云开发控制台设置环境变量 DASHSCOPE_API_KEY');
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+    throw new Error('未配置阿里云百炼 API Key');
   }
   
   // 构建消息
