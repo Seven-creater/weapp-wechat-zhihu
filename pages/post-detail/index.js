@@ -20,10 +20,19 @@ Page({
   },
 
   onLoad: function (options) {
-    const postId = options.postId;
+    const postId = options.id || options.postId;
+    console.log("接收到的参数:", options);
+    console.log("帖子ID:", postId);
+
     if (postId) {
       this.loadPostDetail(postId);
       this.loadComments(postId);
+    } else {
+      console.error("帖子ID为空", options);
+      wx.showToast({
+        title: "参数错误",
+        icon: "none",
+      });
     }
   },
 

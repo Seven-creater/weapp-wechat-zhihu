@@ -227,12 +227,24 @@ Page({
 
   goToIssueDetail: function (e) {
     const issueId = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/solution-detail/index?id=${issueId}` });
+    wx.navigateTo({ 
+      url: `/pages/solution-detail/index?id=${issueId}&collection=issues` 
+    });
   },
 
   goToPostDetail: function (e) {
     const postId = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/post-detail/index?id=${postId}` });
+    if (!postId) {
+      console.error('postId is undefined', e.currentTarget.dataset);
+      wx.showToast({
+        title: '帖子ID无效',
+        icon: 'none'
+      });
+      return;
+    }
+    wx.navigateTo({ 
+      url: `/pages/post-detail/index?id=${postId}` 
+    });
   },
 
   goToHome: function () {

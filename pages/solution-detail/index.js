@@ -14,8 +14,19 @@ Page({
 
   onLoad: function (options) {
     const solutionId = options.id || options.solutionId;
+    const collectionName = options.collection || "solutions";
+
+    console.log("接收到的参数:", options);
+    console.log("文档ID:", solutionId);
+    console.log("数据来源:", collectionName);
+
+    this.setData({
+      id: solutionId,
+      collectionName: collectionName,
+    });
+
     if (solutionId) {
-      this.loadSolutionDetail(solutionId);
+      this.loadSolutionDetail();
     }
     this.initVoicePlayer();
   },
@@ -98,22 +109,35 @@ Page({
   },
 
   // 加载解决方案详情
-  loadSolutionDetail: function (solutionId) {
+  loadSolutionDetail: function () {
+    const { id: documentId, collectionName } = this.data;
+
+    if (!documentId) {
+      console.error("文档ID为空");
+      wx.showToast({
+        title: "参数错误",
+        icon: "none",
+      });
+      return;
+    }
+
+    console.log("开始查询集合:", collectionName, "文档ID:", documentId);
+
     wx.showLoading({
       title: "加载中...",
     });
 
-    db.collection("solutions")
-      .doc(solutionId)
+    db.collection(collectionName)
+      .doc(documentId)
       .get()
       .then((res) => {
-        const solution = res.data;
+        const data = res.data;
 
-        if (!solution) {
+        if (!data) {
           wx.hideLoading();
           wx.showModal({
             title: "提示",
-            content: "该方案不存在或已被删除",
+            content: "该内容不存在或已被删除",
             showCancel: false,
             confirmText: "返回",
             success: () => {
@@ -123,19 +147,34 @@ Page({
           return;
         }
 
-        this.setData({ solution });
+        // 如果是 issues 集合(随手拍)，需要进行数据适配
+        if (collectionName === "issues") {
+          // 适配结构，防止页面报错
+          data.title = "路障反馈详情";
+          data.aiAnalysis =
+            data.aiSolution || data.aiAnalysis || data.description;
+          data.beforeImg = data.imageUrl || data.images?.[0] || "";
+          data.status = data.status || "已完成";
+          data.address = data.address || "未知位置";
+
+          console.log("issues数据适配完成:", data);
+        }
+
+        this.setData({ solution: data });
 
         // 动态设置页面标题
         wx.setNavigationBarTitle({
-          title: solution.title,
+          title: data.title || "详情",
         });
 
-        // 更新浏览量
-        this.updateViewCount(solutionId);
+        // 更新浏览量（仅对 solutions 集合）
+        if (collectionName === "solutions") {
+          this.updateViewCount(documentId);
+        }
 
         // 初始化收藏状态
         collectUtil
-          .initCollectStatus(this, "collect_solution", solutionId)
+          .initCollectStatus(this, "collect_" + collectionName, documentId)
           .then(() => {
             wx.hideLoading();
           })
@@ -144,14 +183,18 @@ Page({
           });
       })
       .catch((err) => {
-        console.error("加载解决方案详情失败:", err);
+        console.error("加载详情失败:", err);
         wx.hideLoading();
 
         // 处理文档不存在的情况
-        if (err.errMsg && err.errMsg.includes("cannot find document")) {
+        if (
+          err.errMsg &&
+          (err.errMsg.includes("cannot find document") ||
+            err.errMsg.includes("document not found"))
+        ) {
           wx.showModal({
             title: "提示",
-            content: "该方案不存在或已被删除",
+            content: "该内容不存在或已被删除",
             showCancel: false,
             confirmText: "返回",
             success: () => {
