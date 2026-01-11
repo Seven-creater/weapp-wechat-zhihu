@@ -62,7 +62,7 @@ Page({
     if (this.data.userInfo) {
       // 已登录，跳转到编辑页面
       wx.navigateTo({
-        url: "/pages/mine/profile-edit/index",
+        url: "/pages/profile-edit/index",
       });
       return;
     }

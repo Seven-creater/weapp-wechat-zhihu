@@ -32,18 +32,6 @@ Page({
     });
   },
 
-  onChooseAvatar: function (e) {
-    const avatarUrl = e.detail.avatarUrl;
-    if (avatarUrl) {
-      this.setData({
-        form: {
-          ...this.data.form,
-          avatarUrl: avatarUrl,
-        },
-      });
-    }
-  },
-
   chooseAvatar: function () {
     wx.chooseImage({
       count: 1,
@@ -172,11 +160,9 @@ Page({
         .get()
         .then((res) => {
           if (res.data.length > 0) {
-            // 更新时不能包含 _openid（系统保留字段）
             return db.collection("users").doc(res.data[0]._id).update({
               data: {
-                nickName: userInfo.nickName,
-                avatarUrl: userInfo.avatarUrl,
+                ...userInfo,
                 updatedAt: db.serverDate(),
               },
             });
@@ -184,8 +170,9 @@ Page({
 
           return db.collection("users").add({
             data: {
-              nickName: userInfo.nickName,
-              avatarUrl: userInfo.avatarUrl,
+              ...userInfo,
+              _openid: openid,
+              createTime: db.serverDate(),
               updatedAt: db.serverDate(),
             },
           });

@@ -157,10 +157,13 @@ Page({
 
         const newIssues = res.data.map((issue) => {
           // 兼容 aiAnalysis 和 aiSolution 字段
-          const aiText = issue.aiAnalysis || issue.aiSolution || '';
+          const aiText = issue.aiAnalysis || issue.aiSolution || "";
           // 截取前30个字作为摘要
-          const aiSummary = aiText.length > 30 ? aiText.substring(0, 30) + '...' : aiText || 'AI正在分析中...';
-          
+          const aiSummary =
+            aiText.length > 30
+              ? aiText.substring(0, 30) + "..."
+              : aiText || "AI正在分析中...";
+
           return {
             ...issue,
             createTime: this.formatTime(issue.createTime),
@@ -202,11 +205,12 @@ Page({
       .then((res) => {
         const newPosts = res.data.map((post) => {
           // 处理摘要：如果content存在，截取前30个字；否则显示"分享了一张图片"
-          const contentText = post.content || '';
-          const summary = contentText.length > 30 
-            ? contentText.substring(0, 30) + '...' 
-            : (contentText || '分享了一张图片');
-          
+          const contentText = post.content || "";
+          const summary =
+            contentText.length > 30
+              ? contentText.substring(0, 30) + "..."
+              : contentText || "分享了一张图片";
+
           return {
             ...post,
             createTime: this.formatTime(post.createTime),
@@ -243,23 +247,23 @@ Page({
 
   goToIssueDetail: function (e) {
     const issueId = e.currentTarget.dataset.id;
-    wx.navigateTo({ 
-      url: `/pages/solution-detail/index?id=${issueId}&collection=issues` 
+    wx.navigateTo({
+      url: `/pages/solution-detail/index?id=${issueId}&collection=issues`,
     });
   },
 
   goToPostDetail: function (e) {
     const postId = e.currentTarget.dataset.id;
     if (!postId) {
-      console.error('postId is undefined', e.currentTarget.dataset);
+      console.error("postId is undefined", e.currentTarget.dataset);
       wx.showToast({
-        title: '帖子ID无效',
-        icon: 'none'
+        title: "帖子ID无效",
+        icon: "none",
       });
       return;
     }
-    wx.navigateTo({ 
-      url: `/pages/post-detail/index?id=${postId}` 
+    wx.navigateTo({
+      url: `/pages/post-detail/index?id=${postId}`,
     });
   },
 

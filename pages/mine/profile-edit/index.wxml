@@ -1,41 +1,45 @@
 <view class="profile-edit-container">
-  <view class="form-section">
+  <view class="header-card">
     <view class="avatar-section">
-      <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-        <image class="avatar" src="{{form.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
-        <view class="avatar-edit-badge">
-          <text class="camera-icon">📷</text>
-        </view>
+      <image class="avatar" src="{{form.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true"></image>
+      <button
+        class="avatar-btn"
+        bindtap="chooseAvatar"
+        aria-label="更换头像"
+      >
+        更换头像
       </button>
-      <text class="avatar-hint">点击更换头像</text>
     </view>
-
-    <view class="input-group">
-      <view class="input-row">
-        <text class="input-label">昵称</text>
-        <input
-          class="input-field"
-          type="nickname"
-          placeholder="请输入昵称"
-          placeholder-class="ph-style"
-          value="{{form.nickName}}"
-          bindinput="onNameInput"
-        />
-      </view>
+    <view class="name-section">
+      <text class="label">昵称</text>
+      <input
+        class="name-input"
+        placeholder="请输入昵称"
+        value="{{form.nickName}}"
+        maxlength="20"
+        bindinput="onNameInput"
+        aria-label="昵称输入框"
+      />
     </view>
   </view>
 
-  <view class="save-section">
+  <view class="quick-actions">
     <button
-      class="save-btn {{saving ? 'disabled' : ''}}"
-      bindtap="saveProfile"
-      disabled="{{saving}}"
+      class="wechat-btn"
+      bindtap="syncWechatProfile"
+      aria-label="同步微信头像昵称"
     >
-      {{saving ? '保存中...' : '保存修改'}}
+      同步微信头像昵称
     </button>
   </view>
 
-  <view class="tips-section">
-    <text class="tips-text">提示：使用微信头像和昵称可快速同步</text>
+  <view class="footer-actions">
+    <button
+      class="save-btn"
+      bindtap="saveProfile"
+      aria-label="保存资料"
+    >
+      保存
+    </button>
   </view>
 </view>
