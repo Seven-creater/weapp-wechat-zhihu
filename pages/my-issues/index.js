@@ -155,11 +155,18 @@ Page({
         console.log("查询结果数量:", res.data.length);
         console.log("查询结果数据:", JSON.stringify(res.data, null, 2));
 
-        const newIssues = res.data.map((issue) => ({
-          ...issue,
-          createTime: this.formatTime(issue.createTime),
-          aiAnalysis: issue.aiSolution || issue.aiAnalysis || "",
-        }));
+        const newIssues = res.data.map((issue) => {
+          // 兼容 aiAnalysis 和 aiSolution 字段
+          const aiText = issue.aiAnalysis || issue.aiSolution || '';
+          // 截取前30个字作为摘要
+          const aiSummary = aiText.length > 30 ? aiText.substring(0, 30) + '...' : aiText || 'AI正在分析中...';
+          
+          return {
+            ...issue,
+            createTime: this.formatTime(issue.createTime),
+            aiSummary: aiSummary,
+          };
+        });
         const issues =
           issuesPage === 1 ? newIssues : [...this.data.issues, ...newIssues];
         this.setData({
@@ -193,11 +200,20 @@ Page({
       .limit(limit)
       .get()
       .then((res) => {
-        const newPosts = res.data.map((post) => ({
-          ...post,
-          createTime: this.formatTime(post.createTime),
-          stats: post.stats || { like: 0, comment: 0 },
-        }));
+        const newPosts = res.data.map((post) => {
+          // 处理摘要：如果content存在，截取前30个字；否则显示"分享了一张图片"
+          const contentText = post.content || '';
+          const summary = contentText.length > 30 
+            ? contentText.substring(0, 30) + '...' 
+            : (contentText || '分享了一张图片');
+          
+          return {
+            ...post,
+            createTime: this.formatTime(post.createTime),
+            stats: post.stats || { like: 0, comment: 0 },
+            summary: summary, // 添加摘要字段
+          };
+        });
         const posts =
           postsPage === 1 ? newPosts : [...this.data.posts, ...newPosts];
         this.setData({

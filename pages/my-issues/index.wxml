@@ -38,9 +38,9 @@
             <text class="item-location">{{item.address || item.formattedAddress || '位置信息获取中'}}</text>
             <text class="item-time">{{item.createTime}}</text>
             
-            <view class="ai-suggestion" wx:if="{{item.aiAnalysis}}">
+            <view class="ai-suggestion" wx:if="{{item.aiSummary && item.aiSummary !== 'AI正在分析中...'}}">
               <text class="suggestion-label">AI建议：</text>
-              <text class="suggestion-text">{{item.aiAnalysis.length > 30 ? item.aiAnalysis.substring(0, 30) + '...' : item.aiAnalysis}}</text>
+              <text class="suggestion-text">{{item.aiSummary}}</text>
             </view>
           </view>
           
@@ -70,7 +70,7 @@
           </view>
           
           <view class="post-content">
-            <text class="post-text">{{item.content.length > 50 ? item.content.substring(0, 50) + '...' : item.content}}</text>
+            <text class="post-text">{{item.summary || '分享了一张图片'}}</text>
           </view>
           
           <view class="post-footer" wx:if="{{item.images && item.images.length > 0}}">
