@@ -52,7 +52,7 @@ Page({
         wx.hideLoading();
 
         if (res.result && res.result.success) {
-          const post = res.result.data;
+          let post = res.result.data;
 
           if (post) {
             // 确保 userInfo 存在
@@ -63,6 +63,18 @@ Page({
               };
             } else if (!post.userInfo.nickName) {
               post.userInfo.nickName = "匿名用户";
+            }
+
+            // 🟢 关键修复：分离用户内容和AI诊断
+            if (post.content && typeof post.content === "string") {
+              const aiDiagnosisRegex = /AI诊断：|AI诊断：/;
+              const parts = post.content.split(aiDiagnosisRegex);
+
+              if (parts.length > 1) {
+                // 分离成功：用户内容 + AI诊断
+                post.content = parts[0].trim();
+                post.aiDiagnosis = parts[1].trim();
+              }
             }
 
             this.updatePostData(post, openid);
