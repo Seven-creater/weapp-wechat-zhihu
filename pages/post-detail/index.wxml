@@ -44,26 +44,25 @@
     </view>
 
     <!-- 帖子内容区 -->
-    <view class="post-content-section">
+    <view class="content-body">
       <!-- 1. 用户正文区 -->
-      <view class="content-body">
-        <view class="user-content">
-          <text user-select="true">{{post.content}}</text>
-        </view>
-
-        <!-- 2. AI 诊断卡片 (仅当有诊断结果时显示) -->
-        <view class="ai-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
-          <view class="ai-header">
-            <text class="ai-icon">🤖</text>
-            <text class="ai-title">AI 智能诊断</text>
-          </view>
-          <view class="ai-body">
-            <text user-select="true">{{post.aiDiagnosis || post.aiSolution}}</text>
-          </view>
-        </view>
+      <view class="user-content">
+        <text user-select="true">{{post.content}}</text>
       </view>
 
-      <!-- 用户建议 -->
+      <!-- 2. AI 诊断卡片 (仅当有诊断结果时显示) -->
+      <view class="ai-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
+        <view class="ai-header">
+          <text class="ai-icon">🤖</text>
+          <text class="ai-title">AI 智能诊断</text>
+        </view>
+        <view class="ai-body">
+          <text user-select="true">{{post.aiDiagnosis || post.aiSolution}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 用户建议 -->
       <view class="user-suggestion-block" wx:if="{{post.userSuggestion && post.userSuggestion.length > 0}}">
         <view class="suggestion-blue-line"></view>
         <view class="suggestion-content">
