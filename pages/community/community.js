@@ -294,6 +294,10 @@ Page({
           ? Math.max(0, currentLike - 1)
           : currentLike + 1;
 
+        // 保存原始状态用于回滚
+        const originalPost = { ...post };
+
+        // 乐观更新UI
         posts[index] = {
           ...post,
           liked: !isLiked,
@@ -305,62 +309,40 @@ Page({
 
         this.setData({ posts });
 
-        const db = wx.cloud.database();
-        const openid = app.globalData.openid;
-
-        if (!openid) return;
-
-        if (isLiked) {
-          return db
-            .collection("actions")
-            .where({
-              type: "like_post",
-              targetId: postId,
-              _openid: openid,
-            })
-            .remove()
-            .then(() => {
-              return db
-                .collection("posts")
-                .doc(postId)
-                .update({
-                  data: {
-                    "stats.like": db.command.inc(-1),
-                  },
-                });
-            })
-            .catch((err) => {
-              console.error("取消点赞失败:", err);
-              posts[index] = post;
-              this.setData({ posts });
-              wx.showToast({ title: "操作失败", icon: "none" });
-            });
-        }
-
-        return db
-          .collection("actions")
-          .add({
+        // 调用云函数执行原子操作
+        wx.cloud
+          .callFunction({
+            name: "toggleInteraction",
             data: {
-              type: "like_post",
-              targetId: postId,
-              createTime: db.serverDate(),
+              id: postId,
+              collection: "posts",
+              type: "like",
             },
           })
-          .then(() => {
-            return db
-              .collection("posts")
-              .doc(postId)
-              .update({
-                data: {
-                  "stats.like": db.command.inc(1),
-                },
+          .then((res) => {
+            if (res.result && res.result.success) {
+              // 云函数执行成功，更新UI
+              console.log(
+                `${isLiked ? "取消" : ""}点赞成功，当前点赞数: ${
+                  res.result.count
+                }`
+              );
+            } else {
+              // 云函数执行失败，回滚UI
+              console.error("点赞失败:", res.result?.error);
+              posts[index] = originalPost;
+              this.setData({ posts });
+              wx.showToast({
+                title: res.result?.error || "操作失败",
+                icon: "none",
               });
+            }
           })
           .catch((err) => {
-            console.error("点赞失败:", err);
-            posts[index] = post;
+            console.error("调用云函数失败:", err);
+            posts[index] = originalPost;
             this.setData({ posts });
-            wx.showToast({ title: "操作失败", icon: "none" });
+            wx.showToast({ title: "操作失败，请重试", icon: "none" });
           });
       })
       .catch(() => {});
@@ -406,6 +388,9 @@ Page({
         ? (post.collectCount || 0) + 1
         : Math.max(0, (post.collectCount || 0) - 1);
 
+      // 保存原始状态用于回滚
+      const originalPost = { ...post };
+
       // 乐观更新UI
       const updatedPosts = [...posts];
       updatedPosts[index] = {
@@ -418,24 +403,39 @@ Page({
         posts: updatedPosts,
       });
 
-      const targetData = {
-        title: post.content?.substring(0, 30) || "未命名帖子",
-        image: post.images?.[0] || "",
-      };
-
-      collectUtil
-        .toggleCollect(this, "collect_post", postId, targetData)
+      // 调用云函数执行原子操作
+      wx.cloud
+        .callFunction({
+          name: "toggleInteraction",
+          data: {
+            id: postId,
+            collection: "posts",
+            type: "collect",
+          },
+        })
+        .then((res) => {
+          if (res.result && res.result.success) {
+            // 云函数执行成功，更新UI
+            console.log(
+              `${newIsCollected ? "" : "取消"}收藏成功，当前收藏数: ${
+                res.result.count
+              }`
+            );
+          } else {
+            // 云函数执行失败，回滚UI
+            console.error("收藏失败:", res.result?.error);
+            updatedPosts[index] = originalPost;
+            this.setData({ posts: updatedPosts });
+            wx.showToast({
+              title: res.result?.error || "操作失败",
+              icon: "none",
+            });
+          }
+        })
         .catch((err) => {
-          console.error("收藏操作失败:", err);
-          const rollbackPosts = [...this.data.posts];
-          rollbackPosts[index] = {
-            ...rollbackPosts[index],
-            isCollected: !newIsCollected,
-            collectCount: newIsCollected
-              ? Math.max(0, newCollectCount - 1)
-              : newCollectCount + 1,
-          };
-          this.setData({ posts: rollbackPosts });
+          console.error("调用云函数失败:", err);
+          updatedPosts[index] = originalPost;
+          this.setData({ posts: updatedPosts });
           wx.showToast({ title: "操作失败，请重试", icon: "none" });
         });
     }
