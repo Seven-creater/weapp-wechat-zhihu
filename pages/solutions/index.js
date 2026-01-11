@@ -9,90 +9,97 @@ Page({
     currentCategory: "",
     searchKeyword: "",
     page: 1,
-    limit: 10,
+    pageSize: 10,
     hasMore: true,
     loading: false,
+    isSearchMode: false,
   },
 
   onLoad: function (options) {
-    this.loadSolutions();
+    this.loadData(true);
   },
 
   onPullDownRefresh: function () {
     this.setData({
       page: 1,
-      solutions: [],
       hasMore: true,
+      isSearchMode: false,
     });
-    this.loadSolutions().then(() => {
+    this.loadData(true).then(() => {
       wx.stopPullDownRefresh();
     });
   },
 
   onReachBottom: function () {
-    if (this.data.hasMore && !this.data.loading) {
-      this.loadMore();
+    if (!this.data.hasMore || this.data.loading || this.data.isSearchMode) {
+      return;
     }
+    this.loadData(false);
   },
 
-  // 加载解决方案列表（使用云函数获取公开数据）
-  loadSolutions: function () {
+  loadData: function (reset = false) {
     if (this.data.loading) return Promise.resolve();
+
+    if (reset) {
+      this.setData({
+        page: 1,
+        hasMore: true,
+        isSearchMode: false,
+      });
+    }
 
     this.setData({ loading: true });
 
-    const { page, limit, currentCategory, searchKeyword } = this.data;
+    const { page, pageSize, currentCategory, searchKeyword } = this.data;
 
-    // 调用云函数获取数据（云函数端可绕过权限限制，并自动转换图片URL）
     return wx.cloud.callFunction({
       name: "getPublicData",
       data: {
         collection: "solutions",
         page: page,
-        pageSize: limit,
+        pageSize: pageSize,
         orderBy: "createTime",
         order: "desc",
       },
       success: (res) => {
-        wx.hideLoading();
-
         if (res.result && res.result.success) {
           let newSolutions = res.result.data;
 
-          // 字段兼容处理：将 beforeImg 映射到 imageUrl
           newSolutions = newSolutions.map((item) => ({
             ...item,
-            // 确保图片字段存在（兼容 beforeImg 和 imageUrl）
             imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
-            // 确保标题字段存在
             title: item.title || "无障碍方案",
           }));
 
-          const solutions =
-            page === 1
-              ? newSolutions
-              : [...this.data.solutions, ...newSolutions];
+          const allSolutions = reset
+            ? newSolutions
+            : [...this.data.solutions, ...newSolutions];
 
-          // 更新分页状态
+          const pagination = res.result.pagination || {};
+          const isEnd = newSolutions.length < pageSize;
+
           this.setData({
-            solutions: solutions,
-            hasMore: res.result.pagination.hasMore,
+            solutions: allSolutions,
+            hasMore: !isEnd,
             loading: false,
           });
 
-          // 同步收藏状态
-          this.attachCollectStatus(solutions);
+          this.attachCollectStatus(allSolutions);
 
-          // 更新浏览量
-          if (page === 1) {
+          if (reset) {
             this.updateViewCount(newSolutions);
           }
+
+          console.log(
+            `加载${reset ? "首页" : "更多"}: ${newSolutions.length}条, ` +
+              `累计: ${allSolutions.length}, ` +
+              `还有更多: ${!isEnd}`
+          );
         } else {
           throw new Error(res.result?.error || "获取数据失败");
         }
       },
       fail: (err) => {
-        wx.hideLoading();
         console.error("加载解决方案失败:", err);
         this.setData({ loading: false });
         wx.showToast({
@@ -158,10 +165,10 @@ Page({
     this.setData({
       currentCategory: category,
       page: 1,
-      solutions: [],
       hasMore: true,
+      isSearchMode: false,
     });
-    this.loadSolutions();
+    this.loadData(true);
   },
 
   // 搜索输入
@@ -171,20 +178,17 @@ Page({
       searchKeyword: keyword,
     });
 
-    // 防抖搜索
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
       if (keyword.trim()) {
-        // 有搜索关键词时，使用关键词搜索
         this.keywordSearch(keyword);
       } else {
-        // 没有关键词时，恢复普通列表
         this.setData({
           page: 1,
-          solutions: [],
           hasMore: true,
+          isSearchMode: false,
         });
-        this.loadSolutions();
+        this.loadData(true);
       }
     }, 500);
   },
@@ -197,6 +201,8 @@ Page({
       title: "搜索中...",
       mask: true,
     });
+
+    this.setData({ isSearchMode: true });
 
     wx.cloud.callFunction({
       name: "getPublicData",
@@ -214,7 +220,6 @@ Page({
         if (res.result && res.result.success) {
           let newSolutions = res.result.data;
 
-          // 字段兼容处理：将 beforeImg 映射到 imageUrl
           newSolutions = newSolutions.map((item) => ({
             ...item,
             imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
@@ -223,12 +228,11 @@ Page({
 
           this.setData({
             solutions: newSolutions,
-            hasMore: false, // 搜索结果不分页
+            hasMore: false,
             loading: false,
             page: 1,
           });
 
-          // 同步收藏状态
           this.attachCollectStatus(newSolutions);
 
           console.log("关键词搜索完成，找到", newSolutions.length, "条结果");
@@ -242,22 +246,13 @@ Page({
       fail: (err) => {
         wx.hideLoading();
         console.error("搜索失败:", err);
+        this.setData({ isSearchMode: false });
         wx.showToast({
           title: "搜索失败，请重试",
           icon: "none",
         });
       },
     });
-  },
-
-  // 加载更多
-  loadMore: function () {
-    if (!this.data.hasMore || this.data.loading) return;
-
-    this.setData({
-      page: this.data.page + 1,
-    });
-    this.loadSolutions();
   },
 
   // 跳转到详情页

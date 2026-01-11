@@ -9,36 +9,46 @@ Page({
     page: 1,
     pageSize: 10,
     searchVal: "",
+    isSearchMode: false,
   },
 
   onLoad: function () {
-    this.loadPosts();
+    this.loadData(true);
   },
 
   onShow: function () {
-    // 页面显示时刷新数据
-    this.refreshPosts();
+    this.loadData(true);
   },
 
   onPullDownRefresh: function () {
-    this.refreshPosts();
+    this.loadData(true).then(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   onReachBottom: function () {
-    if (this.data.hasMore && !this.data.loading) {
-      this.loadMorePosts();
+    if (!this.data.hasMore || this.data.loading || this.data.isSearchMode) {
+      return;
     }
+    this.loadData(false);
   },
 
-  // 加载帖子列表（使用云函数获取公开数据）
-  loadPosts: function () {
-    if (this.data.loading) return;
+  loadData: function (reset = false) {
+    if (this.data.loading) return Promise.resolve();
+
+    if (reset) {
+      this.setData({
+        page: 1,
+        hasMore: true,
+        isSearchMode: false,
+      });
+    }
 
     this.setData({ loading: true });
+
     const { page, pageSize } = this.data;
 
-    // 使用云函数获取数据（云函数端可绕过权限限制）
-    wx.cloud.callFunction({
+    return wx.cloud.callFunction({
       name: "getPublicData",
       data: {
         collection: "posts",
@@ -48,25 +58,29 @@ Page({
         order: "desc",
       },
       success: (res) => {
-        console.log("云函数返回:", res);
-
         if (res.result && res.result.success) {
-          const newPosts = res.result.data.map((post) => ({
+          let newPosts = res.result.data.map((post) => ({
             ...post,
             createTime: this.formatTime(post.createTime),
           }));
 
-          const posts =
-            page === 1 ? newPosts : [...this.data.posts, ...newPosts];
+          const allPosts = reset ? newPosts : [...this.data.posts, ...newPosts];
 
-          this.attachActionStatus(posts).then((mergedPosts) => {
+          const isEnd = newPosts.length < pageSize;
+
+          this.attachActionStatus(allPosts).then((mergedPosts) => {
             this.setData({
               posts: mergedPosts,
               loading: false,
-              hasMore: res.result.pagination.hasMore,
+              hasMore: !isEnd,
             });
-            wx.stopPullDownRefresh();
           });
+
+          console.log(
+            `加载${reset ? "首页" : "更多"}: ${newPosts.length}条, ` +
+              `累计: ${allPosts.length}, ` +
+              `还有更多: ${!isEnd}`
+          );
         } else {
           throw new Error(res.result?.error || "获取数据失败");
         }
@@ -75,10 +89,7 @@ Page({
         console.error("调用云函数失败:", err);
         this.setData({
           loading: false,
-          posts: this.data.page === 1 ? [] : this.data.posts,
-          hasMore: false,
         });
-        wx.stopPullDownRefresh();
         wx.showToast({
           title: "加载失败",
           icon: "none",
@@ -135,15 +146,6 @@ Page({
     });
   },
 
-  refreshPosts: function () {
-    this.setData({
-      page: 1,
-      posts: [],
-      hasMore: true,
-    });
-    this.loadPosts();
-  },
-
   // 搜索输入处理
   onSearchInput: function (e) {
     this.setData({
@@ -156,16 +158,14 @@ Page({
     const keyword = this.data.searchVal.trim();
 
     if (keyword) {
-      // 有搜索关键词时，使用关键词搜索
       this.keywordSearch(keyword);
     } else {
-      // 没有关键词时，恢复普通列表
       this.setData({
         page: 1,
-        posts: [],
         hasMore: true,
+        isSearchMode: false,
       });
-      this.loadPosts();
+      this.loadData(true);
     }
   },
 
@@ -174,10 +174,10 @@ Page({
     this.setData({
       searchVal: "",
       page: 1,
-      posts: [],
       hasMore: true,
+      isSearchMode: false,
     });
-    this.loadPosts();
+    this.loadData(true);
   },
 
   // 关键词搜索（调用云函数）
@@ -188,6 +188,8 @@ Page({
       title: "搜索中...",
       mask: true,
     });
+
+    this.setData({ isSearchMode: true });
 
     wx.cloud.callFunction({
       name: "getPublicData",
@@ -215,7 +217,6 @@ Page({
             page: 1,
           });
 
-          // 同步操作状态
           this.attachActionStatus(newPosts);
 
           if (newPosts.length === 0) {
@@ -236,20 +237,13 @@ Page({
       fail: (err) => {
         wx.hideLoading();
         console.error("搜索失败:", err);
+        this.setData({ isSearchMode: false });
         wx.showToast({
           title: "搜索失败，请重试",
           icon: "none",
         });
       },
     });
-  },
-
-  // 加载更多帖子
-  loadMorePosts: function () {
-    if (this.data.loading || !this.data.hasMore) return;
-
-    this.setData({ page: this.data.page + 1 });
-    this.loadPosts();
   },
 
   // 跳转到帖子详情

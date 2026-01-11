@@ -418,9 +418,22 @@ exports.main = async (event, context) => {
       });
 
       // ============================================
-      // 特殊处理：actions 集合的时间格式化
+      // 特殊处理：actions 集合的数据标准化
       // ============================================
       if (collection === "actions" && processedDoc.createTime) {
+        // 调试日志：记录原始文档的图片字段
+        console.log(
+          `[调试] 处理 actions 记录: _id=${processedDoc._id}, type=${processedDoc.type}`
+        );
+        console.log(
+          `[调试] 原始图片字段: image=${processedDoc.image}, coverImg=${processedDoc.coverImg}`
+        );
+        console.log(
+          `[调试] urlMap 中的映射: image=${urlMap.get(
+            processedDoc.image
+          )}, coverImg=${urlMap.get(processedDoc.coverImg)}`
+        );
+
         let dateObj;
         if (processedDoc.createTime instanceof Date) {
           dateObj = processedDoc.createTime;
@@ -447,9 +460,28 @@ exports.main = async (event, context) => {
           processedDoc.title = "未命名项目";
         }
 
-        if (!processedDoc.image) {
-          processedDoc.image = processedDoc.coverImg || "";
+        // 标准化图片字段（关键：确保有图片）
+        const rawImage = processedDoc.image || processedDoc.coverImg || "";
+        console.log(`[调试] 原始图片 rawImage: ${rawImage}`);
+
+        if (rawImage && !processedDoc.image) {
+          processedDoc.image = rawImage;
         }
+
+        // 确保图片字段存在，默认使用转换后的URL
+        if (!processedDoc.image || processedDoc.image.startsWith("cloud://")) {
+          const tempImg =
+            urlMap.get(processedDoc.image) || urlMap.get(processedDoc.coverImg);
+          console.log(`[调试] 转换后的图片 tempImg: ${tempImg}`);
+
+          if (tempImg) {
+            processedDoc.image = tempImg;
+          } else if (!processedDoc.image) {
+            processedDoc.image = "/images/default-avatar.png";
+          }
+        }
+
+        console.log(`[调试] 最终图片字段: image=${processedDoc.image}`);
       }
 
       return processedDoc;
