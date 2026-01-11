@@ -45,18 +45,18 @@
 
     <!-- 帖子内容区 -->
     <view class="content-body">
-      <!-- 1. 用户正文区 -->
-      <view class="user-content">
-        <text user-select="true">{{post.content}}</text>
+      <!-- 第一部分：用户发布的内容 -->
+      <view class="user-text-section">
+        <text class="user-text" user-select="true">{{post.content}}</text>
       </view>
 
-      <!-- 2. AI 诊断卡片 (仅当有诊断结果时显示) -->
-      <view class="ai-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
+      <!-- 第二部分：AI 诊断卡片 (完全独立，带背景色) -->
+      <view class="ai-report-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
         <view class="ai-header">
           <text class="ai-icon">🤖</text>
           <text class="ai-title">AI 智能诊断</text>
         </view>
-        <view class="ai-body">
+        <view class="ai-content">
           <text user-select="true">{{post.aiDiagnosis || post.aiSolution}}</text>
         </view>
       </view>
