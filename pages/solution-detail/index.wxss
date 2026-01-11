@@ -36,16 +36,18 @@ page {
   border-radius: 16rpx;
   position: relative;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+  border-left: 8rpx solid #002fa7; /* 左侧蓝色边框，强调解决方案 */
 }
 
 /* 问题描述卡片 */
 .description-card {
   background: #fff;
-  margin: 20rpx 30rpx 30rpx; /* 去掉负margin，改为正常间距 */
+  margin: 20rpx 30rpx 30rpx;
   padding: 30rpx;
   border-radius: 16rpx;
   position: relative;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+  border-left: 8rpx solid #ff4d4f; /* 左侧红色边框，强调问题 */
 }
 
 /* 红色竖线，代表"待解决的问题" */
@@ -60,12 +62,14 @@ page {
 .description-content {
   font-size: 34rpx;
   color: #333;
-  line-height: 1.6;
+  line-height: 1.8;
   font-weight: 500;
   text-align: justify;
-  padding-left: 24rpx;
-  border-left: 4rpx solid #f0f0f0;
-  margin-top: 10rpx;
+  margin-top: 15rpx;
+  background: #fff5f5; /* 浅红色背景，突出问题 */
+  padding: 20rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #ffccc7;
 }
 
 .card-header {
@@ -124,13 +128,14 @@ page {
   font-size: 32rpx;
 }
 
-/* 报告文本框 - 修复那个丑陋的黄框 */
+/* 报告文本框 - AI分析结果 */
 .report-box {
-  background: #f9fafc;
-  padding: 20rpx;
+  background: #f0f8ff; /* 浅蓝色背景，突出AI分析 */
+  padding: 25rpx;
   border-radius: 12rpx;
-  border: 1rpx solid #eaeaea;
+  border: 1rpx solid #91d5ff;
   margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 47, 167, 0.05);
 }
 
 .report-text {
