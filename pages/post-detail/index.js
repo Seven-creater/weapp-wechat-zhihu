@@ -39,111 +39,60 @@ Page({
   // 加载帖子详情
   loadPostDetail: function (postId) {
     this.setData({ loading: true });
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
 
     db.collection("posts")
       .doc(postId)
       .get()
       .then((res) => {
         const post = res.data || null;
-        
+
         if (post) {
           // 转换图片URL：将 fileID 转换为临时HTTPS URL
           const imageUrls = post.images || [];
           if (imageUrls.length > 0) {
-            const cloudFileIds = imageUrls.filter(url => url.startsWith('cloud://'));
-            
+            const cloudFileIds = imageUrls.filter((url) =>
+              url.startsWith("cloud://")
+            );
+
             if (cloudFileIds.length > 0) {
-              wx.cloud.getTempFileURL({
-                fileList: cloudFileIds,
-              }).then((urlResult) => {
-                // 创建 URL 映射
-                const urlMap = {};
-                urlResult.fileList.forEach((item, index) => {
-                  if (item.tempFileURL) {
-                    urlMap[cloudFileIds[index]] = item.tempFileURL;
-                  }
+              wx.cloud
+                .getTempFileURL({
+                  fileList: cloudFileIds,
+                })
+                .then((urlResult) => {
+                  // 创建 URL 映射
+                  const urlMap = {};
+                  urlResult.fileList.forEach((item, index) => {
+                    if (item.tempFileURL) {
+                      urlMap[cloudFileIds[index]] = item.tempFileURL;
+                    }
+                  });
+
+                  // 替换图片 URL
+                  post.images = imageUrls.map((url) => urlMap[url] || url);
+
+                  this.updatePostData(post, openid);
+
+                  // 初始化点赞状态
+                  this.initLikeStatus(postId, openid);
+                })
+                .catch((err) => {
+                  console.error("获取图片临时URL失败:", err);
+                  this.updatePostData(post, openid);
+                  this.initLikeStatus(postId, openid);
                 });
-                
-                // 替换图片 URL
-                post.images = imageUrls.map(url => urlMap[url] || url);
-                
-                this.setData({
-                  post: {
-                    ...post,
-                    userInfo: post.userInfo || {
-                      nickName: "匿名用户",
-                      avatarUrl: "/images/default-avatar.png",
-                    },
-                    stats: post.stats || { view: 0, like: 0, comment: 0 },
-                    createTime: this.formatTime(post.createTime),
-                    isOwner: post._openid === (app.globalData.openid || wx.getStorageSync("openid")),
-                  },
-                  loading: false,
-                });
-              }).catch((err) => {
-                console.error('获取图片临时URL失败:', err);
-                this.setData({
-                  post: {
-                    ...post,
-                    userInfo: post.userInfo || {
-                      nickName: "匿名用户",
-                      avatarUrl: "/images/default-avatar.png",
-                    },
-                    stats: post.stats || { view: 0, like: 0, comment: 0 },
-                    createTime: this.formatTime(post.createTime),
-                    isOwner: post._openid === (app.globalData.openid || wx.getStorageSync("openid")),
-                  },
-                  loading: false,
-                });
-              });
               return; // 等待异步操作完成
             }
           }
-          
+
           // 如果没有需要转换的图片，直接设置数据
-          this.setData({
-            post: {
-              ...post,
-              userInfo: post.userInfo || {
-                nickName: "匿名用户",
-                avatarUrl: "/images/default-avatar.png",
-              },
-              stats: post.stats || { view: 0, like: 0, comment: 0 },
-              createTime: this.formatTime(post.createTime),
-              isOwner: post._openid === (app.globalData.openid || wx.getStorageSync("openid")),
-            },
-            loading: false,
-          });
+          this.updatePostData(post, openid);
+
+          // 初始化点赞状态
+          this.initLikeStatus(postId, openid);
         } else {
           this.setData({ post: null, loading: false });
-        }
-
-        // 初始化收藏状态
-        collectUtil
-          .initCollectStatus(this, "collect_post", postId)
-          .catch(() => {
-            // 初始化失败不影响主要功能
-          });
-      })
-
-        // 初始化点赞状态
-        if (openid && post) {
-          db.collection("actions")
-            .where({
-              type: "like_post",
-              targetId: postId,
-              _openid: openid,
-            })
-            .get()
-            .then((likeRes) => {
-              this.setData({
-                post: {
-                  ...this.data.post,
-                  liked: likeRes.data.length > 0,
-                },
-              });
-            })
-            .catch(() => {});
         }
       })
       .catch((err) => {
@@ -154,6 +103,52 @@ Page({
           icon: "none",
         });
       });
+  },
+
+  // 更新帖子数据
+  updatePostData: function (post, openid) {
+    this.setData({
+      post: {
+        ...post,
+        userInfo: post.userInfo || {
+          nickName: "匿名用户",
+          avatarUrl: "/images/default-avatar.png",
+        },
+        stats: post.stats || { view: 0, like: 0, comment: 0 },
+        createTime: this.formatTime(post.createTime),
+        isOwner: post._openid === openid,
+      },
+      loading: false,
+    });
+
+    // 初始化收藏状态
+    collectUtil
+      .initCollectStatus(this, "collect_post", post._id || post.postId)
+      .catch(() => {
+        // 初始化失败不影响主要功能
+      });
+  },
+
+  // 初始化点赞状态
+  initLikeStatus: function (postId, openid) {
+    if (!openid) return;
+
+    db.collection("actions")
+      .where({
+        type: "like_post",
+        targetId: postId,
+        _openid: openid,
+      })
+      .get()
+      .then((likeRes) => {
+        this.setData({
+          post: {
+            ...this.data.post,
+            liked: likeRes.data.length > 0,
+          },
+        });
+      })
+      .catch(() => {});
   },
 
   // 加载评论列表
