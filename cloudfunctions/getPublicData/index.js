@@ -83,7 +83,7 @@ exports.main = async (event, context) => {
       });
     });
     
-    console.log(`共发现 ${allUrls.length 个需要转换的URL`);
+    console.log(`共发现 ${allUrls.length} 个需要转换的URL`);
     
     // 3. 批量获取临时 URL
     if (allUrls.length > 0) {
