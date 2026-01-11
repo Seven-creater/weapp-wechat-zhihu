@@ -1,4 +1,4 @@
-// 云函数：获取公开数据（解决云存储权限问题）
+// 云函数：获取公开数据（解决云存储权限问题，同时处理帖子图片和用户头像）
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -37,32 +37,45 @@ exports.main = async (event, context) => {
     
     console.log(`查询到 ${data.length} 条记录`);
     
-    // 2. 图片“洗白”：将 fileID 转换为临时 HTTPS URL
-    const imageUrls = [];
-    const imageUrlMap = new Map(); // fileID -> tempURL
+    // 2. 提取所有需要转换的 URL（包含帖子图片和用户头像）
+    const allUrls = [];
+    const urlMap = new Map(); // fileID -> tempURL
     
-    // 提取所有需要转换的图片 URL
     data.forEach(doc => {
-      // 处理单个图片字段
+      // 2.1 处理用户头像 (userInfo.avatarUrl)
+      if (doc.userInfo && doc.userInfo.avatarUrl) {
+        const avatarUrl = doc.userInfo.avatarUrl;
+        if (avatarUrl.startsWith('cloud://')) {
+          if (!urlMap.has(avatarUrl)) {
+            urlMap.set(avatarUrl, null);
+            allUrls.push(avatarUrl);
+            console.log('发现用户头像URL:', avatarUrl);
+          }
+        }
+      }
+      
+      // 2.2 处理单个图片字段
       const singleImageFields = ['imageUrl', 'beforeImg', 'coverImage'];
       singleImageFields.forEach(field => {
         if (doc[field] && doc[field].startsWith('cloud://')) {
-          if (!imageUrlMap.has(doc[field])) {
-            imageUrlMap.set(doc[field], null);
-            imageUrls.push(doc[field]);
+          if (!urlMap.has(doc[field])) {
+            urlMap.set(doc[field], null);
+            allUrls.push(doc[field]);
+            console.log('发现帖子图片URL:', doc[field]);
           }
         }
       });
       
-      // 处理图片数组字段
+      // 2.3 处理图片数组字段
       const arrayImageFields = ['images'];
       arrayImageFields.forEach(field => {
         if (Array.isArray(doc[field])) {
           doc[field].forEach(imgUrl => {
             if (imgUrl && imgUrl.startsWith('cloud://')) {
-              if (!imageUrlMap.has(imgUrl)) {
-                imageUrlMap.set(imgUrl, null);
-                imageUrls.push(imgUrl);
+              if (!urlMap.has(imgUrl)) {
+                urlMap.set(imgUrl, null);
+                allUrls.push(imgUrl);
+                console.log('发现帖子多图URL:', imgUrl);
               }
             }
           });
@@ -70,56 +83,83 @@ exports.main = async (event, context) => {
       });
     });
     
-    // 批量获取临时 URL
-    let tempUrlResults = [];
-    if (imageUrls.length > 0) {
-      console.log(`需要转换 ${imageUrls.length} 个图片URL`);
+    console.log(`共发现 ${allUrls.length 个需要转换的URL`);
+    
+    // 3. 批量获取临时 URL
+    if (allUrls.length > 0) {
+      console.log(`开始转换 ${allUrls.length} 个URL...`);
       
       try {
-        const urlRes = await cloud.getTempFileURL({
-          fileList: imageUrls,
-        });
-        
-        if (urlRes.fileList) {
-          tempUrlResults = urlRes.fileList;
+        // 批量获取（微信云函数限制每次最多50个URL）
+        const chunkSize = 50;
+        for (let i = 0; i < allUrls.length; i += chunkSize) {
+          const chunk = allUrls.slice(i, i + chunkSize);
           
-          // 建立映射关系
-          tempUrlResults.forEach((item, index) => {
-            if (item.tempFileURL) {
-              imageUrlMap.set(imageUrls[index], item.tempFileURL);
-            }
+          const urlRes = await cloud.getTempFileURL({
+            fileList: chunk,
           });
           
-          console.log(`成功转换 ${tempUrlResults.length} 个图片URL`);
+          if (urlRes.fileList) {
+            urlRes.fileList.forEach((item, index) => {
+              if (item.tempFileURL) {
+                urlMap.set(chunk[index], item.tempFileURL);
+              }
+            });
+          }
         }
+        
+        console.log(`成功转换 ${allUrls.length} 个URL`);
       } catch (urlErr) {
         console.error('获取临时URL失败:', urlErr);
         // 继续处理，不中断返回
       }
     }
     
-    // 3. 替换数据中的图片 URL
+    // 4. 替换数据中的 URL（包含帖子图片和用户头像）
     const processedData = data.map(doc => {
       const processedDoc = { ...doc };
       
-      // 处理单个图片字段
+      // 4.1 处理用户头像（确保 userInfo 存在且头像已转换）
+      if (!processedDoc.userInfo) {
+        // 如果 userInfo 为空，设置为默认匿名用户信息
+        processedDoc.userInfo = {
+          nickName: '匿名用户',
+          avatarUrl: '/images/default-avatar.png'
+        };
+      } else {
+        // 转换头像 URL
+        if (processedDoc.userInfo.avatarUrl && 
+            processedDoc.userInfo.avatarUrl.startsWith('cloud://')) {
+          const tempUrl = urlMap.get(processedDoc.userInfo.avatarUrl);
+          if (tempUrl) {
+            processedDoc.userInfo.avatarUrl = tempUrl;
+          }
+        }
+        
+        // 确保 nickName 存在
+        if (!processedDoc.userInfo.nickName) {
+          processedDoc.userInfo.nickName = '匿名用户';
+        }
+      }
+      
+      // 4.2 处理单个图片字段
       const singleImageFields = ['imageUrl', 'beforeImg', 'coverImage'];
       singleImageFields.forEach(field => {
         if (processedDoc[field] && processedDoc[field].startsWith('cloud://')) {
-          const tempUrl = imageUrlMap.get(processedDoc[field]);
+          const tempUrl = urlMap.get(processedDoc[field]);
           if (tempUrl) {
             processedDoc[field] = tempUrl;
           }
         }
       });
       
-      // 处理图片数组字段
+      // 4.3 处理图片数组字段
       const arrayImageFields = ['images'];
       arrayImageFields.forEach(field => {
         if (Array.isArray(processedDoc[field])) {
           processedDoc[field] = processedDoc[field].map(imgUrl => {
             if (imgUrl && imgUrl.startsWith('cloud://')) {
-              const tempUrl = imageUrlMap.get(imgUrl);
+              const tempUrl = urlMap.get(imgUrl);
               return tempUrl || imgUrl; // 如果转换失败，保留原URL
             }
             return imgUrl;
@@ -130,7 +170,7 @@ exports.main = async (event, context) => {
       return processedDoc;
     });
     
-    // 4. 获取总数（用于分页）
+    // 5. 获取总数（用于分页）
     let total = 0;
     try {
       const countRes = await db.collection(collection).count();
@@ -139,7 +179,7 @@ exports.main = async (event, context) => {
       console.error('获取总数失败:', countErr);
     }
     
-    // 5. 返回数据
+    // 6. 返回数据
     return {
       success: true,
       data: processedData,
@@ -151,7 +191,7 @@ exports.main = async (event, context) => {
         hasMore: page * pageSize < total
       },
       meta: {
-        imageConverted: imageUrls.length,
+        urlConverted: allUrls.length,
         timestamp: Date.now()
       }
     };
