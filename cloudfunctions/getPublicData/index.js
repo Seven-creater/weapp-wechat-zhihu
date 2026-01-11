@@ -39,19 +39,38 @@ exports.main = async (event, context) => {
       
       console.log('查询到单条记录');
       
-      // 收集需要转换的链接 (图片数组 + 用户头像)
+      // 根据 collection 类型收集不同的图片字段
       const fileList = [];
       
-      if (Array.isArray(data.images)) {
-        data.images.forEach(imgUrl => {
-          if (imgUrl && imgUrl.startsWith('cloud://')) {
-            fileList.push(imgUrl);
+      if (collection === 'posts') {
+        // posts: 处理 images 数组和用户头像
+        if (Array.isArray(data.images)) {
+          data.images.forEach(imgUrl => {
+            if (imgUrl && imgUrl.startsWith('cloud://')) {
+              fileList.push(imgUrl);
+            }
+          });
+        }
+        
+        if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
+          fileList.push(data.userInfo.avatarUrl);
+        }
+      } else if (collection === 'solutions') {
+        // solutions: 处理 beforeImg, afterImg, imageUrl, coverImage
+        const solutionImageFields = ['beforeImg', 'afterImg', 'imageUrl', 'coverImage'];
+        solutionImageFields.forEach(field => {
+          if (data[field] && data[field].startsWith('cloud://')) {
+            fileList.push(data[field]);
           }
         });
-      }
-      
-      if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
-        fileList.push(data.userInfo.avatarUrl);
+      } else if (collection === 'issues') {
+        // issues: 处理 imageUrl, beforeImg
+        const issueImageFields = ['imageUrl', 'beforeImg'];
+        issueImageFields.forEach(field => {
+          if (data[field] && data[field].startsWith('cloud://')) {
+            fileList.push(data[field]);
+          }
+        });
       }
       
       // 换取临时链接
@@ -72,23 +91,48 @@ exports.main = async (event, context) => {
         
         console.log('URL转换完成');
         
-        // 替换 images 数组中的 URL
-        if (Array.isArray(data.images)) {
-          data.images = data.images.map(imgUrl => {
-            if (imgUrl && imgUrl.startsWith('cloud://')) {
-              const tempUrl = urlRes.fileList.find(f => f.fileID === imgUrl)?.tempFileURL;
-              return tempUrl || imgUrl;
-            }
-            return imgUrl;
-          });
-        }
-        
-        // 替换用户头像 URL
-        if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
-          const tempUrl = urlRes.fileList.find(f => f.fileID === data.userInfo.avatarUrl)?.tempFileURL;
-          if (tempUrl) {
-            data.userInfo.avatarUrl = tempUrl;
+        // 根据 collection 类型替换不同的图片字段
+        if (collection === 'posts') {
+          // 替换 images 数组中的 URL
+          if (Array.isArray(data.images)) {
+            data.images = data.images.map(imgUrl => {
+              if (imgUrl && imgUrl.startsWith('cloud://')) {
+                const tempUrl = urlRes.fileList.find(f => f.fileID === imgUrl)?.tempFileURL;
+                return tempUrl || imgUrl;
+              }
+              return imgUrl;
+            });
           }
+          
+          // 替换用户头像 URL
+          if (data.userInfo && data.userInfo.avatarUrl && data.userInfo.avatarUrl.startsWith('cloud://')) {
+            const tempUrl = urlRes.fileList.find(f => f.fileID === data.userInfo.avatarUrl)?.tempFileURL;
+            if (tempUrl) {
+              data.userInfo.avatarUrl = tempUrl;
+            }
+          }
+        } else if (collection === 'solutions') {
+          // 替换 solutions 的图片字段
+          const solutionImageFields = ['beforeImg', 'afterImg', 'imageUrl', 'coverImage'];
+          solutionImageFields.forEach(field => {
+            if (data[field] && data[field].startsWith('cloud://')) {
+              const tempUrl = urlRes.fileList.find(f => f.fileID === data[field])?.tempFileURL;
+              if (tempUrl) {
+                data[field] = tempUrl;
+              }
+            }
+          });
+        } else if (collection === 'issues') {
+          // 替换 issues 的图片字段
+          const issueImageFields = ['imageUrl', 'beforeImg'];
+          issueImageFields.forEach(field => {
+            if (data[field] && data[field].startsWith('cloud://')) {
+              const tempUrl = urlRes.fileList.find(f => f.fileID === data[field])?.tempFileURL;
+              if (tempUrl) {
+                data[field] = tempUrl;
+              }
+            }
+          });
         }
       }
       
@@ -156,14 +200,23 @@ exports.main = async (event, context) => {
         }
       }
       
-      // 2.2 处理单个图片字段
-      const singleImageFields = ['imageUrl', 'beforeImg', 'coverImage'];
+      // 2.2 处理单个图片字段（根据 collection 类型）
+      let singleImageFields = [];
+      
+      if (collection === 'posts') {
+        singleImageFields = ['imageUrl'];
+      } else if (collection === 'solutions') {
+        singleImageFields = ['beforeImg', 'afterImg', 'imageUrl', 'coverImage'];
+      } else if (collection === 'issues') {
+        singleImageFields = ['imageUrl', 'beforeImg'];
+      }
+      
       singleImageFields.forEach(field => {
         if (doc[field] && doc[field].startsWith('cloud://')) {
           if (!urlMap.has(doc[field])) {
             urlMap.set(doc[field], null);
             allUrls.push(doc[field]);
-            console.log('发现帖子图片URL:', doc[field]);
+            console.log(`发现${collection}图片URL (${field}):`, doc[field]);
           }
         }
       });
@@ -240,8 +293,17 @@ exports.main = async (event, context) => {
         }
       }
       
-      // 4.2 处理单个图片字段
-      const singleImageFields = ['imageUrl', 'beforeImg', 'coverImage'];
+      // 4.2 处理单个图片字段（根据 collection 类型）
+      let singleImageFields = [];
+      
+      if (collection === 'posts') {
+        singleImageFields = ['imageUrl'];
+      } else if (collection === 'solutions') {
+        singleImageFields = ['beforeImg', 'afterImg', 'imageUrl', 'coverImage'];
+      } else if (collection === 'issues') {
+        singleImageFields = ['imageUrl', 'beforeImg'];
+      }
+      
       singleImageFields.forEach(field => {
         if (processedDoc[field] && processedDoc[field].startsWith('cloud://')) {
           const tempUrl = urlMap.get(processedDoc[field]);

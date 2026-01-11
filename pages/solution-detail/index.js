@@ -121,93 +121,72 @@ Page({
       return;
     }
 
-    console.log("开始查询集合:", collectionName, "文档ID:", documentId);
+    console.log("开始调用云函数查询:", collectionName, "文档ID:", documentId);
 
     wx.showLoading({
       title: "加载中...",
     });
 
-    db.collection(collectionName)
-      .doc(documentId)
-      .get()
-      .then((res) => {
-        const data = res.data;
+    // 调用云函数获取详情（云函数会自动转换图片URL）
+    wx.cloud.callFunction({
+      name: "getPublicData",
+      data: {
+        collection: collectionName,
+        docId: documentId,
+      },
+      success: (res) => {
+        wx.hideLoading();
 
-        if (!data) {
-          wx.hideLoading();
-          wx.showModal({
-            title: "提示",
-            content: "该内容不存在或已被删除",
-            showCancel: false,
-            confirmText: "返回",
-            success: () => {
-              wx.navigateBack();
-            },
+        if (res.result && res.result.success) {
+          let data = res.result.data;
+
+          if (!data) {
+            wx.showModal({
+              title: "提示",
+              content: "该内容不存在或已被删除",
+              showCancel: false,
+              confirmText: "返回",
+              success: () => {
+                wx.navigateBack();
+              },
+            });
+            return;
+          }
+
+          // 如果是 issues 集合(随手拍)，需要进行数据适配
+          if (collectionName === "issues") {
+            // 适配结构，防止页面报错
+            data.title = "路障反馈详情";
+            data.aiAnalysis =
+              data.aiSolution || data.aiAnalysis || data.description;
+            data.beforeImg = data.imageUrl || data.images?.[0] || "";
+            data.afterImg = ""; // issues 集合没有 afterImg
+            data.status = data.status || "已完成";
+            data.address = data.address || "未知位置";
+
+            console.log("issues数据适配完成:", data);
+          }
+
+          // 动态设置页面标题
+          wx.setNavigationBarTitle({
+            title: data.title || "详情",
           });
-          return;
-        }
 
-        // 如果是 issues 集合(随手拍)，需要进行数据适配
-        if (collectionName === "issues") {
-          // 适配结构，防止页面报错
-          data.title = "路障反馈详情";
-          data.aiAnalysis =
-            data.aiSolution || data.aiAnalysis || data.description;
-          data.beforeImg = data.imageUrl || data.images?.[0] || "";
-          data.status = data.status || "已完成";
-          data.address = data.address || "未知位置";
+          this.setData({ solution: data });
 
-          console.log("issues数据适配完成:", data);
-        }
-
-        // 转换图片URL：将 fileID 转换为临时HTTPS URL
-        let imageUrl = data.beforeImg || data.imageUrl || "";
-        if (imageUrl && imageUrl.startsWith("cloud://")) {
-          wx.cloud
-            .getTempFileURL({
-              fileList: [imageUrl],
-            })
-            .then((urlResult) => {
-              if (
-                urlResult.fileList &&
-                urlResult.fileList[0] &&
-                urlResult.fileList[0].tempFileURL
-              ) {
-                data.beforeImg = urlResult.fileList[0].tempFileURL;
-              }
-              this.setData({ solution: data });
-            })
-            .catch((err) => {
-              console.error("获取图片临时URL失败:", err);
-              this.setData({ solution: data });
+          // 初始化收藏状态
+          collectUtil
+            .initCollectStatus(this, "collect_" + collectionName, documentId)
+            .catch(() => {
+              // 初始化失败不影响主要功能
             });
         } else {
-          this.setData({ solution: data });
+          throw new Error(res.result?.error || "获取数据失败");
         }
-
-        // 动态设置页面标题
-        wx.setNavigationBarTitle({
-          title: data.title || "详情",
-        });
-
-        // 更新浏览量（仅对 solutions 集合）
-        if (collectionName === "solutions") {
-          this.updateViewCount(documentId);
-        }
-
-        // 初始化收藏状态
-        collectUtil
-          .initCollectStatus(this, "collect_" + collectionName, documentId)
-          .then(() => {
-            wx.hideLoading();
-          })
-          .catch(() => {
-            wx.hideLoading();
-          });
-      })
-      .catch((err) => {
-        console.error("加载详情失败:", err);
+      },
+      fail: (err) => {
         wx.hideLoading();
+        console.error("加载详情失败:", err);
 
         // 处理文档不存在的情况
         if (
@@ -230,7 +209,8 @@ Page({
             icon: "none",
           });
         }
-      });
+      },
+    });
   },
 
   // 更新浏览量
