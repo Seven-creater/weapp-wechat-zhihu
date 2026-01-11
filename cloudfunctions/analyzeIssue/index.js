@@ -1,167 +1,137 @@
-// 云函数入口文件
+// 云函数入口文件 - 使用阿里云百炼 Qwen-VL-Max 进行图片分析
 const cloud = require('wx-server-sdk');
+const axios = require('axios');
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
+// 阿里云百炼 API 配置
+// 请在微信开发者工具中设置环境变量：cloud.DASHSCOPE_API_KEY
+const DASHSCOPE_API_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+const MODEL_NAME = 'qwen-vl-max';
+
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { fileID, location } = event;
+  const { imageUrl, location } = event;
+  
+  if (!imageUrl) {
+    return {
+      success: false,
+      error: '缺少图片URL参数'
+    };
+  }
   
   try {
-    // 1. 下载图片到云函数临时目录
-    const res = await cloud.downloadFile({
-      fileID: fileID
-    });
-    const tempFilePath = res.filePath;
+    // 调用 AI 服务进行分析
+    const aiSolution = await analyzeWithQwenVL(imageUrl, location);
     
-    // 2. 调用AI服务进行分析（预留位置）
-    // 这里可以替换为实际的AI API调用，如GPT-4o或Claude-3.5 Vision
-    const aiSolution = await analyzeWithAI(tempFilePath, location);
-    
-    // 3. 返回分析结果
     return {
       success: true,
       aiSolution: aiSolution
     };
   } catch (err) {
     console.error('AI分析失败:', err);
+    
+    // 返回友好的错误信息
+    let errorMessage = 'AI分析服务暂时不可用，请稍后重试';
+    
+    if (err.response) {
+      // API 返回的错误
+      console.error('API错误响应:', err.response.data);
+      errorMessage = `AI分析失败：${err.response.data?.error?.message || err.message}`;
+    } else if (err.message) {
+      errorMessage = `AI分析失败：${err.message}`;
+    }
+    
     return {
       success: false,
-      error: err.message,
-      // 如果AI分析失败，返回模拟数据
-      aiSolution: '检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。'
+      error: errorMessage
     };
   }
 };
 
 /**
- * 调用AI服务进行分析
- * @param {string} tempFilePath - 图片临时路径
+ * 使用 Qwen-VL-Max 分析图片
+ * @param {string} imageUrl - 图片的 HTTP URL
  * @param {object} location - 位置信息
  * @returns {string} - AI分析结果
  */
-async function analyzeWithAI(tempFilePath, location) {
-  try {
-    // TODO: 这里可以替换为实际的AI API调用
-    // 例如调用GPT-4o Vision API
-    // const result = await callGPT4oVision(tempFilePath, location);
-    
-    // 目前使用模拟数据
-    const mockSolutions = [
-      '检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。',
-      '检测到盲道被占用，建议清理障碍物并设置警示标识。',
-      '检测到公共厕所未设置无障碍设施，建议增设无障碍卫生间。',
-      '检测到路面坑洼不平，建议进行修复并确保路面平整。',
-      '检测到楼梯缺失扶手，建议安装不锈钢扶手。'
-    ];
-    
-    // 随机返回一个模拟结果
-    return mockSolutions[Math.floor(Math.random() * mockSolutions.length)];
-  } catch (err) {
-    console.error('调用AI服务失败:', err);
-    // 如果调用失败，返回默认模拟数据
-    return '检测到无障碍设施问题，建议联系相关部门进行整改。';
+async function analyzeWithQwenVL(imageUrl, location) {
+  // 获取 API Key（从环境变量或配置中获取）
+  // 建议在云开发控制台中设置环境变量 DASHSCOPE_API_KEY
+  const apiKey = process.env.DASHSCOPE_API_KEY || cloud.env.DASHSCOPE_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('未配置阿里云百炼 API Key，请在云开发控制台设置环境变量 DASHSCOPE_API_KEY');
   }
-}
+  
+  // 构建消息
+  const messages = [
+    {
+      role: "system",
+      content: `你是一个无障碍环境改造专家。请分析图片中的障碍问题（如台阶过高、盲道被占、路面破损、电梯缺失、无卫生间扶手等），并用简练、专业的语言给出：
 
-/**
- * 调用GPT-4o Vision API（预留实现）
- * @param {string} tempFilePath - 图片临时路径
- * @param {object} location - 位置信息
- * @returns {string} - AI分析结果
- */
-async function callGPT4oVision(tempFilePath, location) {
-  // TODO: 实现GPT-4o Vision API调用
-  // 需要将图片转换为base64格式并发送到OpenAI API
-  // 示例代码（需要替换为实际实现）：
-  /*
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+1. 问题诊断：简要描述图片中存在的无障碍障碍问题
+2. 改造建议：提供具体可行的改造方案
+3. 预估预算：给出大致的改造预算范围
+
+请用中文回复，保持专业但通俗易懂。`
     },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
+    {
+      role: "user",
+      content: [
         {
-          role: 'system',
-          content: '你是一个无障碍设施专家，请分析图片中的无障碍问题，并提供具体的改造建议。'
+          type: "text",
+          text: `请分析这张现场照片中的无障碍设施问题。${location?.address ? `位置信息：${location.address}` : ''}`
         },
         {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `请分析这张图片中的无障碍设施问题，位置信息：${location.address}`
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
+          type: "image_url",
+          image_url: {
+            url: imageUrl
+          }
         }
-      ],
-      max_tokens: 500
-    })
-  });
+      ]
+    }
+  ];
   
-  const data = await response.json();
-  return data.choices[0].message.content;
-  */
+  // 调用阿里云百炼 API
+  const response = await axios.post(
+    `${DASHSCOPE_API_BASE}/chat/completions`,
+    {
+      model: MODEL_NAME,
+      messages: messages,
+      max_tokens: 1000,
+      temperature: 0.7
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      timeout: 30000 // 30秒超时
+    }
+  );
   
-  throw new Error('GPT-4o Vision API调用未实现');
+  // 解析返回结果
+  if (response.data && response.data.choices && response.data.choices.length > 0) {
+    const content = response.data.choices[0].message?.content;
+    
+    if (content) {
+      return content.trim();
+    }
+  }
+  
+  throw new Error('AI返回结果为空');
 }
 
 /**
- * 调用Claude-3.5 Vision API（预留实现）
- * @param {string} tempFilePath - 图片临时路径
- * @param {object} location - 位置信息
- * @returns {string} - AI分析结果
+ * 将本地文件路径转换为 Base64（备用方案）
+ * @param {string} filePath - 文件路径
+ * @returns {string} - Base64 字符串
  */
-async function callClaude35Vision(tempFilePath, location) {
-  // TODO: 实现Claude-3.5 Vision API调用
-  // 示例代码（需要替换为实际实现）：
-  /*
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `请分析这张图片中的无障碍设施问题，位置信息：${location.address}`
-            },
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/jpeg',
-                data: base64Image
-              }
-            }
-          ]
-        }
-      ]
-    })
-  });
-  
-  const data = await response.json();
-  return data.content[0].text;
-  */
-  
-  throw new Error('Claude-3.5 Vision API调用未实现');
+function fileToBase64(filePath) {
+  const fs = require('fs');
+  const fileBuffer = fs.readFileSync(filePath);
+  return fileBuffer.toString('base64');
 }
