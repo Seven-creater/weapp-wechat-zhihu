@@ -37,26 +37,36 @@
   },
   "requiredPrivateInfos": ["getLocation", "chooseLocation"],
   "tabBar": {
-    "color": "#999999",
+    "color": "#FFFFFF",
     "selectedColor": "#FFD700",
-    "backgroundColor": "#002fa7",
+    "backgroundColor": "#1E90FF",
     "borderStyle": "white",
+    "fontSize": 12,
+    "iconSize": 24,
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "随手拍"
+        "text": "随手拍",
+        "iconPath": "images/index.png",
+        "selectedIconPath": "images/index_focus.png"
       },
       {
         "pagePath": "pages/solutions/index",
-        "text": "方案库"
+        "text": "方案库",
+        "iconPath": "images/discovery.png",
+        "selectedIconPath": "images/discovery_focus.png"
       },
       {
         "pagePath": "pages/community/community",
-        "text": "社区"
+        "text": "社区",
+        "iconPath": "images/chat.png",
+        "selectedIconPath": "images/chat_focus.png"
       },
       {
         "pagePath": "pages/mine/index",
-        "text": "个人中心"
+        "text": "个人中心",
+        "iconPath": "images/ring.png",
+        "selectedIconPath": "images/ring_focus.png"
       }
     ]
   },
