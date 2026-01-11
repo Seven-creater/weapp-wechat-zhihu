@@ -26,10 +26,9 @@ Page({
     this.loadRecentReports();
   },
 
-  navigateToMapView: function () {
-    wx.navigateTo({
-      url: "/pages/map-view/index",
-    });
+  navigateToMore: function (e) {
+    const type = e.currentTarget.dataset.type;
+    wx.navigateTo({ url: `/pages/more/more?type=${type}` });
   },
 
   onPullDownRefresh: function () {

@@ -18,42 +18,7 @@ image {
   background-color: var(--color-bg-page);
 }
 
-/* 地图模式入口按钮 */
-.map-mode-btn {
-  position: fixed;
-  top: 20rpx;
-  right: 20rpx;
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 15rpx 25rpx;
-  background-color: #ffd700;
-  border-radius: 50rpx;
-  box-shadow: 0 4rpx 16rpx rgba(255, 215, 0, 0.4);
-  z-index: 1000;
-  transition: all 0.3s;
-  min-height: 60rpx;
-  min-width: 160rpx;
-}
-
-.map-mode-btn:active {
-  transform: scale(0.95);
-  background-color: #e6c200;
-}
-
-.map-mode-icon {
-  font-size: 32rpx;
-}
-
-.map-mode-text {
-  font-size: 26rpx;
-  font-weight: bold;
-  color: #002fa7;
-}
-
-/* ============================================
-   英雄区域 (Hero Section) - 顶部 40%
-   ============================================ */
+/* 顶部定位信息胶囊 */
 .hero-section {
   position: relative;
   height: 42vh;

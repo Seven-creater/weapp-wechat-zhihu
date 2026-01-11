@@ -15,8 +15,7 @@
     "pages/post-detail/index",
     "pages/post/create",
     "pages/issue-edit/index",
-    "pages/mine/profile-edit/index",
-    "pages/map-view/index"
+    "pages/mine/profile-edit/index"
   ],
   "plugins": {
     "WeChatSI": {
