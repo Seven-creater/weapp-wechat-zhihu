@@ -36,6 +36,9 @@
     }
   },
   "requiredPrivateInfos": ["getLocation", "chooseLocation"],
+  "backgroundFetch": {
+    "fetchMode": "simple"
+  },
   "tabBar": {
     "color": "#FFFFFF",
     "selectedColor": "#FFD700",
