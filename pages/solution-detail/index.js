@@ -167,6 +167,19 @@ Page({
             console.log("issues数据适配完成:", data);
           }
 
+          // 🟢 关键修复：兼容不同集合的字段名
+          // 将所有可能的描述字段统一映射到 description
+          data.description =
+            data.description || data.title || data.content || "";
+
+          // 确保 AI 分析也有值
+          data.aiAnalysis =
+            data.aiAnalysis || data.aiSolution || "AI 正在分析中...";
+
+          // 🟢 调试日志
+          console.log("详情页原始数据:", JSON.stringify(data, null, 2));
+          console.log("description 最终值:", data.description);
+
           // 动态设置页面标题
           wx.setNavigationBarTitle({
             title: data.title || "详情",
