@@ -36,41 +36,52 @@ Page({
     const that = this;
     that.setData({ loading: true });
 
-    // 从actions集合获取收藏记录，支持多种类型
-    // 注意：_openid 由微信云开发系统自动处理，不需要手动设置
-    db.collection("actions")
-      .where({
-        type: _.in(["collect_solution", "collect_post", "collect"]),
-      })
-      .orderBy("createTime", "desc")
-      .get()
-      .then((res) => {
-        const favoritesList = res.data.map((item) => {
-          const normalizedType =
-            item.type === "collect" ? "collect_post" : item.type;
-          const targetId = item.targetId || item.postId;
-          const image = item.image || item.coverImg || "../../images/default-avatar.png";
-          return {
-            _id: item._id,
-            targetId: targetId,
-            title: item.title || "未命名项目",
-            image: image,
-            type: normalizedType,
-            targetRoute: item.targetRoute,
-            createTime: item.createTime,
-          };
-        });
-
-        that.setData({
-          favoritesList: favoritesList,
-          loading: false,
-        });
-      })
-      .catch((err) => {
-        console.error("获取收藏列表失败:", err);
+    // 调用云函数获取收藏列表（解决图片权限和时间格式化问题）
+    wx.cloud.callFunction({
+      name: "getPublicData",
+      data: {
+        collection: "actions",
+        page: 1,
+        pageSize: 50,
+        orderBy: "createTime",
+        order: "desc",
+      },
+      success: (res) => {
         that.setData({ loading: false });
+
+        if (res.result && res.result.success) {
+          const favoritesList = res.result.data.map((item) => {
+            const normalizedType = item.type || "collect_post";
+            return {
+              _id: item._id,
+              targetId: item.targetId || item.postId,
+              title: item.title || "未命名项目",
+              image: item.image || item.coverImg || "",
+              type: normalizedType,
+              targetRoute: item.targetRoute,
+              formatTime: item.formatTime || "",
+              createTime: item.createTime,
+            };
+          });
+
+          that.setData({
+            favoritesList: favoritesList,
+          });
+
+          console.log("收藏列表加载完成，共", favoritesList.length, "条");
+        } else {
+          wx.showToast({
+            title: res.result?.error || "获取收藏列表失败",
+            icon: "none",
+          });
+        }
+      },
+      fail: (err) => {
+        that.setData({ loading: false });
+        console.error("获取收藏列表失败:", err);
         wx.showToast({ title: "获取收藏列表失败", icon: "none" });
-      });
+      },
+    });
   },
 
   // 跳转到详情页

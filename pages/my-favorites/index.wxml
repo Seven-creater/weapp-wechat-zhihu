@@ -32,7 +32,7 @@
       <view class="item-content">
         <text class="item-title">{{item.title}}</text>
         <text class="item-type">{{item.type === 'collect_solution' ? '解决方案' : '社区帖子'}}</text>
-        <text class="item-time">{{item.createTime}}</text>
+        <text class="item-time">{{item.formatTime || item.createTime}}</text>
       </view>
       
       <!-- 箭头图标 -->

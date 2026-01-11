@@ -20,7 +20,7 @@ exports.main = async (event, context) => {
   } = event;
 
   // 验证参数
-  const validCollections = ["posts", "solutions", "issues"];
+  const validCollections = ["posts", "solutions", "issues", "actions"];
   if (!collection || !validCollections.includes(collection)) {
     return {
       success: false,
@@ -28,6 +28,10 @@ exports.main = async (event, context) => {
       validCollections,
     };
   }
+
+  // 获取用户身份
+  const wxContext = cloud.getWXContext();
+  const openid = wxContext.OPENID;
 
   try {
     // ============================================
@@ -180,9 +184,19 @@ exports.main = async (event, context) => {
     let query = db.collection(collection);
 
     // ============================================
-    // B1. 如果有关键词，添加模糊查询条件
+    // B1. 如果是 actions 集合，查询当前用户的收藏
     // ============================================
-    if (keyword && keyword.trim()) {
+    if (collection === "actions") {
+      query = query.where({
+        _openid: openid,
+        type: _.in(["collect_solution", "collect_post", "collect"]),
+      });
+      console.log(`查询用户收藏列表: ${openid}`);
+    }
+    // ============================================
+    // B2. 如果有关键词，添加模糊查询条件
+    // ============================================
+    else if (keyword && keyword.trim()) {
       const reg = db.RegExp({ regexp: keyword.trim(), options: "i" });
 
       if (collection === "solutions") {
@@ -241,6 +255,8 @@ exports.main = async (event, context) => {
         singleImageFields = ["beforeImg", "afterImg", "imageUrl", "coverImage"];
       } else if (collection === "issues") {
         singleImageFields = ["imageUrl", "beforeImg"];
+      } else if (collection === "actions") {
+        singleImageFields = ["image", "coverImg"];
       }
 
       singleImageFields.forEach((field) => {
@@ -317,6 +333,8 @@ exports.main = async (event, context) => {
         singleImageFields = ["beforeImg", "afterImg", "imageUrl", "coverImage"];
       else if (collection === "issues")
         singleImageFields = ["imageUrl", "beforeImg"];
+      else if (collection === "actions")
+        singleImageFields = ["image", "coverImg"];
 
       singleImageFields.forEach((field) => {
         if (processedDoc[field] && processedDoc[field].startsWith("cloud://")) {
@@ -338,6 +356,45 @@ exports.main = async (event, context) => {
           });
         }
       });
+
+      // ============================================
+      // 特殊处理：actions 集合的时间格式化
+      // ============================================
+      if (collection === "actions" && processedDoc.createTime) {
+        // createTime 可能是 Date 对象或时间戳
+        let dateObj;
+        if (processedDoc.createTime instanceof Date) {
+          dateObj = processedDoc.createTime;
+        } else if (typeof processedDoc.createTime === "number") {
+          dateObj = new Date(processedDoc.createTime);
+        } else if (typeof processedDoc.createTime === "string") {
+          dateObj = new Date(processedDoc.createTime);
+        }
+
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+          const day = String(dateObj.getDate()).padStart(2, "0");
+          processedDoc.formatTime = `${year}-${month}-${day}`;
+        } else {
+          processedDoc.formatTime = "";
+        }
+
+        // 标准化类型字段
+        if (processedDoc.type === "collect") {
+          processedDoc.type = "collect_post";
+        }
+
+        // 标准化标题
+        if (!processedDoc.title) {
+          processedDoc.title = "未命名项目";
+        }
+
+        // 确保有默认图片
+        if (!processedDoc.image) {
+          processedDoc.image = processedDoc.coverImg || "";
+        }
+      }
 
       return processedDoc;
     });
