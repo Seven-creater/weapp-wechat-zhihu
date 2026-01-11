@@ -38,6 +38,36 @@ page {
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 }
 
+/* 问题描述卡片 */
+.description-card {
+  background: #fff;
+  margin: -40rpx 30rpx 30rpx;
+  padding: 30rpx;
+  border-radius: 16rpx;
+  position: relative;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+/* 红色竖线，代表"待解决的问题" */
+.red-line {
+  width: 8rpx;
+  height: 36rpx;
+  background: #ff4d4f;
+  margin-right: 16rpx;
+  border-radius: 4rpx;
+}
+
+.description-content {
+  font-size: 34rpx;
+  color: #333;
+  line-height: 1.6;
+  font-weight: 500;
+  text-align: justify;
+  padding-left: 24rpx;
+  border-left: 4rpx solid #f0f0f0;
+  margin-top: 10rpx;
+}
+
 .card-header {
   display: flex;
   align-items: center;

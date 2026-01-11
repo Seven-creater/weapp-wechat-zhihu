@@ -5,11 +5,22 @@
     <view class="status-tag">{{solution.status || 'AI 分析完成'}}</view>
   </view>
 
-  <!-- 2. 内容详情区 -->
+  <!-- 2. 问题描述卡片 (新增) -->
+  <view class="description-card" wx:if="{{solution.description}}">
+    <view class="card-header">
+      <view class="red-line"></view>
+      <text class="section-title">📸 问题描述</text>
+    </view>
+    <view class="description-content">
+      <text user-select="true">{{solution.description}}</text>
+    </view>
+  </view>
+
+  <!-- 3. AI 智能分析报告卡片 -->
   <view class="content-card">
     <view class="card-header">
       <view class="blue-line"></view>
-      <text class="section-title">AI 智能分析报告</text>
+      <text class="section-title">🤖 AI 智能分析报告</text>
       <view 
         class="voice-play-btn {{isPlaying ? 'playing' : ''}}"
         bindtap="toggleVoicePlay"
@@ -40,7 +51,7 @@
     </view>
   </view>
 
-  <!-- 3. 底部固定栏 (关键修复) -->
+  <!-- 4. 底部固定栏 -->
   <view class="bottom-bar">
     <!-- 左侧：收藏按钮 -->
     <view class="action-btn" bindtap="toggleCollect" aria-role="button" aria-label="{{isCollected ? '取消收藏' : '收藏'}}">
