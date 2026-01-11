@@ -6,6 +6,7 @@ const ISSUE_DRAFT_TEMP_KEY = "issueDraftTemp";
 Page({
   data: {
     description: "",
+    userSuggestion: "",
     images: [],
     aiSolution: "",
     location: null,
@@ -212,6 +213,13 @@ Page({
   onDescriptionInput: function (e) {
     this.setData({
       description: e.detail.value,
+    });
+    this.draftDirty = true;
+  },
+
+  onSuggestionInput: function (e) {
+    this.setData({
+      userSuggestion: e.detail.value,
     });
     this.draftDirty = true;
   },
@@ -515,11 +523,13 @@ Page({
     location,
     syncToCommunity
   ) {
+    const { userSuggestion } = this.data;
     const coverImage = fileIDs[0];
     const issueData = {
       imageUrl: coverImage,
       images: fileIDs,
       description,
+      userSuggestion,
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
       formattedAddress: location.formattedAddress,

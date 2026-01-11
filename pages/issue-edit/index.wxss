@@ -66,6 +66,16 @@ page{
   color: #0a2463;
 }
 
+.suggestion-input {
+  min-height: 120rpx;
+  font-size: 28rpx;
+  color: #0a2463;
+  background-color: #f8f8f8;
+  border: 2rpx dashed #cccccc;
+  border-radius: 12rpx;
+  padding: 20rpx;
+}
+
 .word-count {
   text-align: right;
   font-size: 22rpx;

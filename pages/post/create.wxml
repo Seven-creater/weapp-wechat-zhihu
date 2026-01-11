@@ -84,6 +84,23 @@
       </view>
     </view>
 
+    <!-- 我的建议输入框 -->
+    <view class="suggestion-editor">
+      <text class="suggestion-label">我的建议 (选填)</text>
+      <textarea 
+        class="suggestion-input" 
+        placeholder="您觉得应该如何改进？例如：我觉得这里应该加个坡道..." 
+        value="{{userSuggestion}}" 
+        bindinput="onSuggestionInput"
+        maxlength="500"
+        show-confirm-bar="false"
+        aria-label="我的建议输入框"
+      ></textarea>
+      <view class="word-count">
+        <text class="count-text">{{userSuggestion.length}}/500</text>
+      </view>
+    </view>
+
     <!-- 图片上传区域 -->
     <view class="image-upload-section">
       <view class="upload-header">

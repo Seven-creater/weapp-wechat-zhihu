@@ -1,1 +1,32 @@
-{"_id":"def9fa84696082750b3cb42a1a2abdf5","updateTime":{"$date":"2026-01-09T04:22:13.204Z"},"userInfo":{"city":"","country":"","gender":0.0,"is_demote":true,"language":"","nickName":"微信用户","province":"","avatarUrl":"https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132"},"_openid":"oOJhu3QmRKlk8Iuu87G6ol0IrDyQ","content":"。。。。。。。。","createTime":{"$date":"2026-01-09T04:22:13.204Z"},"images":["cloud://cloud1-8g7mscenc95268ca.636c-cloud1-8g7mscenc95268ca-1394834869/posts/1767932532280-0.jpg"],"stats":{"comment":1.0,"like":1.0,"view":0.0},"type":"share","collectCount":1.0}
+{
+  "_id": "def9fa84696082750b3cb42a1a2abdf5",
+  "updateTime": {
+    "$date": "2026-01-09T04:22:13.204Z"
+  },
+  "userInfo": {
+    "city": "",
+    "country": "",
+    "gender": 0.0,
+    "is_demote": true,
+    "language": "",
+    "nickName": "微信用户",
+    "province": "",
+    "avatarUrl": "https://thirdwx.qlogo.cn/mmopen/vi_32/POgEwh4mIHO4nibH0KlMECNjjGxQUq24ZEaGT4poC6icRiccVGKSyXwibcPq4BWmiaIGuG1icwxaQX6grC9VemZoJ8rg/132"
+  },
+  "_openid": "oOJhu3QmRKlk8Iuu87G6ol0IrDyQ",
+  "content": "今天发现了一个无障碍问题，希望能引起重视",
+  "userSuggestion": "我觉得这里应该加个坡道，这样轮椅用户就能方便进出了",
+  "images": [
+    "cloud://cloud1-8g7mscenc95268ca.636c-cloud1-8g7mscenc95268ca.1394834869/posts/1767932532280-0.jpg"
+  ],
+  "stats": {
+    "comment": 1.0,
+    "like": 1.0,
+    "view": 0.0
+  },
+  "type": "share",
+  "collectCount": 1.0,
+  "createTime": {
+    "$date": "2026-01-09T04:22:13.204Z"
+  }
+}

@@ -5,10 +5,11 @@ const POST_DRAFT_KEY = "postDraft";
 Page({
   data: {
     content: "",
+    userSuggestion: "",
     images: [],
-    type: "share", // 默认分享类型
+    type: "share",
     submitting: false,
-    isRecording: false, // 是否正在录音
+    isRecording: false,
   },
 
   onLoad: function () {
@@ -132,6 +133,14 @@ Page({
   onContentInput: function (e) {
     this.setData({
       content: e.detail.value,
+    });
+    this.draftDirty = true;
+  },
+
+  // 输入建议变化
+  onSuggestionInput: function (e) {
+    this.setData({
+      userSuggestion: e.detail.value,
     });
     this.draftDirty = true;
   },
@@ -358,6 +367,7 @@ Page({
 
   // 保存帖子到数据库
   savePostToDatabase: function (content, imageUrls, type) {
+    const { userSuggestion } = this.data;
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     const postData = {
@@ -366,6 +376,7 @@ Page({
         avatarUrl: "/images/default-avatar.png",
       },
       content: content.trim(),
+      userSuggestion: userSuggestion ? userSuggestion.trim() : "",
       images: imageUrls,
       type: type,
       stats: {

@@ -194,6 +194,37 @@
   font-size: 26rpx;
 }
 
+/* 我的建议输入框 */
+.suggestion-editor {
+  margin-bottom: 40rpx;
+}
+
+.suggestion-label {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #002fa7;
+  display: block;
+  margin-bottom: 15rpx;
+}
+
+.suggestion-input {
+  width: 100%;
+  min-height: 150rpx;
+  background-color: #f8f8f8;
+  border-radius: 15rpx;
+  padding: 25rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: #333333;
+  border: 2rpx dashed #cccccc;
+  transition: border-color 0.3s;
+}
+
+.suggestion-input:focus {
+  border-color: #002fa7;
+  border-style: solid;
+}
+
 /* 图片上传区域 */
 .image-upload-section {
   margin-top: 40rpx;

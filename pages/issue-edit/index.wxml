@@ -34,6 +34,20 @@
   </view>
 
   <view class="section">
+    <text class="section-title">我的建议 (选填)</text>
+    <textarea
+      class="suggestion-input"
+      placeholder="您觉得应该如何改进？例如：我觉得这里应该加个坡道..."
+      value="{{userSuggestion}}"
+      maxlength="500"
+      show-confirm-bar="false"
+      bindinput="onSuggestionInput"
+      aria-label="我的建议"
+    ></textarea>
+    <view class="word-count">{{userSuggestion.length}}/500</view>
+  </view>
+
+  <view class="section">
     <view class="section-header">
       <text class="section-title">现场照片</text>
       <text class="section-subtitle">{{images.length}}/9</text>

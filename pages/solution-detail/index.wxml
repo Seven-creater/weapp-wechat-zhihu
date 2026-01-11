@@ -16,7 +16,7 @@
         aria-role="button"
         aria-label="{{isPlaying ? '停止朗读' : '朗读AI分析'}}"
       >
-        <text class="voice-icon">{{isPlaying ? '🔊' : '🔇'}}</text>
+        <text class="voice-icon">{{isPlaying ? '🔊' : '📢'}}</text>
       </view>
     </view>
     
@@ -27,6 +27,16 @@
     <view class="info-row">
       <text class="label">📍 问题地点：</text>
       <text class="value">{{solution.address || '未知地点'}}</text>
+    </view>
+
+    <view class="user-suggestion-card" wx:if="{{solution.userSuggestion}}">
+      <view class="suggestion-header">
+        <text class="suggestion-icon">👤</text>
+        <text class="suggestion-title">我的建议</text>
+      </view>
+      <view class="suggestion-content">
+        <text class="suggestion-text" user-select="true">{{solution.userSuggestion}}</text>
+      </view>
     </view>
   </view>
 

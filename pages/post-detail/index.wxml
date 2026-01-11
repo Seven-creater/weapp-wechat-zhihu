@@ -48,6 +48,15 @@
       <text class="content-text" user-select="true">{{post.content}}</text>
     </view>
 
+    <!-- 用户建议 -->
+    <view class="user-suggestion-block" wx:if="{{post.userSuggestion}}">
+      <view class="suggestion-blue-line"></view>
+      <view class="suggestion-content">
+        <text class="suggestion-label">👤 我的建议</text>
+        <text class="suggestion-text" user-select="true">{{post.userSuggestion}}</text>
+      </view>
+    </view>
+
     <!-- 定位信息 -->
     <view class="location-card" wx:if="{{post.address}}">
       <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
