@@ -160,9 +160,11 @@ Page({
         .get()
         .then((res) => {
           if (res.data.length > 0) {
+            // 更新时不能包含 _openid（系统保留字段）
             return db.collection("users").doc(res.data[0]._id).update({
               data: {
-                ...userInfo,
+                nickName: userInfo.nickName,
+                avatarUrl: userInfo.avatarUrl,
                 updatedAt: db.serverDate(),
               },
             });
@@ -170,9 +172,8 @@ Page({
 
           return db.collection("users").add({
             data: {
-              ...userInfo,
-              _openid: openid,
-              createTime: db.serverDate(),
+              nickName: userInfo.nickName,
+              avatarUrl: userInfo.avatarUrl,
               updatedAt: db.serverDate(),
             },
           });
