@@ -224,6 +224,13 @@ Page({
     this.draftDirty = true;
   },
 
+  onAiSolutionInput: function (e) {
+    this.setData({
+      aiSolution: e.detail.value,
+    });
+    this.draftDirty = true;
+  },
+
   onSyncChange: function (e) {
     this.setData({
       syncToCommunity: e.detail.value,

@@ -90,13 +90,22 @@
 
   <view class="section">
     <view class="section-header">
-      <text class="section-title">AI 方案</text>
+      <text class="section-title">🤖 AI 方案 (可编辑)</text>
+      <text class="label-hint">点击下方可修改</text>
       <view class="ai-btn" bindtap="generateAISolution" aria-role="button" aria-label="生成AI方案">
         <text>{{aiSolution ? '重新生成' : '生成方案'}}</text>
       </view>
     </view>
     <view class="ai-content">
-      <text class="ai-text" user-select="true">{{aiSolution || '尚未生成 AI 方案'}}</text>
+      <textarea
+        class="ai-textarea"
+        auto-height
+        maxlength="1000"
+        placeholder="AI 正在分析中..."
+        value="{{aiSolution}}"
+        bindinput="onAiSolutionInput"
+        aria-label="AI方案内容"
+      ></textarea>
     </view>
   </view>
 

@@ -219,6 +219,36 @@ page {
   color: #1f2d4d;
 }
 
+.ai-textarea {
+  width: 100%;
+  min-height: 200rpx;
+  background-color: #ffffff;
+  border: 2rpx solid #002fa7;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.6;
+}
+
+.section-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  margin-right: 16rpx;
+}
+
+.label-hint {
+  font-size: 22rpx;
+  color: #999;
+  margin-right: auto;
+}
+
 .switch-row {
   display: flex;
   align-items: center;
