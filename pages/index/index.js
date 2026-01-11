@@ -62,8 +62,37 @@ Page({
       .limit(5)
       .get()
       .then((res) => {
-        this.setData({
-          recentReports: res.data,
+        const reports = res.data;
+
+        // 转换图片URL：将 fileID 转换为临时HTTPS URL
+        const imagePromises = reports.map((report) => {
+          if (report.imageUrl && report.imageUrl.startsWith("cloud://")) {
+            return wx.cloud
+              .getTempFileURL({
+                fileList: [report.imageUrl],
+              })
+              .then((urlResult) => {
+                if (
+                  urlResult.fileList &&
+                  urlResult.fileList[0] &&
+                  urlResult.fileList[0].tempFileURL
+                ) {
+                  report.imageUrl = urlResult.fileList[0].tempFileURL;
+                }
+                return report;
+              })
+              .catch((err) => {
+                console.error("获取图片临时URL失败:", err);
+                return report;
+              });
+          }
+          return Promise.resolve(report);
+        });
+
+        return Promise.all(imagePromises).then((updatedReports) => {
+          this.setData({
+            recentReports: updatedReports,
+          });
         });
       })
       .catch((err) => {

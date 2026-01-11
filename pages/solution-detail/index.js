@@ -160,7 +160,30 @@ Page({
           console.log("issues数据适配完成:", data);
         }
 
-        this.setData({ solution: data });
+        // 转换图片URL：将 fileID 转换为临时HTTPS URL
+        let imageUrl = data.beforeImg || data.imageUrl || "";
+        if (imageUrl && imageUrl.startsWith("cloud://")) {
+          wx.cloud
+            .getTempFileURL({
+              fileList: [imageUrl],
+            })
+            .then((urlResult) => {
+              if (
+                urlResult.fileList &&
+                urlResult.fileList[0] &&
+                urlResult.fileList[0].tempFileURL
+              ) {
+                data.beforeImg = urlResult.fileList[0].tempFileURL;
+              }
+              this.setData({ solution: data });
+            })
+            .catch((err) => {
+              console.error("获取图片临时URL失败:", err);
+              this.setData({ solution: data });
+            });
+        } else {
+          this.setData({ solution: data });
+        }
 
         // 动态设置页面标题
         wx.setNavigationBarTitle({
