@@ -224,19 +224,69 @@ exports.main = async (event, context) => {
     query = query.skip((page - 1) * pageSize).limit(pageSize);
 
     const res = await query.get();
-    const data = res.data;
+    const list = res.data;
 
-    console.log(`查询到 ${data.length} 条记录`);
+    console.log(`查询到 ${list.length} 条记录`);
 
     // ============================================
-    // C. 图片链接洗白 (保持不变)
+    // C. 用户中心化：关联查询 users 集合获取最新用户资料
+    // ============================================
+    let authorMap = new Map();
+
+    if (["posts", "issues"].includes(collection) && list.length > 0) {
+      // 提取所有不重复的作者 ID
+      const authorIds = [
+        ...new Set(list.map((item) => item._openid).filter(Boolean)),
+      ];
+
+      if (authorIds.length > 0) {
+        console.log(`开始关联查询 ${authorIds.length} 个用户的最新资料`);
+
+        try {
+          // 批量查询用户资料
+          const usersRes = await db
+            .collection("users")
+            .where({ _openid: _.in(authorIds) })
+            .get();
+
+          // 构建用户 Map：_openid -> 最新用户资料
+          if (usersRes.data && usersRes.data.length > 0) {
+            usersRes.data.forEach((user) => {
+              authorMap.set(user._openid, {
+                nickName: user.nickName || user.nickName || "匿名用户",
+                avatarUrl: user.avatarUrl || "/images/default-avatar.png",
+                _openid: user._openid,
+              });
+            });
+          }
+
+          console.log(`查询到 ${authorMap.size} 个用户的资料`);
+        } catch (userErr) {
+          console.error("查询用户资料失败:", userErr);
+        }
+      }
+    }
+
+    // ============================================
+    // D. 图片链接洗白
     // ============================================
     const allUrls = [];
     const urlMap = new Map();
 
-    data.forEach((doc) => {
-      // 处理用户头像
-      if (
+    list.forEach((doc) => {
+      // 处理用户头像（从 users 集合获取的最新资料）
+      const authorInfo = authorMap.get(doc._openid);
+      if (authorInfo) {
+        if (
+          authorInfo.avatarUrl &&
+          authorInfo.avatarUrl.startsWith("cloud://")
+        ) {
+          if (!urlMap.has(authorInfo.avatarUrl)) {
+            urlMap.set(authorInfo.avatarUrl, null);
+            allUrls.push(authorInfo.avatarUrl);
+          }
+        }
+      } else if (
         doc.userInfo &&
         doc.userInfo.avatarUrl &&
         doc.userInfo.avatarUrl.startsWith("cloud://")
@@ -304,26 +354,36 @@ exports.main = async (event, context) => {
       }
     }
 
-    // 替换数据中的 URL
-    const processedData = data.map((doc) => {
+    // 替换数据中的 URL 并合并用户资料
+    const processedData = list.map((doc) => {
       const processedDoc = { ...doc };
 
-      // 处理用户头像
-      if (!processedDoc.userInfo) {
+      // ============================================
+      // 关键：用户中心化 - 用最新用户资料覆盖旧数据
+      // ============================================
+      const authorInfo = authorMap.get(doc._openid);
+      if (authorInfo) {
+        // 使用 users 集合中的最新资料
+        processedDoc.userInfo = {
+          nickName: authorInfo.nickName || "匿名用户",
+          avatarUrl: authorInfo.avatarUrl || "/images/default-avatar.png",
+          _openid: doc._openid,
+        };
+      } else if (!processedDoc.userInfo) {
+        // 没有用户信息时使用默认值
         processedDoc.userInfo = {
           nickName: "匿名用户",
           avatarUrl: "/images/default-avatar.png",
         };
-      } else {
-        if (
-          processedDoc.userInfo.avatarUrl &&
-          processedDoc.userInfo.avatarUrl.startsWith("cloud://")
-        ) {
-          const tempUrl = urlMap.get(processedDoc.userInfo.avatarUrl);
-          if (tempUrl) processedDoc.userInfo.avatarUrl = tempUrl;
-        }
-        if (!processedDoc.userInfo.nickName)
-          processedDoc.userInfo.nickName = "匿名用户";
+      }
+
+      // 转换用户头像 URL
+      if (
+        processedDoc.userInfo.avatarUrl &&
+        processedDoc.userInfo.avatarUrl.startsWith("cloud://")
+      ) {
+        const tempUrl = urlMap.get(processedDoc.userInfo.avatarUrl);
+        if (tempUrl) processedDoc.userInfo.avatarUrl = tempUrl;
       }
 
       // 处理单个图片字段
@@ -361,7 +421,6 @@ exports.main = async (event, context) => {
       // 特殊处理：actions 集合的时间格式化
       // ============================================
       if (collection === "actions" && processedDoc.createTime) {
-        // createTime 可能是 Date 对象或时间戳
         let dateObj;
         if (processedDoc.createTime instanceof Date) {
           dateObj = processedDoc.createTime;
@@ -380,17 +439,14 @@ exports.main = async (event, context) => {
           processedDoc.formatTime = "";
         }
 
-        // 标准化类型字段
         if (processedDoc.type === "collect") {
           processedDoc.type = "collect_post";
         }
 
-        // 标准化标题
         if (!processedDoc.title) {
           processedDoc.title = "未命名项目";
         }
 
-        // 确保有默认图片
         if (!processedDoc.image) {
           processedDoc.image = processedDoc.coverImg || "";
         }

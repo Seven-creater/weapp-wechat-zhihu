@@ -1,5 +1,6 @@
 // pages/mine/index.js
 const db = wx.cloud.database();
+const app = getApp();
 
 Page({
   data: {
@@ -15,159 +16,168 @@ Page({
   // 检查登录状态
   checkLoginStatus: function () {
     const userInfo = wx.getStorageSync("userInfo");
-    if (userInfo) {
-      this.setData({ userInfo });
-      this.syncUserData();
+    const openid = wx.getStorageSync("openid");
+
+    if (userInfo && openid) {
+      // 有本地数据，验证云端是否还有记录
+      this.validateAndSyncUser(userInfo, openid);
     } else {
+      // 无本地数据，清空状态
       this.setData({ userInfo: null });
     }
   },
 
-  // 同步用户数据到云端
-  syncUserData: function () {
-    if (!this.data.userInfo) return;
-
-    const app = getApp();
-    const ensureOpenid = app.globalData.openid
-      ? Promise.resolve(app.globalData.openid)
-      : app
-          .loginWithCloud()
-          .then((openid) => {
-            app.globalData.openid = openid;
-            wx.setStorageSync("openid", openid);
-            return openid;
-          });
-
-    ensureOpenid
-      .then((openid) => {
-        // 更新或创建用户信息
-        db.collection("users")
-          .where({
+  // 验证并同步用户数据（确保使用云端最新资料）
+  validateAndSyncUser: function (localUserInfo, openid) {
+    db.collection("users")
+      .where({ _openid: openid })
+      .get()
+      .then((res) => {
+        if (res.data.length > 0) {
+          const cloudUser = res.data[0];
+          // 关键：用云端最新资料覆盖本地旧资料
+          const latestUserInfo = {
+            _id: cloudUser._id,
+            nickName: cloudUser.nickName || "匿名用户",
+            avatarUrl: cloudUser.avatarUrl || "/images/default-avatar.png",
             _openid: openid,
-          })
-          .get()
-          .then((queryRes) => {
-            if (queryRes.data.length === 0) {
-              // 新用户，创建记录
-              db.collection("users").add({
-                data: {
-                  ...this.data.userInfo,
-                  _openid: openid,
-                  createTime: db.serverDate(),
-                  lastLoginTime: db.serverDate(),
-                  loginCount: 1,
-                },
-              });
-            } else {
-              // 老用户，更新登录信息
-              db.collection("users")
-                .doc(queryRes.data[0]._id)
-                .update({
-                  data: {
-                    lastLoginTime: db.serverDate(),
-                    loginCount: db.command.inc(1),
-                  },
-                });
-            }
-          })
-          .catch((err) => {
-            console.error("用户集合查询失败:", err);
-            // 集合不存在时，创建新用户记录
-            db.collection("users")
-              .add({
-                data: {
-                  ...this.data.userInfo,
-                  _openid: openid,
-                  createTime: db.serverDate(),
-                  lastLoginTime: db.serverDate(),
-                  loginCount: 1,
-                },
-              })
-              .catch((addErr) => {
-                console.error("创建用户记录失败:", addErr);
-              });
-          });
+          };
+          this.setData({ userInfo: latestUserInfo });
+          wx.setStorageSync("userInfo", latestUserInfo);
+          console.log("已同步云端用户资料");
+        } else {
+          // 云端记录被删除了，清空本地
+          this.handleLogout(false);
+        }
       })
       .catch((err) => {
-        console.error("获取openid失败:", err);
+        console.error("验证用户失败:", err);
+        // 网络错误时保留本地数据
+        this.setData({ userInfo: localUserInfo });
       });
   },
 
-  // 处理登录（优先读取云端资料）
+  // 处理登录（核心逻辑：优先读取云端资料）
   handleLogin: function () {
     if (this.data.userInfo) {
+      // 已登录，跳转到编辑页面
       wx.navigateTo({
         url: "/pages/mine/profile-edit/index",
       });
       return;
     }
 
-    wx.showLoading({ title: '正在同步数据...' });
+    wx.showLoading({ title: "登录中..." });
 
-    // 1. 先调用云函数 'login' 获取用户的 OpenID
+    // 1. 调用云函数获取 OpenID
     wx.cloud.callFunction({
-      name: 'login',
-      success: async (res) => {
-        const openid = res.result.openid;
-        const db = wx.cloud.database();
-
-        try {
-          // 2. 拿着 OpenID 去数据库 'users' 表里查
-          const dbRes = await db.collection('users').where({
-            _openid: openid
-          }).get();
-
-          let userData = null;
-
-          if (dbRes.data.length > 0) {
-            // ✅ 情况 A：老用户，数据库里有资料
-            console.log('找到云端历史资料');
-            userData = dbRes.data[0];
-          } else {
-            // 🆕 情况 B：完全的新用户，数据库里没资料
-            console.log('新用户，使用默认信息');
-            // 这里可以先用微信默认的，等用户去"编辑资料"页面修改
-            // 或者弹窗提示用户授权获取基础信息(虽然现在只能拿到默认的)
-            const profileRes = await wx.getUserProfile({ desc: '完善用户信息' });
-            userData = {
-              ...profileRes.userInfo,
-              _openid: openid,
-              createTime: db.serverDate()
-            };
-            // 自动帮新用户在数据库建个档
-            await db.collection('users').add({ data: userData });
-          }
-
-          // 3. 更新本地状态
-          this.setData({ userInfo: userData });
-          wx.setStorageSync('userInfo', userData);
-
-          // 隐藏登录模态框
-          this.hideLoginModal();
-
-          // 如果有待处理的跳转，执行跳转
-          if (this.data.pendingNavUrl) {
-            wx.navigateTo({
-              url: this.data.pendingNavUrl,
-            });
-            this.setData({ pendingNavUrl: "" });
-          }
-
+      name: "login",
+      success: (loginRes) => {
+        if (!loginRes.result || !loginRes.result.openid) {
           wx.hideLoading();
-          wx.showToast({ title: '登录成功' });
-
-        } catch (err) {
-          console.error('登录流程出错', err);
-          wx.hideLoading();
-          wx.showToast({ title: '同步失败', icon: 'none' });
+          wx.showToast({ title: "获取用户信息失败", icon: "none" });
+          return;
         }
+
+        const openid = loginRes.result.openid;
+
+        // 保存 openid 到本地和全局
+        app.globalData.openid = openid;
+        wx.setStorageSync("openid", openid);
+
+        // 2. 查询云端用户资料
+        db.collection("users")
+          .where({ _openid: openid })
+          .get()
+          .then((userRes) => {
+            let userData = null;
+
+            if (userRes.data.length > 0) {
+              // 情况 A：老用户 - 使用云端最新资料
+              console.log("找到云端资料，使用历史数据");
+              const cloudUser = userRes.data[0];
+              userData = {
+                _id: cloudUser._id,
+                nickName: cloudUser.nickName || "匿名用户",
+                avatarUrl: cloudUser.avatarUrl || "/images/default-avatar.png",
+                _openid: openid,
+              };
+            } else {
+              // 情况 B：新用户 - 创建记录
+              console.log("新用户，创建记录");
+              wx.hideLoading();
+
+              wx.showModal({
+                title: "首次登录",
+                content: "是否使用默认头像和昵称？您可以在个人中心修改",
+                confirmText: "确定",
+                cancelText: "取消",
+                success: async (modalRes) => {
+                  if (modalRes.confirm) {
+                    wx.showLoading({ title: "创建账户..." });
+
+                    try {
+                      const addRes = await db.collection("users").add({
+                        data: {
+                          nickName: "新用户",
+                          avatarUrl: "/images/default-avatar.png",
+                          _openid: openid,
+                          createTime: db.serverDate(),
+                          lastLoginTime: db.serverDate(),
+                          loginCount: 1,
+                        },
+                      });
+
+                      userData = {
+                        _id: addRes._id,
+                        nickName: "新用户",
+                        avatarUrl: "/images/default-avatar.png",
+                        _openid: openid,
+                      };
+
+                      this.finishLogin(userData);
+                    } catch (addErr) {
+                      console.error("创建用户失败:", addErr);
+                      wx.showToast({ title: "创建账户失败", icon: "none" });
+                    }
+                  }
+                },
+              });
+              return;
+            }
+
+            this.finishLogin(userData);
+          })
+          .catch((err) => {
+            console.error("查询用户失败:", err);
+            wx.hideLoading();
+            wx.showToast({ title: "登录失败，请重试", icon: "none" });
+          });
       },
-      fail: err => {
+      fail: (err) => {
+        console.error("云函数调用失败:", err);
         wx.hideLoading();
-        console.error('云函数调用失败', err);
-        wx.showToast({ title: '登录失败', icon: 'none' });
-      }
+        wx.showToast({ title: "登录失败，请检查网络", icon: "none" });
+      },
     });
+  },
+
+  // 完成登录（更新状态和存储）
+  finishLogin: function (userData) {
+    this.setData({ userInfo: userData });
+    wx.setStorageSync("userInfo", userData);
+
+    // 关闭登录模态框
+    this.setData({ showLoginModal: false, pendingNavUrl: "" });
+
+    wx.hideLoading();
+    wx.showToast({ title: "登录成功", icon: "success" });
+
+    // 如果有待处理的跳转，执行跳转
+    if (this.data.pendingNavUrl) {
+      wx.navigateTo({ url: this.data.pendingNavUrl });
+      this.setData({ pendingNavUrl: "" });
+    }
   },
 
   // 处理页面跳转
@@ -184,32 +194,40 @@ Page({
     }
 
     // 已登录，直接跳转
-    wx.navigateTo({
-      url: url,
-    });
+    wx.navigateTo({ url: url });
   },
 
   // 退出登录
-  handleLogout: function () {
+  handleLogout: function (showToast = true) {
     wx.showModal({
       title: "确认退出",
       content: "确定要退出登录吗？退出后将无法同步您的数据",
       confirmColor: "#ff4444",
       success: (res) => {
         if (res.confirm) {
-          // 清除本地存储
+          // 清除所有本地存储（完全退出）
           wx.removeStorageSync("userInfo");
+          wx.removeStorageSync("openid");
+
+          // 清除全局状态
+          app.globalData.userInfo = null;
+          app.globalData.openid = null;
 
           // 更新页面状态
           this.setData({
             userInfo: null,
             pendingNavUrl: "",
+            showLoginModal: false,
           });
 
-          wx.showToast({
-            title: "已退出登录",
-            icon: "success",
-          });
+          if (showToast) {
+            wx.showToast({
+              title: "已退出登录",
+              icon: "success",
+            });
+          }
+
+          console.log("已退出登录，清除所有本地数据");
         }
       },
     });
@@ -217,10 +235,7 @@ Page({
 
   // 隐藏登录模态框
   hideLoginModal: function () {
-    this.setData({
-      showLoginModal: false,
-      pendingNavUrl: "",
-    });
+    this.setData({ showLoginModal: false, pendingNavUrl: "" });
   },
 
   // 分享功能
