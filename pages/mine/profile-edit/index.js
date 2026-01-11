@@ -32,6 +32,18 @@ Page({
     });
   },
 
+  onChooseAvatar: function (e) {
+    const avatarUrl = e.detail.avatarUrl;
+    if (avatarUrl) {
+      this.setData({
+        form: {
+          ...this.data.form,
+          avatarUrl: avatarUrl,
+        },
+      });
+    }
+  },
+
   chooseAvatar: function () {
     wx.chooseImage({
       count: 1,

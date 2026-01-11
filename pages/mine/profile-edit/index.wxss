@@ -1,84 +1,141 @@
-/* 个人资料编辑页 */
 .profile-edit-container {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding: 32rpx;
+  background-color: #f5f7fa;
+  padding: 40rpx;
+  box-sizing: border-box;
 }
 
-.header-card {
-  background: #ffffff;
+.form-section {
+  background-color: #ffffff;
   border-radius: 24rpx;
-  padding: 32rpx;
-  box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.06);
+  padding: 48rpx 32rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
 .avatar-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
-  padding-bottom: 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 56rpx;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 180rpx;
+  height: 180rpx;
+  padding: 0;
+  background: transparent;
+  border: none;
+  line-height: normal;
+}
+
+.avatar-wrapper::after {
+  border: none;
 }
 
 .avatar {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 80rpx;
-  border: 4rpx solid #ffd700;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background-color: #e8eaed;
+  border: 6rpx solid #ffffff;
+  box-shadow: 0 8rpx 32rpx rgba(0, 47, 167, 0.15);
 }
 
-.avatar-btn {
-  background: #002fa7;
-  color: #ffffff;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-  padding: 10rpx 28rpx;
+.avatar-edit-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 56rpx;
+  height: 56rpx;
+  background: linear-gradient(135deg, #002fa7 0%, #1a52d6 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4rpx solid #ffffff;
 }
 
-.name-section {
-  margin-top: 24rpx;
-}
-
-.label {
-  display: block;
-  font-size: 26rpx;
-  color: #666666;
-  margin-bottom: 12rpx;
-}
-
-.name-input {
-  background: #f8f8f8;
-  border-radius: 16rpx;
-  padding: 20rpx 24rpx;
-  font-size: 30rpx;
-  color: #333333;
-}
-
-.quick-actions {
-  margin-top: 24rpx;
-}
-
-.wechat-btn {
-  width: 100%;
-  background: #ffd700;
-  color: #002fa7;
-  border-radius: 999rpx;
+.camera-icon {
   font-size: 28rpx;
-  font-weight: bold;
-  padding: 18rpx 0;
 }
 
-.footer-actions {
-  margin-top: 48rpx;
+.avatar-hint {
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  color: #999;
+}
+
+.input-group {
+  margin-top: 16rpx;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.input-row:last-child {
+  border-bottom: none;
+}
+
+.input-label {
+  width: 140rpx;
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.input-field {
+  flex: 1;
+  font-size: 30rpx;
+  color: #333;
+  padding: 0 16rpx;
+}
+
+.ph-style {
+  color: #bbb;
+}
+
+.save-section {
+  margin-top: 60rpx;
 }
 
 .save-btn {
   width: 100%;
-  background: #002fa7;
+  height: 96rpx;
+  line-height: 96rpx;
+  background: linear-gradient(135deg, #002fa7 0%, #1a52d6 100%);
   color: #ffffff;
-  border-radius: 999rpx;
-  font-size: 32rpx;
-  font-weight: bold;
-  padding: 20rpx 0;
+  font-size: 34rpx;
+  font-weight: 600;
+  border-radius: 48rpx;
+  border: none;
+  box-shadow: 0 8rpx 32rpx rgba(0, 47, 167, 0.35);
+}
+
+.save-btn::after {
+  border: none;
+}
+
+.save-btn:active {
+  opacity: 0.92;
+  transform: scale(0.98);
+}
+
+.save-btn.disabled {
+  background: #c5c8d1;
+  box-shadow: none;
+}
+
+.tips-section {
+  margin-top: 40rpx;
+  text-align: center;
+}
+
+.tips-text {
+  font-size: 24rpx;
+  color: #999;
 }
