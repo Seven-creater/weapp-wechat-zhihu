@@ -16,11 +16,12 @@
     "pages/post/create",
     "pages/issue-edit/index",
     "pages/profile-edit/index",
-    "pages/mine/profile-edit/index"
+    "pages/mine/profile-edit/index",
+    "pages/map-view/index"
   ],
   "plugins": {
     "WeChatSI": {
-      "version": "0.3.6",
+      "version": "0.3.5",
       "provider": "wx069ba97219f66d99"
     }
   },
