@@ -281,6 +281,13 @@ image {
   gap: 24rpx;
 }
 
+/* 历史卡片居中显示 */
+.features-grid .feature-card:last-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 12rpx);
+}
+
 /* 悬浮卡片 */
 .feature-card {
   display: flex;
