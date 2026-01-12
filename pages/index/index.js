@@ -110,10 +110,6 @@ Page({
     });
   },
 
-  loadRecentReports: function () {
-    // TODO: 可根据后续需求从云端拉取最近反馈
-  },
-
   onPullDownRefresh: function () {
     wx.stopPullDownRefresh();
   },
@@ -305,12 +301,6 @@ Page({
   navigateToCommunity: function () {
     wx.switchTab({
       url: "/pages/community/community",
-    });
-  },
-
-  navigateToReport: function () {
-    wx.navigateTo({
-      url: "/pages/scheme/scheme",
     });
   },
 

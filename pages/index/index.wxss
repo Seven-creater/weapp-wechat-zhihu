@@ -283,10 +283,6 @@ image {
   background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
 }
 
-.bg-report {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-}
-
 .bg-history {
   background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
 }
@@ -382,4 +378,3 @@ image {
 .mic-icon {
   font-size: 40rpx;
 }
-

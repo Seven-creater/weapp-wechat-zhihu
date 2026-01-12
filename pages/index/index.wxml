@@ -52,14 +52,6 @@
         <text class="feature-card-desc">分享经验交流讨论</text>
       </view>
 
-      <view class="feature-card" bindtap="navigateToReport" aria-role="button" aria-label="生成汇报文档">
-        <view class="feature-icon-wrap bg-report">
-          <image class="feature-icon-img" src="/images/report.png" aria-hidden="true"></image>
-        </view>
-        <text class="feature-card-title">公文</text>
-        <text class="feature-card-desc">一键生成汇报材料</text>
-      </view>
-
       <view class="feature-card" bindtap="navigateToHistory" aria-role="button" aria-label="我的发布历史">
         <view class="feature-icon-wrap bg-history">
           <image class="feature-icon-img" src="/images/history.png" aria-hidden="true"></image>
