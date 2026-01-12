@@ -195,10 +195,12 @@ const toggleCollect = function (context, type, targetId, targetData) {
  */
 const addToCollection = function (openid, type, targetId, targetData) {
   return new Promise((resolve, reject) => {
-    // 构建收藏数据（注意：_openid 由系统自动生成，不需要手动设置）
+    // 构建收藏数据
+
     const collectData = {
       type: type === "collect" ? "collect_post" : type,
       targetId: targetId,
+      _openid: openid,
       title:
         targetData.title || targetData.content?.substring(0, 30) || "未命名",
       image: targetData.image || targetData.images?.[0] || "",

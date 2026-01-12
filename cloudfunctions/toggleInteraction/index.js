@@ -38,17 +38,45 @@ exports.main = async (event, context) => {
 
   try {
     // 构建 action 类型
-    const actionType = type === "like" ? "like_post" : "collect_post";
+    const actionType =
+      type === "like"
+        ? collection === "solutions"
+          ? "like_solution"
+          : "like_post"
+        : collection === "solutions"
+          ? "collect_solution"
+          : "collect_post";
+
+    const actionTypesForQuery =
+      type === "like"
+        ? collection === "solutions"
+          ? ["like_solution", "like_post"]
+          : ["like_post"]
+        : collection === "solutions"
+          ? ["collect_solution", "collect_post", "collect"]
+          : ["collect_post", "collect"];
 
     // 查询用户是否已经点赞/收藏
-    const actionRes = await db
+    const actionQuery = db
       .collection("actions")
-      .where({
-        _openid: openid,
-        type: actionType,
-        targetId: id,
-      })
-      .get();
+      .where(
+        _.and([
+          { _openid: openid },
+          { type: _.in(actionTypesForQuery) },
+          _.or([{ targetId: id }, { postId: id }]),
+        ])
+      );
+
+    const actionRes = await actionQuery.get();
+
+    if (actionRes.data.length > 1) {
+      const dupIds = actionRes.data.slice(1).map((item) => item._id);
+      if (dupIds.length > 0) {
+        await Promise.all(
+          dupIds.map((dupId) => db.collection("actions").doc(dupId).remove())
+        );
+      }
+    }
 
     const existingAction = actionRes.data[0];
 
@@ -66,6 +94,13 @@ exports.main = async (event, context) => {
     let newCount;
     let actionResult;
 
+    const currentCount =
+      type === "like"
+        ? (targetData.stats && targetData.stats.like) || 0
+        : typeof targetData.collectCount === "number"
+          ? targetData.collectCount
+          : (targetData.stats && targetData.stats.collect) || 0;
+
     if (existingAction) {
       // ============================================
       // 取消点赞/收藏
@@ -76,15 +111,21 @@ exports.main = async (event, context) => {
       await db.collection("actions").doc(existingAction._id).remove();
 
       // 更新主表计数
-      const statsField = type === "like" ? "stats.like" : "stats.collect";
-      const currentCount = (targetData.stats && targetData.stats[type]) || 0;
       newCount = Math.max(0, currentCount - 1);
 
+      const updateData = {
+        updateTime: db.serverDate(),
+      };
+
+      if (type === "like") {
+        updateData["stats.like"] = newCount;
+      } else {
+        updateData.collectCount = newCount;
+        updateData["stats.collect"] = newCount;
+      }
+
       await db.collection(collection).doc(id).update({
-        data: {
-          [statsField]: newCount,
-          updateTime: db.serverDate(),
-        },
+        data: updateData,
       });
 
       actionResult = {
@@ -97,26 +138,62 @@ exports.main = async (event, context) => {
       // ============================================
       console.log(`执行${type}: ${id}`);
 
+      const titleSource =
+        targetData.title || targetData.description || targetData.content || "";
+      const title = titleSource
+        ? String(titleSource).slice(0, 30)
+        : "未命名项目";
+
+      const image =
+        targetData.image ||
+        targetData.coverImg ||
+        targetData.beforeImg ||
+        targetData.imageUrl ||
+        targetData.coverImage ||
+        targetData.afterImg ||
+        (Array.isArray(targetData.images) ? targetData.images[0] : "") ||
+        "";
+
+      const targetRoute =
+        collection === "solutions"
+          ? "/pages/solution-detail/index"
+          : "/pages/post-detail/index";
+
       // 添加 action 记录
+      const actionData = {
+        type: actionType,
+        targetId: id,
+        targetCollection: collection,
+        _openid: openid,
+        createTime: db.serverDate(),
+      };
+
+      if (type === "collect") {
+        actionData.title = title;
+        actionData.image = image;
+        actionData.targetRoute = targetRoute;
+      }
+
       const addRes = await db.collection("actions").add({
-        data: {
-          type: actionType,
-          targetId: id,
-          targetCollection: collection,
-          createTime: db.serverDate(),
-        },
+        data: actionData,
       });
 
       // 更新主表计数
-      const statsField = type === "like" ? "stats.like" : "stats.collect";
-      const currentCount = (targetData.stats && targetData.stats[type]) || 0;
       newCount = currentCount + 1;
 
+      const updateData = {
+        updateTime: db.serverDate(),
+      };
+
+      if (type === "like") {
+        updateData["stats.like"] = newCount;
+      } else {
+        updateData.collectCount = newCount;
+        updateData["stats.collect"] = newCount;
+      }
+
       await db.collection(collection).doc(id).update({
-        data: {
-          [statsField]: newCount,
-          updateTime: db.serverDate(),
-        },
+        data: updateData,
       });
 
       actionResult = {

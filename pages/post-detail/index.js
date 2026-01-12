@@ -309,21 +309,36 @@ Page({
 
         return db
           .collection("actions")
-          .add({
-            data: {
-              type: "like_post",
-              targetId: post._id,
-              createTime: db.serverDate(),
-            },
+          .where({
+            type: "like_post",
+            targetId: post._id,
+            _openid: openid,
           })
-          .then(() => {
+          .count()
+          .then((countRes) => {
+            if ((countRes.total || 0) > 0) {
+              return;
+            }
+
             return db
-              .collection("posts")
-              .doc(post._id)
-              .update({
+              .collection("actions")
+              .add({
                 data: {
-                  "stats.like": db.command.inc(1),
+                  type: "like_post",
+                  targetId: post._id,
+                  _openid: openid,
+                  createTime: db.serverDate(),
                 },
+              })
+              .then(() => {
+                return db
+                  .collection("posts")
+                  .doc(post._id)
+                  .update({
+                    data: {
+                      "stats.like": db.command.inc(1),
+                    },
+                  });
               });
           })
           .catch((err) => {

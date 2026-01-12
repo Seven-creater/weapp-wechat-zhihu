@@ -39,16 +39,26 @@ Page({
     this.checkStatus();
   },
 
+  getOpenid: function () {
+    const app = getApp();
+    return app.globalData.openid || wx.getStorageSync("openid");
+  },
+
   // 初始化检查点赞和收藏状态
   checkStatus: function () {
     const db = wx.cloud.database();
     const currentId = this.data.id;
+    const openid = this.getOpenid();
+
+    if (!openid) {
+      return;
+    }
 
     db.collection("actions")
       .where({
+        _openid: openid,
         postId: currentId,
         type: "like",
-        _openid: "{me}",
       })
       .get()
       .then((res) => {
@@ -89,13 +99,22 @@ Page({
 
     const db = wx.cloud.database();
     const currentId = this.data.id;
+    const openid = this.getOpenid();
+
+    if (!openid) {
+      wx.showToast({
+        title: "请先登录",
+        icon: "none",
+      });
+      return;
+    }
 
     // 查询是否已经点赞
     db.collection("actions")
       .where({
+        _openid: openid,
         postId: currentId,
         type: "like",
-        _openid: "{me}",
       })
       .get()
       .then((res) => {

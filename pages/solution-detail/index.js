@@ -36,23 +36,24 @@ Page({
       this.innerAudioContext.stop();
       this.innerAudioContext.destroy();
     }
-  },
 
-  initVoicePlayer: function () {
-    this.innerAudioContext = wx.createInnerAudioContext();
+    const pages = getCurrentPages();
+    if (pages.length < 2) return;
 
-    this.innerAudioContext.onEnded = () => {
-      this.setData({ isPlaying: false });
-    };
+    const prevPage = pages[pages.length - 2];
+    const solutionId = this.data.solution?._id;
 
-    this.innerAudioContext.onError = (err) => {
-      console.error("音频播放错误:", err);
-      this.setData({ isPlaying: false });
-      wx.showToast({
-        title: "播放失败",
-        icon: "none",
+    if (!solutionId) return;
+
+    if (
+      prevPage.route === "pages/solutions/index" &&
+      prevPage.updateSolutionStatus
+    ) {
+      prevPage.updateSolutionStatus(solutionId, {
+        isCollected: this.data.isCollected,
+        collectCount: this.data.collectCount,
       });
-    };
+    }
   },
 
   toggleVoicePlay: function () {
@@ -418,25 +419,4 @@ ${currentDate}`;
       });
   },
 
-  // 页面卸载时，将最新的收藏状态更新回列表页
-  onUnload: function () {
-    const pages = getCurrentPages();
-    if (pages.length < 2) return;
-
-    const prevPage = pages[pages.length - 2];
-    const solutionId = this.data.solution?._id;
-
-    if (!solutionId) return;
-
-    // 检查上一页是否是列表页，并调用更新方法
-    if (
-      prevPage.route === "pages/solutions/index" &&
-      prevPage.updateSolutionStatus
-    ) {
-      prevPage.updateSolutionStatus(solutionId, {
-        isCollected: this.data.isCollected,
-        collectCount: this.data.collectCount,
-      });
-    }
-  },
 });

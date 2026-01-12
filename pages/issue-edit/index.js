@@ -128,6 +128,7 @@ Page({
         }));
 
         this.setData({
+          description: tempDraft.description || "",
           images,
           location,
           address: location ? location.address : "",
@@ -622,6 +623,7 @@ Page({
       userSuggestion,
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
+      formattedAddress: location.formattedAddress,
       stats: { view: 0, like: 0, comment: 0 },
       createTime: db.serverDate(),
       updateTime: db.serverDate(),

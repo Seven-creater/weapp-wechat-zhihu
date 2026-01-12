@@ -224,7 +224,80 @@ exports.main = async (event, context) => {
     query = query.skip((page - 1) * pageSize).limit(pageSize);
 
     const res = await query.get();
-    const list = res.data;
+    let list = res.data || [];
+
+    if (collection === "actions") {
+      list = await Promise.all(
+        list.map(async (doc) => {
+          const normalized = { ...doc };
+          if (normalized.type === "collect") {
+            normalized.type = "collect_post";
+          }
+
+          const targetId = normalized.targetId || normalized.postId;
+
+          if (!normalized.targetCollection) {
+            normalized.targetCollection =
+              normalized.type && normalized.type.indexOf("solution") >= 0
+                ? "solutions"
+                : "posts";
+          }
+
+          if (!normalized.targetRoute && normalized.targetCollection) {
+            normalized.targetRoute =
+              normalized.targetCollection === "solutions"
+                ? "/pages/solution-detail/index"
+                : "/pages/post-detail/index";
+          }
+
+          const needTitle = !normalized.title;
+          const needImage = !normalized.image;
+
+          if (
+            (needTitle || needImage) &&
+            targetId &&
+            normalized.targetCollection
+          ) {
+            try {
+              const targetRes = await db
+                .collection(normalized.targetCollection)
+                .doc(targetId)
+                .get();
+              const targetData = targetRes.data || {};
+
+              if (needTitle) {
+                const titleSource =
+                  targetData.title ||
+                  targetData.description ||
+                  targetData.content ||
+                  "";
+                if (titleSource) {
+                  normalized.title = String(titleSource).slice(0, 30);
+                }
+              }
+
+              if (needImage) {
+                normalized.image =
+                  targetData.image ||
+                  targetData.coverImg ||
+                  targetData.beforeImg ||
+                  targetData.imageUrl ||
+                  targetData.coverImage ||
+                  targetData.afterImg ||
+                  (Array.isArray(targetData.images)
+                    ? targetData.images[0]
+                    : "") ||
+                  "";
+              }
+            } catch (err) {
+              console.error("回填收藏信息失败:", err);
+            }
+          }
+
+          return normalized;
+        })
+      );
+    }
 
     console.log(`查询到 ${list.length} 条记录`);
 

@@ -58,28 +58,35 @@
 
     <!-- 内容输入框 -->
     <view class="content-editor">
-      <textarea 
-        class="content-input" 
-        placeholder="分享你的无障碍经验、求助问题或路障反馈..." 
-        value="{{content}}" 
+      <view class="location-row" bindtap="chooseLocation" aria-role="button" aria-label="选择位置">
+        <text class="location-text">
+          {{formattedAddress || address || '选择位置'}}
+        </text>
+        <text class="location-action">选择位置</text>
+      </view>
+      <textarea
+        class="content-input"
+        placeholder="分享你的无障碍经验、求助问题或路障反馈..."
+        value="{{content}}"
         bindinput="onContentInput"
         maxlength="500"
         show-confirm-bar="false"
         aria-label="帖子内容输入框"
       ></textarea>
-      <view class="editor-footer">
-        <view class="word-count">
-          <text class="count-text">{{content.length}}/500</text>
-        </view>
-        <view 
-          class="voice-btn {{isRecording ? 'recording' : ''}}"
+      <view class="mic-float">
+        <view
+          class="mic-btn {{isRecording ? 'recording' : ''}}"
           catchtouchstart="streamRecord"
           catchtouchend="endStreamRecord"
           aria-role="button"
           aria-label="{{isRecording ? '正在录音，松开结束' : '按住说话'}}"
         >
-          <text class="voice-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
-          <text class="voice-text">{{isRecording ? '录音中' : '按住说话'}}</text>
+          <text class="mic-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
+        </view>
+      </view>
+      <view class="editor-footer">
+        <view class="word-count">
+          <text class="count-text">{{content.length}}/500</text>
         </view>
       </view>
     </view>

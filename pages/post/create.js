@@ -10,6 +10,9 @@ Page({
     type: "share",
     submitting: false,
     isRecording: false,
+    location: null,
+    address: "",
+    formattedAddress: "",
   },
 
   onLoad: function () {
@@ -119,6 +122,9 @@ Page({
             content: draft.content || "",
             images,
             type: draft.type || "share",
+            location: draft.location || null,
+            address: draft.address || "",
+            formattedAddress: draft.formattedAddress || "",
           });
           this.draftDirty = false;
         } else {
@@ -201,6 +207,32 @@ Page({
     });
   },
 
+  chooseLocation: function () {
+    wx.chooseLocation({
+      success: (res) => {
+        const location = {
+          latitude: res.latitude,
+          longitude: res.longitude,
+          address: res.address || res.name || "",
+          formattedAddress: res.address || res.name || "",
+        };
+        this.setData({
+          location,
+          address: location.address,
+          formattedAddress: location.formattedAddress,
+        });
+        this.draftDirty = true;
+      },
+      fail: (err) => {
+        console.error("选择位置失败:", err);
+        wx.showToast({
+          title: "选点失败",
+          icon: "none",
+        });
+      },
+    });
+  },
+
   // 选择帖子类型
   selectType: function (e) {
     const type = e.currentTarget.dataset.type;
@@ -212,7 +244,7 @@ Page({
 
   // 提交帖子
   submitPost: async function () {
-    const { content, images, type, submitting } = this.data;
+    const { content, images, type, submitting, location } = this.data;
 
     if (submitting) return;
 
@@ -222,6 +254,14 @@ Page({
     if (!content.trim()) {
       wx.showToast({
         title: "请输入帖子内容",
+        icon: "none",
+      });
+      return;
+    }
+
+    if (!location) {
+      wx.showToast({
+        title: "请先选择位置",
         icon: "none",
       });
       return;
@@ -367,7 +407,7 @@ Page({
 
   // 保存帖子到数据库
   savePostToDatabase: function (content, imageUrls, type) {
-    const { userSuggestion } = this.data;
+    const { userSuggestion, location, address, formattedAddress } = this.data;
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     const postData = {
@@ -379,6 +419,9 @@ Page({
       userSuggestion: userSuggestion ? userSuggestion.trim() : "",
       images: imageUrls,
       type: type,
+      location: new db.Geo.Point(location.longitude, location.latitude),
+      address: address || (location ? location.address : ""),
+      formattedAddress: formattedAddress || (location ? location.formattedAddress : ""),
       stats: {
         view: 0,
         like: 0,
@@ -465,6 +508,9 @@ Page({
       content: this.data.content,
       images: this.data.images.map((item) => item.path),
       type: this.data.type,
+      location: this.data.location,
+      address: this.data.address,
+      formattedAddress: this.data.formattedAddress,
       updatedAt: Date.now(),
     };
 

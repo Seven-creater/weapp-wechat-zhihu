@@ -2,7 +2,7 @@
   <!-- 顶部定位信息 -->
   <view class="hero-section">
     <view class="hero-bg"></view>
-    
+
     <view class="location-capsule" bindtap="reselectLocation" aria-role="button" aria-label="当前位置：{{currentAddress}}，点击重新选择">
       <view class="location-icon-wrap">
         <image class="location-icon-small" src="/images/location.png" aria-hidden="true"></image>
@@ -13,10 +13,14 @@
       </view>
     </view>
 
+    <view class="map-entry" bindtap="goToMapView" aria-role="button" aria-label="地图模式">
+      <text class="map-entry-text">🗺️ 地图模式</text>
+    </view>
+
     <view class="hero-content">
-      <view 
-        class="camera-hero" 
-        bindtap="takePhoto" 
+      <view
+        class="camera-hero"
+        bindtap="takePhoto"
         aria-role="button"
         aria-label="点击拍照，反馈无障碍问题"
         hover-class="camera-hero-hover"
@@ -26,6 +30,27 @@
           <image class="camera-icon-large" src="/images/camera.png" aria-hidden="true"></image>
         </view>
         <text class="camera-label">拍摄路障</text>
+      </view>
+    </view>
+
+    <view class="voice-draft" aria-label="语音输入草稿">
+      <textarea
+        class="draft-input"
+        placeholder="按住说话，自动填入描述..."
+        value="{{draftDescription}}"
+        bindinput="onDraftInput"
+        maxlength="200"
+        show-confirm-bar="false"
+        aria-label="问题描述输入框"
+      ></textarea>
+      <view
+        class="mic-btn {{isRecording ? 'recording' : ''}}"
+        catchtouchstart="streamRecord"
+        catchtouchend="endStreamRecord"
+        aria-role="button"
+        aria-label="{{isRecording ? '正在录音，松开结束' : '按住说话'}}"
+      >
+        <text class="mic-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
       </view>
     </view>
   </view>

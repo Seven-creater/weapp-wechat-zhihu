@@ -11,6 +11,8 @@ Page({
     hasLocationPermission: true, // 是否有定位权限
     currentAddress: "",
     currentLocation: null,
+    draftDescription: "",
+    isRecording: false,
   },
 
   onLoad: function () {
@@ -19,18 +21,103 @@ Page({
         key: TENCENT_MAP_KEY,
       });
     }
+    this.initVoiceInput();
     // 检查定位权限
     this.checkLocationPermission();
   },
 
+  onUnload: function () {
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
+    }
+  },
+
+  initVoiceInput: function () {
+    try {
+      const plugin = requirePlugin("WeChatSI");
+      this.recognitionManager = plugin.getRecordRecognitionManager();
+
+      this.recognitionManager.onStart = () => {
+        this.setData({ isRecording: true });
+      };
+
+      this.recognitionManager.onStop = (res) => {
+        this.setData({ isRecording: false });
+        const result = res.result;
+
+        if (result && result.trim()) {
+          const currentDescription = this.data.draftDescription;
+          const nextDescription = currentDescription
+            ? currentDescription + result
+            : result;
+          this.setData({ draftDescription: nextDescription });
+        } else {
+          wx.vibrateShort();
+          wx.showToast({
+            title: "未识别到语音，请重试",
+            icon: "none",
+          });
+        }
+      };
+
+      this.recognitionManager.onError = (err) => {
+        console.error("语音识别错误:", err);
+        this.setData({ isRecording: false });
+        wx.vibrateShort();
+        wx.showToast({
+          title: "语音识别失败，请重试",
+          icon: "none",
+        });
+      };
+    } catch (err) {
+      console.error("初始化语音插件失败:", err);
+    }
+  },
+
+  streamRecord: function () {
+    if (!this.recognitionManager) {
+      wx.showToast({
+        title: "语音功能初始化失败",
+        icon: "none",
+      });
+      return;
+    }
+    wx.vibrateShort();
+    this.recognitionManager.start({
+      lang: "zh_CN",
+      duration: 60000,
+    });
+    wx.showToast({
+      title: "正在听...",
+      icon: "none",
+      duration: 1000,
+    });
+  },
+
+  endStreamRecord: function () {
+    if (this.recognitionManager) {
+      this.recognitionManager.stop();
+    }
+  },
+
+  onDraftInput: function (e) {
+    this.setData({ draftDescription: e.detail.value });
+  },
+
+  goToMapView: function () {
+    wx.navigateTo({
+      url: "/pages/map-view/index",
+    });
+  },
+
+  loadRecentReports: function () {
+    // TODO: 可根据后续需求从云端拉取最近反馈
+  },
+
   onPullDownRefresh: function () {
-    // 下拉刷新
     wx.stopPullDownRefresh();
   },
 
-  /**
-   * 检查定位权限
-   */
   checkLocationPermission: function () {
     wx.getSetting({
       success: (res) => {
@@ -41,13 +128,9 @@ Page({
     });
   },
 
-  /**
-   * 拍照反馈
-   */
   takePhoto: function () {
     const that = this;
 
-    // 1. 调用相机或相册选择图片
     wx.chooseMedia({
       count: 9,
       mediaType: ["image"],
@@ -67,7 +150,6 @@ Page({
           return;
         }
 
-        // 2. 优先使用已有的定位信息，避免重新定位
         let locationPromise;
         const existingAddress = that.data.currentAddress;
         const existingLocation = that.data.currentLocation;
@@ -77,8 +159,6 @@ Page({
           existingAddress !== "定位中" &&
           existingLocation
         ) {
-          // 首页已有有效定位，直接使用
-          console.log("使用首页已有的定位信息:", existingAddress);
           locationPromise = Promise.resolve({
             latitude: existingLocation.latitude,
             longitude: existingLocation.longitude,
@@ -86,17 +166,15 @@ Page({
             formattedAddress: existingAddress,
           });
         } else {
-          // 没有有效定位，需要重新获取
-          console.log("首页暂无定位信息，开始获取...");
           locationPromise = that.getLocation();
         }
 
         locationPromise
           .then((location) => {
-            // 保存临时草稿，进入编辑页
             wx.setStorageSync("issueDraftTemp", {
               images: tempFilePaths,
               location: location,
+              description: that.data.draftDescription || "",
             });
             wx.navigateTo({
               url: "/pages/issue-edit/index?fromCapture=1",
@@ -120,23 +198,14 @@ Page({
     });
   },
 
-  /**
-   * 重新选择位置
-   */
   reselectLocation: function () {
     this.chooseLocationManual();
   },
 
-  /**
-   * 获取当前位置（优先自动定位）
-   */
   getLocation: function () {
     return this.getAutoLocation().catch(() => this.chooseLocationManual());
   },
 
-  /**
-   * 自动定位 + 逆地理
-   */
   getAutoLocation: function () {
     return new Promise((resolve, reject) => {
       wx.getLocation({
@@ -199,9 +268,6 @@ Page({
     });
   },
 
-  /**
-   * 手动选点
-   */
   chooseLocationManual: function () {
     return new Promise((resolve, reject) => {
       wx.chooseLocation({
@@ -230,204 +296,27 @@ Page({
     });
   },
 
-  /**
-   * 上传多张图片到云存储
-   */
-  uploadImages: function (tempFilePaths) {
-    if (!Array.isArray(tempFilePaths) || tempFilePaths.length === 0) {
-      return Promise.resolve([]);
-    }
-
-    return Promise.all(
-      tempFilePaths.map((tempFilePath) => this.uploadImage(tempFilePath))
-    );
-  },
-
-  /**
-   * 上传图片到云存储
-   */
-  uploadImage: function (tempFilePath) {
-    const that = this;
-    return new Promise((resolve, reject) => {
-      // 显示上传中提示
-      that.setData({ isUploading: true });
-      wx.showLoading({ title: "上传中..." });
-
-      // 生成唯一文件名
-      const cloudPath = `issues/${Date.now()}-${Math.floor(
-        Math.random() * 1000
-      )}.${tempFilePath.match(/\.(\w+)$/)[1]}`;
-
-      // 上传文件
-      wx.cloud.uploadFile({
-        cloudPath: cloudPath,
-        filePath: tempFilePath,
-        success: (res) => {
-          // 获取文件ID
-          resolve(res.fileID);
-        },
-        fail: (err) => {
-          console.error("上传图片失败:", err);
-          reject(err);
-        },
-        complete: () => {
-          that.setData({ isUploading: false });
-          wx.hideLoading();
-        },
-      });
+  navigateToSolutions: function () {
+    wx.switchTab({
+      url: "/pages/solutions/index",
     });
   },
 
-  /**
-   * 调用AI分析问题
-   */
-  analyzeIssue: function (fileID, location) {
-    return new Promise((resolve) => {
-      // 显示加载提示，添加遮罩防止用户误操作
-      wx.showLoading({
-        title: "AI正在诊断现场...",
-        mask: true,
-      });
-
-      // 设置超时提醒，3秒后显示温馨提示
-      const timeoutTimer = setTimeout(() => {
-        wx.showToast({
-          title: "正在生成专业改造方案，请稍候...",
-          icon: "none",
-          duration: 3000,
-        });
-      }, 3000);
-
-      // 调用云函数进行AI分析
-      wx.cloud.callFunction({
-        name: "analyzeIssue",
-        data: {
-          fileID: fileID,
-          location: location,
-        },
-        success: (res) => {
-          clearTimeout(timeoutTimer);
-          wx.hideLoading();
-          resolve(res.result.aiSolution);
-        },
-        fail: (err) => {
-          console.error("AI分析失败:", err);
-          clearTimeout(timeoutTimer);
-          wx.hideLoading();
-
-          // 如果云函数调用失败，使用模拟数据
-          const mockSolution =
-            "检测到台阶缺失坡道，建议增设 1:12 无障碍坡道，预算约 500 元。";
-          resolve(mockSolution);
-        },
-      });
+  navigateToCommunity: function () {
+    wx.switchTab({
+      url: "/pages/community/community",
     });
   },
 
-  /**
-   * 保存问题到数据库
-   */
-  saveIssue: function (fileIDs, location, aiSolution) {
-    const db = wx.cloud.database();
-    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
-    const coverImage = Array.isArray(fileIDs) ? fileIDs[0] : fileIDs;
-    const images = Array.isArray(fileIDs) ? fileIDs : [fileIDs];
-
-    // 构建数据库记录
-    const issueData = {
-      imageUrl: coverImage, // 首图
-      images: images, // 全部图片
-      location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
-      address: location.address, // 详细地址
-      formattedAddress: location.formattedAddress, // 格式化地址
-      aiSolution: aiSolution, // AI解决方案
-      status: "pending", // 状态：待处理
-      createTime: db.serverDate(), // 创建时间
-    };
-
-    // 保存到数据库
-    db.collection("issues").add({
-      data: issueData,
-      success: (res) => {
-        // 同时自动在社区发布一条帖子
-        this.createCommunityPost(
-          res._id,
-          images,
-          location,
-          aiSolution,
-          userInfo
-        )
-          .then(() => {
-            wx.showToast({
-              title: "反馈成功！已同步到社区",
-              icon: "success",
-              duration: 2000,
-            });
-
-            // 重新加载最近反馈
-            this.loadRecentReports();
-
-            // 跳转到详情页
-            wx.navigateTo({
-              url: "../issue-detail/issue-detail?id=" + res._id,
-            });
-          })
-          .catch((err) => {
-            console.error("创建社区帖子失败:", err);
-            // 即使社区发帖失败，也不影响主流程
-            wx.showToast({
-              title: "反馈成功！",
-              icon: "success",
-              duration: 2000,
-            });
-            this.loadRecentReports();
-            wx.navigateTo({
-              url: "../issue-detail/issue-detail?id=" + res._id,
-            });
-          });
-      },
-      fail: (err) => {
-        console.error("保存问题失败:", err);
-        wx.showToast({
-          title: "保存失败，请重试",
-          icon: "none",
-        });
-      },
+  navigateToReport: function () {
+    wx.navigateTo({
+      url: "/pages/scheme/scheme",
     });
   },
 
-  /**
-   * 自动在社区创建帖子
-   */
-  createCommunityPost: function (
-    issueId,
-    images,
-    location,
-    aiSolution,
-    userInfo
-  ) {
-    const db = wx.cloud.database();
-    const postImages = Array.isArray(images) ? images : [images];
-
-    // 构建社区帖子数据
-    const postData = {
-      issueId: issueId, // 关联的路障问题ID
-      content: `自动同步：发现${location.address}存在无障碍问题。\nAI诊断：${aiSolution}\n欢迎大家讨论解决方案！`,
-      images: postImages, // 使用同一组图片
-      type: "issue", // 帖子类型：路障反馈
-      location: new db.Geo.Point(location.longitude, location.latitude), // 地理位置
-      address: location.address, // 详细地址
-      stats: { view: 0, like: 0, comment: 0 }, // 初始统计数据
-      createTime: db.serverDate(), // 创建时间
-      updateTime: db.serverDate(), // 更新时间
-      userInfo: userInfo || {
-        nickName: "匿名用户",
-        avatarUrl: "/images/default-avatar.png",
-      },
-    };
-
-    return db.collection("posts").add({
-      data: postData,
+  navigateToHistory: function () {
+    wx.navigateTo({
+      url: "/pages/my-issues/index",
     });
   },
 });
