@@ -32,27 +32,6 @@
         <text class="camera-label">拍摄路障</text>
       </view>
     </view>
-
-    <view class="voice-draft" aria-label="语音输入草稿">
-      <textarea
-        class="draft-input"
-        placeholder="按住说话，自动填入描述..."
-        value="{{draftDescription}}"
-        bindinput="onDraftInput"
-        maxlength="200"
-        show-confirm-bar="false"
-        aria-label="问题描述输入框"
-      ></textarea>
-      <view
-        class="mic-btn {{isRecording ? 'recording' : ''}}"
-        catchtouchstart="streamRecord"
-        catchtouchend="endStreamRecord"
-        aria-role="button"
-        aria-label="{{isRecording ? '正在录音，松开结束' : '按住说话'}}"
-      >
-        <text class="mic-icon">{{isRecording ? '🎤' : '🎙️'}}</text>
-      </view>
-    </view>
   </view>
 
   <view class="features-section">
