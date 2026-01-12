@@ -1,8 +1,9 @@
 <view class="accessibility-home">
-  <!-- 顶部定位信息 -->
+  <!-- 顶部渐变背景区 -->
   <view class="hero-section">
     <view class="hero-bg"></view>
 
+    <!-- 磨砂玻璃定位胶囊 -->
     <view class="location-capsule" bindtap="reselectLocation" aria-role="button" aria-label="当前位置：{{currentAddress}}，点击重新选择">
       <view class="location-icon-wrap">
         <image class="location-icon-small" src="/images/location.png" aria-hidden="true"></image>
@@ -13,55 +14,67 @@
       </view>
     </view>
 
+    <!-- 地图模式入口 -->
     <view class="map-entry" bindtap="goToMapView" aria-role="button" aria-label="地图模式">
-      <text class="map-entry-text">🗺️ 地图模式</text>
+      <text class="map-entry-text">🗺️</text>
     </view>
 
+    <!-- 核心拍照按钮 -->
     <view class="hero-content">
-      <view
-        class="camera-hero"
-        bindtap="takePhoto"
-        aria-role="button"
-        aria-label="点击拍照，反馈无障碍问题"
-        hover-class="camera-hero-hover"
-      >
+      <view class="camera-button-wrapper">
         <view class="camera-glow"></view>
-        <view class="camera-inner">
-          <image class="camera-icon-large" src="/images/camera.png" aria-hidden="true"></image>
+        <view 
+          class="camera-button"
+          bindtap="takePhoto"
+          aria-role="button"
+          aria-label="点击拍照，反馈无障碍问题"
+        >
+          <view class="camera-ring"></view>
+          <view class="camera-core">
+            <text class="camera-icon">📷</text>
+          </view>
         </view>
-        <text class="camera-label">拍摄路障</text>
+        <text class="camera-text">拍摄路障</text>
       </view>
     </view>
   </view>
 
+  <!-- 悬浮功能卡片区 -->
   <view class="features-section">
     <view class="features-grid">
       <view class="feature-card" bindtap="navigateToSolutions" aria-role="button" aria-label="AI无障碍方案库">
-        <view class="feature-icon-wrap bg-solution">
-          <image class="feature-icon-img" src="/images/ai.png" aria-hidden="true"></image>
+        <view class="feature-icon-circle bg-solution">
+          <text class="feature-icon">💡</text>
         </view>
-        <text class="feature-card-title">AI 方案</text>
-        <text class="feature-card-desc">智能生成整改建议</text>
+        <view class="feature-info">
+          <text class="feature-card-title">AI 方案</text>
+          <text class="feature-card-desc">智能生成整改建议</text>
+        </view>
       </view>
 
       <view class="feature-card" bindtap="navigateToCommunity" aria-role="button" aria-label="无障碍社区">
-        <view class="feature-icon-wrap bg-community">
-          <image class="feature-icon-img" src="/images/community.png" aria-hidden="true"></image>
+        <view class="feature-icon-circle bg-community">
+          <text class="feature-icon">👥</text>
         </view>
-        <text class="feature-card-title">社区</text>
-        <text class="feature-card-desc">分享经验交流讨论</text>
+        <view class="feature-info">
+          <text class="feature-card-title">社区</text>
+          <text class="feature-card-desc">分享经验交流讨论</text>
+        </view>
       </view>
 
       <view class="feature-card" bindtap="navigateToHistory" aria-role="button" aria-label="我的发布历史">
-        <view class="feature-icon-wrap bg-history">
-          <image class="feature-icon-img" src="/images/history.png" aria-hidden="true"></image>
+        <view class="feature-icon-circle bg-history">
+          <text class="feature-icon">📋</text>
         </view>
-        <text class="feature-card-title">历史</text>
-        <text class="feature-card-desc">查看我的记录</text>
+        <view class="feature-info">
+          <text class="feature-card-title">历史</text>
+          <text class="feature-card-desc">查看我的记录</text>
+        </view>
       </view>
     </view>
   </view>
 
+  <!-- 底部标语 -->
   <view class="footer-note">
     <text class="footer-slogan">让城市更无障碍 · 让出行更自由</text>
   </view>

@@ -1,6 +1,6 @@
 /* ============================================
-   首页样式 - 无障碍随手拍
-   使用全局设计系统
+   首页样式 - 现代无障碍设计
+   Material Design + Apple Style 混合风格
    ============================================ */
 
 /* 基础重置 */
@@ -15,36 +15,33 @@ image {
 /* 页面主容器 */
 .accessibility-home {
   min-height: 100vh;
-  background: linear-gradient(
-    180deg,
-    var(--color-primary) 0%,
-    #0033a6 60%,
-    #0040c4 100%
-  );
+  background: #f8f9fa;
 }
 
-/* 顶部定位信息胶囊 */
+/* ============================================
+   顶部渐变背景区 (Hero Section)
+   ============================================ */
 .hero-section {
   position: relative;
-  height: 42vh;
-  min-height: 600rpx;
-  overflow: hidden;
+  height: 48vh;
+  min-height: 680rpx;
+  overflow: visible;
 }
 
+/* 渐变背景 + 底部弧形 */
 .hero-bg {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    180deg,
-    var(--color-primary) 0%,
-    #0033a6 60%,
-    #0040c4 100%
-  );
+  background: linear-gradient(180deg, #0044cc 0%, #002fa7 50%, #003d99 100%);
+  border-bottom-left-radius: 120rpx;
+  border-bottom-right-radius: 120rpx;
+  overflow: hidden;
 }
 
+/* 背景光效 */
 .hero-bg::before {
   content: "";
   position: absolute;
@@ -53,38 +50,42 @@ image {
   right: 0;
   bottom: 0;
   background: radial-gradient(
-      circle at 20% 80%,
-      rgba(255, 215, 0, 0.15) 0%,
+      circle at 15% 75%,
+      rgba(255, 215, 0, 0.2) 0%,
       transparent 50%
     ),
     radial-gradient(
-      circle at 80% 20%,
-      rgba(255, 215, 0, 0.1) 0%,
+      circle at 85% 30%,
+      rgba(255, 215, 0, 0.15) 0%,
       transparent 40%
     ),
     radial-gradient(
-      circle at 50% 50%,
-      rgba(255, 255, 255, 0.05) 0%,
-      transparent 60%
+      circle at 50% 60%,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 50%
     );
 }
 
-/* 定位胶囊 */
+/* ============================================
+   磨砂玻璃定位胶囊
+   ============================================ */
 .location-capsule {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 30rpx);
+  top: calc(env(safe-area-inset-top) + 40rpx);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  background: var(--color-bg-card);
-  padding: 16rpx 24rpx 16rpx 20rpx;
+  gap: 12rpx;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 16rpx 28rpx 16rpx 20rpx;
   border-radius: 100rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15), 0 2rpx 8rpx rgba(0, 0, 0, 0.08),
-    inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
-  z-index: 10;
-  max-width: 90%;
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-width: 86%;
 }
 
 .location-icon-wrap {
@@ -95,108 +96,162 @@ image {
 }
 
 .location-icon-small {
-  width: 36rpx;
-  height: 36rpx;
+  width: 32rpx;
+  height: 32rpx;
+  filter: brightness(0) invert(1);
 }
 
 .location-address {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #ffffff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 400rpx;
+  max-width: 360rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 }
 
 .refresh-btn {
   flex-shrink: 0;
-  background: var(--color-primary);
+  background: rgba(255, 255, 255, 0.2);
   padding: 8rpx 20rpx;
   border-radius: 100rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.3);
 }
 
 .refresh-text {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-inverse);
+  font-size: 22rpx;
+  color: #ffffff;
   font-weight: 500;
 }
 
-/* 英雄区域内容 */
+/* 地图入口 */
+.map-entry {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 110rpx);
+  right: 32rpx;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.95);
+  box-shadow: 0 8rpx 24rpx rgba(255, 215, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: transform 0.2s ease;
+}
+
+.map-entry:active {
+  transform: scale(0.92);
+}
+
+.map-entry-text {
+  font-size: 36rpx;
+}
+
+/* ============================================
+   核心拍照按钮 (Camera Hero)
+   ============================================ */
 .hero-content {
   position: absolute;
-  top: 28%;
+  top: 38%;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 5;
+  z-index: 50;
 }
 
-/* 拍照按钮 - 主视觉 */
-.camera-hero {
+/* 按钮容器 */
+.camera-button-wrapper {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
 }
 
+/* 呼吸光晕 */
 .camera-glow {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 380rpx;
-  height: 380rpx;
+  width: 420rpx;
+  height: 420rpx;
   background: radial-gradient(
     circle,
-    rgba(255, 215, 0, 0.3) 0%,
+    rgba(255, 215, 0, 0.25) 0%,
+    rgba(255, 200, 0, 0.1) 40%,
     transparent 70%
   );
   border-radius: 50%;
-  animation: pulse-glow 2s ease-in-out infinite;
+  animation: pulse-glow 3s ease-in-out infinite;
 }
 
-.camera-inner {
-  width: 320rpx;
-  height: 320rpx;
-  background: var(--color-accent);
-  border-radius: 50%;
+/* 主按钮 */
+.camera-button {
+  position: relative;
+  width: 280rpx;
+  height: 280rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16rpx 48rpx rgba(255, 215, 0, 0.4),
-    0 8rpx 24rpx rgba(255, 215, 0, 0.2), inset 0 -4rpx 16rpx rgba(0, 0, 0, 0.1),
-    inset 0 4rpx 8rpx rgba(255, 255, 255, 0.3);
+  transition: transform 0.2s ease;
 }
 
-.camera-icon-large {
-  width: 140rpx;
-  height: 140rpx;
-}
-
-.camera-label {
-  margin-top: 24rpx;
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  color: var(--color-text-inverse);
-  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
-  letter-spacing: 4rpx;
-}
-
-.camera-hero-hover .camera-inner {
+.camera-button:active {
   transform: scale(0.95);
-  box-shadow: 0 12rpx 40rpx rgba(255, 215, 0, 0.5),
-    inset 0 -2rpx 12rpx rgba(0, 0, 0, 0.15);
 }
 
-.camera-hero-hover .camera-glow {
-  animation: none;
-  transform: translate(-50%, -50%) scale(1.1);
+/* 外圈描边 */
+.camera-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260rpx;
+  height: 260rpx;
+  border-radius: 50%;
+  border: 12rpx solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 0 4rpx rgba(255, 255, 255, 0.1),
+    inset 0 0 20rpx rgba(255, 215, 0, 0.2);
 }
 
+/* 核心圆形 */
+.camera-core {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700 0%, #ffc107 50%, #ffb300 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 20rpx 50rpx rgba(255, 215, 0, 0.4),
+    0 10rpx 20rpx rgba(255, 180, 0, 0.3), inset 0 -4rpx 12rpx rgba(0, 0, 0, 0.1),
+    inset 0 4rpx 8rpx rgba(255, 255, 255, 0.4);
+}
+
+/* 相机图标 */
+.camera-icon {
+  font-size: 88rpx;
+  line-height: 1;
+  filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.1));
+}
+
+/* 按钮文字 */
+.camera-text {
+  margin-top: 28rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 4rpx;
+  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
+}
+
+/* 呼吸动画 */
 @keyframes pulse-glow {
   0%,
   100% {
@@ -205,76 +260,62 @@ image {
   }
   50% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1);
+    transform: translate(-50%, -50%) scale(1.08);
   }
 }
 
 /* ============================================
-   功能区 (Features Section)
+   悬浮功能卡片区 (Features Section)
    ============================================ */
 .features-section {
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: transparent;
+  padding: 0 32rpx;
+  margin-top: -60rpx;
+  position: relative;
+  z-index: 10;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--spacing-lg);
-}
-
-.section-title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.section-more {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-/* 功能卡片网格 */
+/* 功能网格 - 双列布局 */
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-md);
+  grid-template-columns: 1fr 1fr;
+  gap: 24rpx;
 }
 
+/* 悬浮卡片 */
 .feature-card {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-bg-card);
-  padding: var(--spacing-lg) var(--spacing-sm);
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-card);
-  transition: all var(--transition-normal);
+  align-items: flex-start;
+  gap: 20rpx;
+  background: #ffffff;
+  padding: 28rpx 24rpx;
+  border-radius: 28rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06), 0 1rpx 4rpx rgba(0, 0, 0, 0.04);
+  transition: all 0.25s ease;
+  border: 1rpx solid rgba(0, 0, 0, 0.02);
 }
 
 .feature-card:active {
-  transform: translateY(-4rpx);
-  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-4rpx) scale(1.02);
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.1), 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
 }
 
-.feature-icon-wrap {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: var(--border-radius-md);
+/* 彩色图标圆圈 */
+.feature-icon-circle {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: var(--spacing-sm);
+  flex-shrink: 0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 }
 
-.feature-icon-img {
-  width: 56rpx;
-  height: 56rpx;
+.feature-icon {
+  font-size: 40rpx;
 }
 
+/* 渐变背景 */
 .bg-solution {
   background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
 }
@@ -287,94 +328,39 @@ image {
   background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
 }
 
+/* 文字信息 */
+.feature-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
 .feature-card-title {
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 4rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 6rpx;
+  letter-spacing: 1rpx;
 }
 
 .feature-card-desc {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-size: 22rpx;
+  color: #8e8e93;
+  line-height: 1.4;
 }
 
-/* 底部标语 */
+/* ============================================
+   底部标语区
+   ============================================ */
 .footer-note {
-  padding: var(--spacing-xl) var(--spacing-lg);
+  padding: 56rpx 32rpx 40rpx;
   text-align: center;
-  background: transparent;
-  margin-top: 0;
-  border-top: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
 .footer-slogan {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-inverse);
+  font-size: 24rpx;
+  color: #8e8e93;
   letter-spacing: 2rpx;
   font-weight: 500;
-}
-
-/* 地图入口 */
-.map-entry {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 120rpx);
-  right: 24rpx;
-  padding: 14rpx 22rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 215, 0, 0.95);
-  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.15);
-  z-index: 10;
-}
-
-.map-entry-text {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #002fa7;
-}
-
-/* 语音草稿输入 */
-.voice-draft {
-  position: absolute;
-  left: 50%;
-  bottom: 40rpx;
-  transform: translateX(-50%);
-  width: 86%;
-  max-width: 600rpx;
-  display: flex;
-  align-items: flex-end;
-  gap: 16rpx;
-  z-index: 8;
-}
-
-.draft-input {
-  flex: 1;
-  min-height: 100rpx;
-  max-height: 160rpx;
-  padding: 18rpx 20rpx;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 18rpx;
-  font-size: 28rpx;
-  line-height: 1.4;
-  color: #002fa7;
-}
-
-.mic-btn {
-  width: 92rpx;
-  height: 92rpx;
-  border-radius: 50%;
-  background: #ffd700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.2);
-}
-
-.mic-btn.recording {
-  background: #ff4444;
-  animation: pulse 1s infinite;
-}
-
-.mic-icon {
-  font-size: 40rpx;
 }
