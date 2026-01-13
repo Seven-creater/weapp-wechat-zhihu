@@ -188,12 +188,20 @@ Page({
 
           this.setData({ solution: data });
 
-          // 初始化收藏状态
-          collectUtil
-            .initCollectStatus(this, "collect_" + collectionName, documentId)
-            .catch(() => {
-              // 初始化失败不影响主要功能
-            });
+          const collectType =
+            collectionName === "solutions"
+              ? "collect_solution"
+              : collectionName === "posts"
+                ? "collect_post"
+                : null;
+
+          if (collectType) {
+            collectUtil
+              .initCollectStatus(this, collectType, documentId)
+              .catch(() => {
+                // 初始化失败不影响主要功能
+              });
+          }
         } else {
           throw new Error(res.result?.error || "获取数据失败");
         }
@@ -391,6 +399,7 @@ ${currentDate}`;
   // 收藏/取消收藏解决方案
   toggleCollect: function () {
     const solutionId = this.data.solution._id;
+    const collectionName = this.data.collectionName || "solutions";
     if (!solutionId) return;
 
     const targetData = {
@@ -398,8 +407,20 @@ ${currentDate}`;
       image: this.data.solution.imageUrl || "",
     };
 
+    const collectType =
+      collectionName === "solutions"
+        ? "collect_solution"
+        : collectionName === "posts"
+          ? "collect_post"
+          : null;
+
+    if (!collectType) {
+      wx.showToast({ title: "暂不支持收藏", icon: "none" });
+      return;
+    }
+
     collectUtil
-      .toggleCollect(this, "collect_solution", solutionId, targetData)
+      .toggleCollect(this, collectType, solutionId, targetData)
       .then(() => {
         // 收藏操作成功，不需要额外提示
       })
