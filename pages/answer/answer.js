@@ -97,80 +97,49 @@ Page({
       return;
     }
 
-    const db = wx.cloud.database();
     const currentId = this.data.id;
-    const openid = this.getOpenid();
+    const isLiked = !!this.data.isLiked;
+    const currentLikes = this.data.likes || 0;
+    const nextLikes = isLiked
+      ? Math.max(0, currentLikes - 1)
+      : currentLikes + 1;
 
-    if (!openid) {
-      wx.showToast({
-        title: "请先登录",
-        icon: "none",
-      });
-      return;
-    }
+    // 乐观更新
+    this.setData({
+      isLiked: !isLiked,
+      likes: nextLikes,
+    });
 
-    // 查询是否已经点赞
-    db.collection("actions")
-      .where({
-        _openid: openid,
-        postId: currentId,
-        type: "like",
+    wx.cloud
+      .callFunction({
+        name: "toggleInteraction",
+        data: {
+          id: currentId,
+          collection: "posts",
+          type: "like",
+        },
       })
-      .get()
       .then((res) => {
-        if (res.data.length > 0) {
-          // 已点赞，取消点赞
-          db.collection("actions")
-            .doc(res.data[0]._id)
-            .remove()
-            .then(() => {
-              this.setData({
-                isLiked: false,
-                likes: this.data.likes - 1,
-              });
-              wx.showToast({
-                title: "已取消点赞",
-              });
-            })
-            .catch((err) => {
-              console.error("取消点赞失败:", err);
-              wx.showToast({
-                title: "操作失败",
-                icon: "none",
-              });
-            });
-        } else {
-          // 未点赞，添加点赞
-          db.collection("actions")
-            .add({
-              data: {
-                postId: currentId,
-                type: "like",
-                title: this.data.projectDetail.title,
-                image: this.data.projectDetail.mainImage,
-                createTime: db.serverDate(),
-              },
-            })
-            .then(() => {
-              this.setData({
-                isLiked: true,
-                likes: this.data.likes + 1,
-              });
-              wx.showToast({
-                title: "点赞成功",
-              });
-            })
-            .catch((err) => {
-              console.error("添加点赞失败:", err);
-              wx.showToast({
-                title: "操作失败",
-                icon: "none",
-              });
-            });
+        if (res.result && res.result.success) {
+          const serverCount = res.result.count;
+          this.setData({
+            isLiked: res.result.status,
+            likes:
+              typeof serverCount === "number"
+                ? serverCount
+                : this.data.likes,
+          });
+          return;
         }
+
+        throw new Error(res.result?.error || "操作失败");
       })
       .catch((err) => {
-        console.error("查询点赞状态失败:", err);
+        console.error("点赞失败:", err);
+        this.setData({
+          isLiked: isLiked,
+          likes: currentLikes,
+        });
         wx.showToast({
           title: "操作失败",
           icon: "none",

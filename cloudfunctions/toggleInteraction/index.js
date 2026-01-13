@@ -19,7 +19,7 @@ exports.main = async (event, context) => {
   }
 
   // 验证参数有效性
-  const validCollections = ["posts", "solutions"];
+  const validCollections = ["posts", "solutions", "comments"];
   const validTypes = ["like", "collect"];
 
   if (!validCollections.includes(collection)) {
@@ -36,25 +36,36 @@ exports.main = async (event, context) => {
     };
   }
 
+  if (collection === "comments" && type !== "like") {
+    return {
+      success: false,
+      error: "评论仅支持点赞操作",
+    };
+  }
+
   try {
     // 构建 action 类型
     const actionType =
-      type === "like"
-        ? collection === "solutions"
-          ? "like_solution"
-          : "like_post"
-        : collection === "solutions"
-          ? "collect_solution"
-          : "collect_post";
+      collection === "comments"
+        ? "like_comment"
+        : type === "like"
+          ? collection === "solutions"
+            ? "like_solution"
+            : "like_post"
+          : collection === "solutions"
+            ? "collect_solution"
+            : "collect_post";
 
     const actionTypesForQuery =
-      type === "like"
-        ? collection === "solutions"
-          ? ["like_solution", "like_post"]
-          : ["like_post"]
-        : collection === "solutions"
-          ? ["collect_solution", "collect_post", "collect"]
-          : ["collect_post", "collect"];
+      collection === "comments"
+        ? ["like_comment", "like"]
+        : type === "like"
+          ? collection === "solutions"
+            ? ["like_solution", "like_post"]
+            : ["like_post"]
+          : collection === "solutions"
+            ? ["collect_solution", "collect_post", "collect"]
+            : ["collect_post", "collect"];
 
     // 查询用户是否已经点赞/收藏
     const actionQuery = db
@@ -95,11 +106,15 @@ exports.main = async (event, context) => {
     let actionResult;
 
     const currentCount =
-      type === "like"
-        ? (targetData.stats && targetData.stats.like) || 0
-        : typeof targetData.collectCount === "number"
-          ? targetData.collectCount
-          : (targetData.stats && targetData.stats.collect) || 0;
+      collection === "comments"
+        ? typeof targetData.likeCount === "number"
+          ? targetData.likeCount
+          : targetData.likes || 0
+        : type === "like"
+          ? (targetData.stats && targetData.stats.like) || 0
+          : typeof targetData.collectCount === "number"
+            ? targetData.collectCount
+            : (targetData.stats && targetData.stats.collect) || 0;
 
     if (existingAction) {
       // ============================================
@@ -117,7 +132,13 @@ exports.main = async (event, context) => {
         updateTime: db.serverDate(),
       };
 
-      if (type === "like") {
+      if (collection === "comments") {
+        if (typeof targetData.likeCount === "number") {
+          updateData.likeCount = newCount;
+        } else {
+          updateData.likes = newCount;
+        }
+      } else if (type === "like") {
         updateData["stats.like"] = newCount;
       } else {
         updateData.collectCount = newCount;
@@ -157,7 +178,9 @@ exports.main = async (event, context) => {
       const targetRoute =
         collection === "solutions"
           ? "/pages/solution-detail/index"
-          : "/pages/post-detail/index";
+          : collection === "comments"
+            ? ""
+            : "/pages/post-detail/index";
 
       // 添加 action 记录
       const actionData = {
@@ -168,7 +191,9 @@ exports.main = async (event, context) => {
         createTime: db.serverDate(),
       };
 
-      if (type === "collect") {
+      if (collection === "comments" && targetData.postId) {
+        actionData.postId = targetData.postId;
+      } else if (type === "collect") {
         actionData.title = title;
         actionData.image = image;
         actionData.targetRoute = targetRoute;
@@ -185,7 +210,13 @@ exports.main = async (event, context) => {
         updateTime: db.serverDate(),
       };
 
-      if (type === "like") {
+      if (collection === "comments") {
+        if (typeof targetData.likeCount === "number") {
+          updateData.likeCount = newCount;
+        } else {
+          updateData.likes = newCount;
+        }
+      } else if (type === "like") {
         updateData["stats.like"] = newCount;
       } else {
         updateData.collectCount = newCount;

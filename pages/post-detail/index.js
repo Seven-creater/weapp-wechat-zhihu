@@ -278,68 +278,35 @@ Page({
 
         this.setData({ post: updatedPost });
 
-        const openid = app.globalData.openid || wx.getStorageSync("openid");
-        if (!openid) return;
-
-        if (isLiked) {
-          return db
-            .collection("actions")
-            .where({
-              type: "like_post",
-              targetId: post._id,
-              _openid: openid,
-            })
-            .remove()
-            .then(() => {
-              return db
-                .collection("posts")
-                .doc(post._id)
-                .update({
-                  data: {
-                    "stats.like": db.command.inc(-1),
-                  },
-                });
-            })
-            .catch((err) => {
-              console.error("取消点赞失败:", err);
-              this.setData({ post });
-              wx.showToast({ title: "操作失败", icon: "none" });
-            });
-        }
-
-        return db
-          .collection("actions")
-          .where({
-            type: "like_post",
-            targetId: post._id,
-            _openid: openid,
+        // 调用云函数执行原子操作
+        wx.cloud
+          .callFunction({
+            name: "toggleInteraction",
+            data: {
+              id: post._id,
+              collection: "posts",
+              type: "like",
+            },
           })
-          .count()
-          .then((countRes) => {
-            if ((countRes.total || 0) > 0) {
+          .then((res) => {
+            if (res.result && res.result.success) {
+              const serverCount = res.result.count;
+              const nextPost = {
+                ...this.data.post,
+                liked: res.result.status,
+                stats: {
+                  ...this.data.post.stats,
+                  like:
+                    typeof serverCount === "number"
+                      ? serverCount
+                      : this.data.post.stats?.like || 0,
+                },
+              };
+              this.setData({ post: nextPost });
               return;
             }
 
-            return db
-              .collection("actions")
-              .add({
-                data: {
-                  type: "like_post",
-                  targetId: post._id,
-                  _openid: openid,
-                  createTime: db.serverDate(),
-                },
-              })
-              .then(() => {
-                return db
-                  .collection("posts")
-                  .doc(post._id)
-                  .update({
-                    data: {
-                      "stats.like": db.command.inc(1),
-                    },
-                  });
-              });
+            throw new Error(res.result?.error || "操作失败");
           })
           .catch((err) => {
             console.error("点赞失败:", err);
@@ -614,55 +581,26 @@ Page({
 
         this.setData({ comments });
 
-        const openid = app.globalData.openid || wx.getStorageSync("openid");
-        if (!openid) return;
-
-        if (isLiked) {
-          return db
-            .collection("actions")
-            .where({
-              type: "like_comment",
-              targetId: commentId,
-              _openid: openid,
-            })
-            .remove()
-            .then(() => {
-              return db
-                .collection("comments")
-                .doc(commentId)
-                .update({
-                  data: {
-                    likes: db.command.inc(-1),
-                  },
-                });
-            })
-            .catch((err) => {
-              console.error("取消评论点赞失败:", err);
-              comment.likes = currentLikes;
-              comment.liked = isLiked;
-              this.setData({ comments });
-              wx.showToast({ title: "操作失败", icon: "none" });
-            });
-        }
-
-        return db
-          .collection("actions")
-          .add({
+        wx.cloud
+          .callFunction({
+            name: "toggleInteraction",
             data: {
-              type: "like_comment",
-              targetId: commentId,
-              createTime: db.serverDate(),
+              id: commentId,
+              collection: "comments",
+              type: "like",
             },
           })
-          .then(() => {
-            return db
-              .collection("comments")
-              .doc(commentId)
-              .update({
-                data: {
-                  likes: db.command.inc(1),
-                },
-              });
+          .then((res) => {
+            if (res.result && res.result.success) {
+              const serverCount = res.result.count;
+              comment.likes =
+                typeof serverCount === "number" ? serverCount : comment.likes;
+              comment.liked = res.result.status;
+              this.setData({ comments });
+              return;
+            }
+
+            throw new Error(res.result?.error || "操作失败");
           })
           .catch((err) => {
             console.error("评论点赞失败:", err);
@@ -840,13 +778,6 @@ Page({
       })
       .catch((err) => {
         console.error("收藏操作失败:", err);
-        // 操作失败时回滚UI状态
-        this.setData({
-          isCollected: !this.data.isCollected,
-          collectCount: this.data.isCollected
-            ? this.data.collectCount - 1
-            : this.data.collectCount + 1,
-        });
         wx.showToast({
           title: "操作失败，请重试",
           icon: "none",

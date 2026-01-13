@@ -106,18 +106,20 @@ Page({
 
     const db = wx.cloud.database();
     const _ = db.command;
-    const openid = app.globalData.openid;
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
 
     return Promise.all([
-      db
-        .collection("actions")
-        .where(
-          _.or([
-            { type: "collect_post", targetId: _.in(ids) },
-            { type: "collect_post", postId: _.in(ids) },
-          ])
-        )
-        .get(),
+      openid
+        ? db
+            .collection("actions")
+            .where(
+              _.or([
+                { type: "collect_post", targetId: _.in(ids), _openid: openid },
+                { type: "collect_post", postId: _.in(ids), _openid: openid },
+              ])
+            )
+            .get()
+        : Promise.resolve({ data: [] }),
       openid
         ? db
             .collection("actions")
@@ -415,12 +417,21 @@ Page({
         })
         .then((res) => {
           if (res.result && res.result.success) {
-            // 云函数执行成功，更新UI
-            console.log(
-              `${newIsCollected ? "" : "取消"}收藏成功，当前收藏数: ${
-                res.result.count
-              }`
-            );
+            const finalStatus =
+              typeof res.result.status === "boolean"
+                ? res.result.status
+                : newIsCollected;
+            const finalCount =
+              typeof res.result.count === "number"
+                ? res.result.count
+                : newCollectCount;
+
+            updatedPosts[index] = {
+              ...updatedPosts[index],
+              isCollected: finalStatus,
+              collectCount: finalCount,
+            };
+            this.setData({ posts: updatedPosts });
           } else {
             // 云函数执行失败，回滚UI
             console.error("收藏失败:", res.result?.error);

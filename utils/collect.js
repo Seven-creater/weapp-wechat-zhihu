@@ -58,10 +58,17 @@ const checkIsCollected = function (type, targetId) {
       return;
     }
 
+    const openid = wx.getStorageSync("openid");
+    if (!openid) {
+      resolve(false);
+      return;
+    }
+
     const normalizedType = type === "collect" ? "collect_post" : type;
 
     db.collection("actions")
       .where({
+        _openid: openid,
         type: normalizedType,
         targetId: targetId,
       })
@@ -74,6 +81,7 @@ const checkIsCollected = function (type, targetId) {
 
         db.collection("actions")
           .where({
+            _openid: openid,
             type: normalizedType,
             postId: targetId,
           })
@@ -145,8 +153,11 @@ const toggleCollect = function (context, type, targetId, targetData) {
   return new Promise((resolve, reject) => {
     // 1. 检查登录状态
     checkLogin()
-      .then((userInfo) => {
-        const openid = wx.getStorageSync("openid");
+      .then(() => {
+        const collection =
+          type === "collect_solution"
+            ? "solutions"
+            : "posts";
 
         // 2. 获取当前收藏状态
         return checkIsCollected(type, targetId).then((isCollected) => {
@@ -163,26 +174,44 @@ const toggleCollect = function (context, type, targetId, targetData) {
             collectCount: newCount,
           });
 
-          // 4. 后台异步操作数据库
-          if (newStatus) {
-            // 添加到收藏
-            return addToCollection(openid, type, targetId, targetData).then(
-              () => {
-                // 更新原帖子的收藏统计
-                return updateTargetCollectionCount(type, targetId, 1);
+          // 4. 调用云函数写入 actions
+          return wx.cloud
+            .callFunction({
+              name: "toggleInteraction",
+              data: {
+                id: targetId,
+                collection,
+                type: "collect",
+              },
+            })
+            .then((res) => {
+              if (res.result && res.result.success) {
+                const finalStatus =
+                  typeof res.result.status === "boolean"
+                    ? res.result.status
+                    : newStatus;
+                const finalCount =
+                  typeof res.result.count === "number"
+                    ? res.result.count
+                    : newCount;
+
+                context.setData({
+                  isCollected: finalStatus,
+                  collectCount: finalCount,
+                });
+
+                resolve(res.result);
+                return;
               }
-            );
-          } else {
-            // 取消收藏
-            return removeFromCollection(openid, type, targetId).then(() => {
-              // 更新原帖子的收藏统计
-              return updateTargetCollectionCount(type, targetId, -1);
+
+              // 云函数失败，回滚UI
+              context.setData({
+                isCollected: isCollected,
+                collectCount: currentCount,
+              });
+              reject(new Error(res.result?.error || "收藏操作失败"));
             });
-          }
         });
-      })
-      .then(() => {
-        resolve();
       })
       .catch((err) => {
         reject(err);
@@ -200,7 +229,6 @@ const addToCollection = function (openid, type, targetId, targetData) {
     const collectData = {
       type: type === "collect" ? "collect_post" : type,
       targetId: targetId,
-      _openid: openid,
       title:
         targetData.title || targetData.content?.substring(0, 30) || "未命名",
       image: targetData.image || targetData.images?.[0] || "",

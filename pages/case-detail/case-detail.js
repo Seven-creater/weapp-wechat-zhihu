@@ -267,50 +267,30 @@ Page({
         wx.vibrateShort();
         this.setData({ isLiked: !isLiked });
 
-        // 4. 后台静默处理云数据库
-        const db = wx.cloud.database();
-        const _cmd = db.command;
+        // 4. 后台静默处理云函数
+        wx.cloud
+          .callFunction({
+            name: "toggleInteraction",
+            data: {
+              id: postId,
+              collection: "posts",
+              type: "like",
+            },
+          })
+          .then((res) => {
+            if (res.result && res.result.success) {
+              this.setData({ isLiked: res.result.status });
+              return;
+            }
 
-        if (!isLiked) {
-          // 之前没赞 -> 添加点赞记录
-          db.collection("actions")
-            .add({
-              data: {
-                postId: postId,
-                type: "like_post",
-                title: title,
-                coverImg: heroImage,
-                createTime: db.serverDate(),
-              },
-            })
-            .then(() => {
-              wx.showToast({ title: "点赞成功", icon: "success" });
-            })
-            .catch((err) => {
-              console.error("点赞失败:", err);
-              // 如果失败，回滚 UI
-              that.setData({ isLiked: isLiked });
-              wx.showToast({ title: "点赞失败", icon: "none" });
-            });
-        } else {
-          // 之前赞了 -> 删除点赞记录
-          db.collection("actions")
-            .where({
-              postId: postId,
-              _openid: app.globalData.openid,
-              type: "like_post",
-            })
-            .remove()
-            .then(() => {
-              wx.showToast({ title: "已取消点赞", icon: "success" });
-            })
-            .catch((err) => {
-              console.error("取消点赞失败:", err);
-              // 如果失败，回滚 UI
-              that.setData({ isLiked: isLiked });
-              wx.showToast({ title: "取消点赞失败", icon: "none" });
-            });
-        }
+            throw new Error(res.result?.error || "操作失败");
+          })
+          .catch((err) => {
+            console.error("点赞失败:", err);
+            // 如果失败，回滚 UI
+            that.setData({ isLiked: isLiked });
+            wx.showToast({ title: "点赞失败", icon: "none" });
+          });
       })
       .catch(() => {
         // 未登录，不做任何操作
@@ -476,40 +456,39 @@ Page({
       updatedCommentList[commentIndex] = updatedComment;
       that.setData({ commentList: updatedCommentList });
 
-      if (isLiked) {
-        db.collection("actions")
-          .where({
-            postId: postId,
-            targetId: commentId,
-            _openid: openid,
-            type: "like_comment",
-          })
-          .remove()
-          .then(() => {
-            db.collection("comments")
-              .doc(commentId)
-              .update({
-                data: { likeCount: _.inc(-1) },
-              });
-          });
-      } else {
-        db.collection("actions")
-          .add({
-            data: {
-              postId: postId,
-              targetId: commentId,
-              type: "like_comment",
-              createTime: db.serverDate(),
-            },
-          })
-          .then(() => {
-            db.collection("comments")
-              .doc(commentId)
-              .update({
-                data: { likeCount: _.inc(1) },
-              });
-          });
-      }
+      wx.cloud
+        .callFunction({
+          name: "toggleInteraction",
+          data: {
+            id: commentId,
+            collection: "comments",
+            type: "like",
+          },
+        })
+        .then((res) => {
+          if (res.result && res.result.success) {
+            const serverCount = res.result.count;
+            const finalComment = {
+              ...updatedComment,
+              isLiked: res.result.status,
+              likeCount:
+                typeof serverCount === "number"
+                  ? serverCount
+                  : updatedComment.likeCount,
+            };
+            updatedCommentList[commentIndex] = finalComment;
+            that.setData({ commentList: updatedCommentList });
+            return;
+          }
+
+          throw new Error(res.result?.error || "操作失败");
+        })
+        .catch((err) => {
+          console.error("评论点赞失败:", err);
+          updatedCommentList[commentIndex] = comment;
+          that.setData({ commentList: updatedCommentList });
+          wx.showToast({ title: "操作失败", icon: "none" });
+        });
     });
   },
 

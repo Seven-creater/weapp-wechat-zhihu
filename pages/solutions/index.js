@@ -117,11 +117,21 @@ Page({
       return;
     }
 
+    const openid = wx.getStorageSync("openid");
+    if (!openid) {
+      const cleared = this.data.solutions.map((item) => ({
+        ...item,
+        isCollected: false,
+      }));
+      this.setData({ solutions: cleared });
+      return;
+    }
+
     db.collection("actions")
       .where(
         _.or([
-          { type: "collect_solution", targetId: _.in(ids) },
-          { type: "collect_solution", postId: _.in(ids) },
+          { type: "collect_solution", targetId: _.in(ids), _openid: openid },
+          { type: "collect_solution", postId: _.in(ids), _openid: openid },
         ])
       )
       .get()
@@ -321,15 +331,6 @@ Page({
         .toggleCollect(this, "collect_solution", solutionId, targetData)
         .catch((err) => {
           console.error("收藏操作失败:", err);
-          const rollbackSolutions = [...this.data.solutions];
-          rollbackSolutions[solutionIndex] = {
-            ...rollbackSolutions[solutionIndex],
-            isCollected: !newIsCollected,
-            collectCount: newIsCollected
-              ? Math.max(0, newCollectCount - 1)
-              : newCollectCount + 1,
-          };
-          this.setData({ solutions: rollbackSolutions });
           wx.showToast({ title: "操作失败，请重试", icon: "none" });
         });
     }

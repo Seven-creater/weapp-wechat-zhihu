@@ -405,13 +405,6 @@ ${currentDate}`;
       })
       .catch((err) => {
         console.error("收藏操作失败:", err);
-        // 操作失败时回滚UI状态
-        this.setData({
-          isCollected: !this.data.isCollected,
-          collectCount: this.data.isCollected
-            ? this.data.collectCount - 1
-            : this.data.collectCount + 1,
-        });
         wx.showToast({
           title: "操作失败，请重试",
           icon: "none",
