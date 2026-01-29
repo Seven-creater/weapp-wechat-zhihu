@@ -10,6 +10,21 @@ Page({
     isCollected: false,
     collectCount: 0,
     isPlaying: false,
+    caseDetail: {
+      id: 1,
+      title: "无障碍坡道改造案例",
+      description:
+        "本案例展示了如何在社区中改造无障碍坡道，解决了轮椅通行的难题。",
+      beforeImage: "/images/before.png",
+      afterImage: "/images/after.png",
+      budget: "¥5000",
+      steps: [
+        "评估现有坡道的坡度和宽度",
+        "设计符合标准的坡道方案",
+        "选择合适的材料并进行施工",
+        "完成后进行验收和用户反馈",
+      ],
+    },
   },
 
   onLoad: function (options) {
@@ -29,6 +44,18 @@ Page({
       this.loadSolutionDetail();
     }
     this.initVoicePlayer();
+  },
+
+  generateDoc: function () {
+    this.generateFeedbackLetter();
+  },
+
+  goToConstruction: function () {
+    const solutionId = this.data.solution?._id || this.data.id;
+    if (!solutionId) return;
+    wx.navigateTo({
+      url: `/pages/construction/construction?solutionId=${solutionId}`,
+    });
   },
 
   onUnload: function () {
@@ -357,7 +384,7 @@ ${currentDate}`;
           line.includes("建议") ||
           line.includes("应该") ||
           line.includes("需要") ||
-          line.includes("可以")
+          line.includes("可以"),
       );
 
     if (suggestions.length > 0) {
@@ -433,4 +460,8 @@ ${currentDate}`;
       });
   },
 
+  fetchCaseDetail(caseId) {
+    // Simulate fetching case details
+    console.log(`Fetching details for case ID: ${caseId}`);
+  },
 });

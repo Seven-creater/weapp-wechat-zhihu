@@ -1,145 +1,119 @@
 Page({
   data: {
-    showTypeFilterPopup: false,
-    typeFilters: ['无障碍设计', '社区花园', '不限'],
-    selectedTypes: ['不限'],
-    
+    typeFilters: [
+      "无障碍停车位",
+      "无障碍卫生间",
+      "无障碍坡道",
+      "无障碍电梯",
+      "无障碍升降台",
+    ],
+    selectedType: "无障碍停车位",
+
     showSortFilterPopup: false,
-    sortOptions: ['推荐', '最新', '浏览数', '点赞数', '评论数'],
-    selectedSort: '推荐',
-    
-    schemes: [
-      {
-        postId: 'post-001',
-        image: '/images/24280.jpg',
-        name: '城市社区无障碍花园改造',
-        author: '至简名设—钱春',
-        views: 7290,
-        tags: ['无障碍设计', '社区花园']
-      },
-      {
-        postId: 'post-002',
-        image: '/images/24213.jpg',
-        name: '老旧小区无障碍通道设计',
-        author: '杨振彪',
-        views: 1260,
-        tags: ['无障碍设计']
-      },
-      {
-        postId: 'post-003',
-        image: '/images/1444983318907-_DSC1826.jpg',
-        name: '居民共享社区花园',
-        author: 'CrazyKen',
-        views: 1869,
-        tags: ['社区花园']
-      },
-      {
-        postId: 'post-004',
-        image: '/images/icon1.jpeg',
-        name: '残疾人友好社区改造',
-        author: '一木设计宇哥',
-        views: 3301,
-        tags: ['无障碍设计']
-      },
-      {
-        postId: 'post-005',
-        image: '/images/icon8.jpg',
-        name: '屋顶社区花园设计',
-        author: '庄育霖',
-        views: 2560,
-        tags: ['社区花园']
-      },
-      {
-        postId: 'post-006',
-        image: '/images/icon9.jpeg',
-        name: '儿童无障碍游乐区设计',
-        author: '徐铭锴',
-        views: 4120,
-        tags: ['无障碍设计']
-      }
-    ]
+    sortOptions: ["推荐", "最新", "浏览数", "点赞数", "评论数"],
+    selectedSort: "推荐",
+
+    schemes: [],
+    loading: false,
   },
-  
-  onLoad: function() {
+
+  onLoad: function () {
+    this.loadSchemes();
   },
-  
-  onPullDownRefresh: function() {
+
+  loadSchemes: function () {
+    this.setData({ loading: true });
+    let orderBy = "createTime";
+    let order = "desc";
+    if (this.data.selectedSort === "浏览数") orderBy = "viewCount";
+    if (this.data.selectedSort === "点赞数") orderBy = "stats.like";
+    if (this.data.selectedSort === "评论数") orderBy = "stats.comment";
+
+    const category = this.data.selectedType || "";
+
+    wx.cloud
+      .callFunction({
+        name: "getPublicData",
+        data: {
+          collection: "solutions",
+          page: 1,
+          pageSize: 50,
+          orderBy,
+          order,
+          status: "已完成",
+          category: category || undefined,
+        },
+      })
+      .then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || "加载失败");
+        }
+
+        const list = (res.result.data || []).map((item) => {
+          const image =
+            item.imageUrl ||
+            item.beforeImg ||
+            item.coverImage ||
+            item.afterImg ||
+            "";
+          const tags = item.category ? [item.category] : [];
+          return {
+            postId: item._id,
+            image,
+            name: item.title || "无障碍案例",
+            author: item.status || "方案",
+            views: item.viewCount || 0,
+            tags,
+          };
+        });
+
+        this.setData({ schemes: list, loading: false });
+      })
+      .catch((err) => {
+        console.error("加载案例库失败:", err);
+        this.setData({ loading: false, schemes: [] });
+      });
+  },
+
+  onPullDownRefresh: function () {
+    this.loadSchemes();
     wx.stopPullDownRefresh();
   },
-  
-  showTypeFilter: function() {
-    this.setData({
-      showTypeFilterPopup: true,
-      showSortFilterPopup: false
-    });
-  },
-  
-  hideTypeFilter: function() {
-    this.setData({
-      showTypeFilterPopup: false
-    });
-  },
-  
-  toggleTypeFilter: function(e) {
+
+  selectType: function (e) {
     const type = e.currentTarget.dataset.type;
-    let selectedTypes = this.data.selectedTypes;
-    
-    if (type === '不限') {
-      selectedTypes = ['不限'];
-    } else {
-      if (selectedTypes.indexOf('不限') > -1) {
-        selectedTypes = selectedTypes.filter(item => item !== '不限');
-      }
-      
-      const index = selectedTypes.indexOf(type);
-      if (index > -1) {
-        selectedTypes.splice(index, 1);
-      } else {
-        selectedTypes.push(type);
-      }
-      
-      if (selectedTypes.length === 0) {
-        selectedTypes = ['不限'];
-      }
-    }
-    
-    this.setData({
-      selectedTypes: selectedTypes
-    });
+    if (!type || type === this.data.selectedType) return;
+    this.setData({ selectedType: type }, () => this.loadSchemes());
   },
-  
-  confirmTypeFilter: function() {
-    this.hideTypeFilter();
-  },
-  
-  showSortFilter: function() {
+
+  showSortFilter: function () {
     this.setData({
       showSortFilterPopup: true,
-      showTypeFilterPopup: false
     });
   },
-  
-  hideSortFilter: function() {
+
+  hideSortFilter: function () {
     this.setData({
-      showSortFilterPopup: false
+      showSortFilterPopup: false,
     });
   },
-  
-  selectSort: function(e) {
+
+  selectSort: function (e) {
     const sort = e.currentTarget.dataset.sort;
     this.setData({
-      selectedSort: sort
+      selectedSort: sort,
     });
   },
-  
-  confirmSortFilter: function() {
+
+  confirmSortFilter: function () {
     this.hideSortFilter();
+    this.loadSchemes();
   },
-  
-  goToDetail: function(e) {
+
+  goToDetail: function (e) {
     const postId = e.currentTarget.dataset.postid;
     wx.navigateTo({
-      url: '/pages/case-detail/case-detail?postId=' + postId
+      url: "/pages/case-detail/case-detail?postId=" + postId,
     });
-  }
-})
+  },
+});

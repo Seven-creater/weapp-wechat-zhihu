@@ -1,3 +1,5 @@
+const app = getApp();
+
 Page({
   data: { userInfo: null },
 
@@ -11,14 +13,15 @@ Page({
 
   // 1. 登录
   handleLogin() {
-    wx.getUserProfile({
-      desc: "同步个人数据",
-      success: (res) => {
-        this.setData({ userInfo: res.userInfo });
-        wx.setStorageSync("userInfo", res.userInfo);
+    app
+      .login()
+      .then(({ userInfo }) => {
+        this.setData({ userInfo });
         wx.showToast({ title: "欢迎回来" });
-      },
-    });
+      })
+      .catch(() => {
+        wx.showToast({ title: "登录失败", icon: "none" });
+      });
   },
 
   // 2. 跳转导航

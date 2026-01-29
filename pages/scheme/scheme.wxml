@@ -1,40 +1,27 @@
 <view class="scheme-container">
   <view class="header">
-    <text class="title">优秀案例</text>
+    <text class="title">无障碍案例库</text>
     <view class="header-right">
       <image class="icon" src="/images/more.png"></image>
       <image class="icon" src="/images/search.png"></image>
     </view>
   </view>
-  
+
+  <scroll-view scroll-x class="type-tabs" enable-flex>
+    <view
+      class="type-tab {{selectedType === item ? 'active' : ''}}"
+      wx:for="{{typeFilters}}"
+      wx:key="index"
+      bindtap="selectType"
+      data-type="{{item}}"
+    >
+      {{item}}
+    </view>
+  </scroll-view>
+
   <view class="filter-bar">
-    <view class="filter-item" bindtap="showTypeFilter">
-      主题分类
-      <image class="arrow" src="/images/more.png"></image>
-    </view>
     <view class="filter-item" bindtap="showSortFilter">
-      推荐
-      <image class="arrow" src="/images/more.png"></image>
-    </view>
-  </view>
-  
-  <!-- 主题分类筛选弹窗 -->
-  <view class="filter-popup" wx:if="{{showTypeFilterPopup}}">
-    <view class="popup-content">
-      <view class="popup-header">
-        <text class="popup-title">主题分类</text>
-        <view class="popup-actions">
-          <text class="cancel-btn" bindtap="hideTypeFilter">取消</text>
-          <text class="confirm-btn" bindtap="confirmTypeFilter">确认</text>
-        </view>
-      </view>
-      <view class="filter-options">
-        <view class="option-item" wx:for="{{typeFilters}}" wx:key="index" 
-              class="{{selectedTypes.indexOf(item) > -1 ? 'active' : ''}}" 
-              bindtap="toggleTypeFilter" data-type="{{item}}">
-          {{item}}
-        </view>
-      </view>
+      {{selectedSort}}
     </view>
   </view>
   
@@ -72,5 +59,7 @@
         </view>
       </view>
     </view>
+    <view class="empty" wx:if="{{!loading && schemes.length === 0}}">暂无案例</view>
+    <view class="loading" wx:if="{{loading}}">加载中...</view>
   </view>
 </view>

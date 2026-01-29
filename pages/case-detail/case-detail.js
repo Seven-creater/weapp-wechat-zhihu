@@ -83,9 +83,11 @@ Page({
   },
 
   onLoad: function (options) {
-    const postId = options.postId || "post-001";
+    const postId = options.postId || "";
     this.setData({ postId });
-    this.initData(postId);
+    if (postId) {
+      this.initData(postId);
+    }
     // 只有在用户登录后才启动实时监听
     if (app.globalData.openid) {
       this.watchComments(postId);
@@ -140,6 +142,8 @@ Page({
   initData: function (postId) {
     const that = this;
 
+    this.loadSolutionDetail(postId);
+
     // 获取评论列表
     db.collection("comments")
       .where({
@@ -165,9 +169,93 @@ Page({
       that.getActionStatus(postId);
     } else {
       collectUtil
-        .initCollectStatus(that, "collect_post", postId)
+        .initCollectStatus(that, "collect_solution", postId)
         .catch(() => {});
     }
+  },
+
+  loadSolutionDetail: function (solutionId) {
+    wx.cloud
+      .callFunction({
+        name: "getPublicData",
+        data: {
+          collection: "solutions",
+          docId: solutionId,
+        },
+      })
+      .then(async (res) => {
+        if (!res.result || !res.result.success || !res.result.data) {
+          throw new Error(res.result?.error || "获取方案详情失败");
+        }
+
+        const solution = res.result.data;
+        const imageCandidates = [
+          solution.beforeImg,
+          solution.afterImg,
+          solution.imageUrl,
+          solution.coverImage,
+        ].filter(Boolean);
+
+        const heroImage = imageCandidates[0] || "/images/24280.jpg";
+
+        const content = [];
+        if (solution.aiAnalysis) {
+          content.push({
+            type: "highlight",
+            content: String(solution.aiAnalysis),
+          });
+        }
+        if (solution.userSuggestion) {
+          content.push({
+            type: "text",
+            content: String(solution.userSuggestion),
+          });
+        }
+
+        const detail = {
+          title: solution.title || "无障碍案例",
+          subtitle: solution.category || solution.status || "",
+          location: solution.formattedAddress || solution.address || "",
+          team: "",
+          year: "",
+          area: "",
+          heroImage,
+          content:
+            content.length > 0 ? content : this.data.projectDetail.content,
+          gallery:
+            imageCandidates.length > 0
+              ? imageCandidates
+              : this.data.projectDetail.gallery,
+          designer: {
+            avatar: "/images/icon8.jpg",
+            name: "社区用户",
+            bio: "",
+          },
+          tags: solution.category ? [solution.category] : [],
+        };
+
+        if (solution._openid) {
+          const userRes = await db
+            .collection("users")
+            .where({ _openid: solution._openid })
+            .limit(1)
+            .get()
+            .catch(() => ({ data: [] }));
+          const userInfo = userRes.data?.[0]?.userInfo;
+          if (userInfo) {
+            detail.designer = {
+              avatar: userInfo.avatarUrl || detail.designer.avatar,
+              name: userInfo.nickName || detail.designer.name,
+              bio: userInfo.province || "",
+            };
+          }
+        }
+
+        this.setData({ projectDetail: detail });
+      })
+      .catch((err) => {
+        console.error("加载方案详情失败:", err);
+      });
   },
 
   // 获取点赞和收藏状态
@@ -177,18 +265,22 @@ Page({
 
     // 获取点赞状态
     db.collection("actions")
-      .where({
-        postId: postId,
-        _openid: openid,
-        type: "like_post",
-      })
+      .where(
+        _.and([
+          { _openid: openid },
+          { type: _.in(["like_solution", "like"]) },
+          _.or([{ targetId: postId }, { postId: postId }]),
+        ]),
+      )
       .get()
       .then((res) => {
         that.setData({ isLiked: res.data.length > 0 });
       });
 
     // 获取收藏状态
-    collectUtil.initCollectStatus(that, "collect_post", postId).catch(() => {});
+    collectUtil
+      .initCollectStatus(that, "collect_solution", postId)
+      .catch(() => {});
   },
 
   getCommentLikeStatus: function (postId, commentList) {
@@ -196,13 +288,16 @@ Page({
     const openid = app.globalData.openid;
 
     if (!openid) return;
+    if (!Array.isArray(commentList) || commentList.length === 0) return;
 
     db.collection("actions")
-      .where({
-        postId: postId,
-        _openid: openid,
-        type: "like_comment",
-      })
+      .where(
+        _.and([
+          { postId: postId },
+          { _openid: openid },
+          { type: _.in(["like_comment", "like"]) },
+        ]),
+      )
       .get()
       .then((res) => {
         const likedCommentIds = res.data.map((action) => action.targetId);
@@ -273,7 +368,7 @@ Page({
             name: "toggleInteraction",
             data: {
               id: postId,
-              collection: "posts",
+              collection: "solutions",
               type: "like",
             },
           })
@@ -307,7 +402,7 @@ Page({
     };
 
     collectUtil
-      .toggleCollect(this, "collect_post", postId, targetData)
+      .toggleCollect(this, "collect_solution", postId, targetData)
       .catch((err) => {
         console.error("收藏操作失败:", err);
         this.setData({ isCollected: !this.data.isCollected });
@@ -439,7 +534,7 @@ Page({
       const openid = app.globalData.openid;
 
       const commentIndex = commentList.findIndex(
-        (item) => item._id === commentId
+        (item) => item._id === commentId,
       );
       if (commentIndex === -1) return;
 

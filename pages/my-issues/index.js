@@ -106,6 +106,9 @@ Page({
         reject(false);
       }
     });
+          })
+          .catch(() => {});
+      });
   },
 
   onTabChange: function (e) {
@@ -153,11 +156,12 @@ Page({
       .get()
       .then((res) => {
         console.log("查询结果数量:", res.data.length);
-        console.log("查询结果数据:", JSON.stringify(res.data, null, 2));
-
-        const newIssues = res.data.map((issue) => {
           // 兼容 aiAnalysis 和 aiSolution 字段
           const aiText = issue.aiAnalysis || issue.aiSolution || "";
+
+        const newIssues = res.data.map((issue) => {
+          const aiText =
+            issue.diagnosis || issue.aiSolution || issue.aiAnalysis || "";
           // 截取前30个字作为摘要
           const aiSummary =
             aiText.length > 30

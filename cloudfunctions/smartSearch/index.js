@@ -11,7 +11,7 @@ const _ = db.command;
 
 // DeepSeek API 配置
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_API_KEY = 'sk-89c1cf66b1b145488fff26f421860840';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 // 智能搜索主函数
 exports.main = async (event, context) => {
@@ -40,41 +40,39 @@ exports.main = async (event, context) => {
     
     console.log(`开始智能搜索：集合=${collection}, 关键词=${keyword}`);
     
-    // 1. 调用DeepSeek API获取核心关键词
-    console.log('调用DeepSeek API分析关键词...');
-    
-    const aiResponse = await axios.post(
-      DEEPSEEK_API_URL,
-      {
-        model: 'deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: '你是一个搜索查询优化器。用户输入了：\'${keyword}\'。请分析其意图，提取 3-5 个核心搜索关键词。只返回关键词，用逗号分隔，不要任何其他废话。'
-              .replace('${keyword}', keyword)
-          }
-        ],
-        temperature: 0.1
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
+    let keywords = [keyword];
+    if (DEEPSEEK_API_KEY) {
+      console.log('调用DeepSeek API分析关键词...');
+      
+      const aiResponse = await axios.post(
+        DEEPSEEK_API_URL,
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个搜索查询优化器。用户输入了：\'${keyword}\'。请分析其意图，提取 3-5 个核心搜索关键词。只返回关键词，用逗号分隔，不要任何其他废话。'
+                .replace('${keyword}', keyword)
+            }
+          ],
+          temperature: 0.1
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 20000
+        }
+      );
+      
+      if (aiResponse.data && aiResponse.data.choices && aiResponse.data.choices[0]) {
+        const rawKeywords = aiResponse.data.choices[0].message.content.trim();
+        const parsed = rawKeywords.split(',').map(key => key.trim()).filter(Boolean);
+        if (parsed.length) {
+          keywords = parsed;
         }
       }
-    );
-    
-    let keywords = [];
-    if (aiResponse.data && aiResponse.data.choices && aiResponse.data.choices[0]) {
-      const rawKeywords = aiResponse.data.choices[0].message.content.trim();
-      keywords = rawKeywords.split(',').map(key => key.trim()).filter(Boolean);
-      console.log(`DeepSeek返回关键词：${rawKeywords}`);
-    }
-    
-    // 如果AI没有返回有效关键词，使用原始关键词
-    if (keywords.length === 0) {
-      keywords = [keyword];
-      console.log('使用原始关键词进行搜索');
     }
     
     // 2. 构造数据库查询条件

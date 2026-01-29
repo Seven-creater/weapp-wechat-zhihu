@@ -60,6 +60,7 @@ Page({
         pageSize: pageSize,
         orderBy: "createTime",
         order: "desc",
+        ...(currentCategory ? { category: currentCategory } : {}),
       },
       success: (res) => {
         if (res.result && res.result.success) {
@@ -68,7 +69,7 @@ Page({
           newSolutions = newSolutions.map((item) => ({
             ...item,
             imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
-            title: item.title || "无障碍方案",
+            title: item.title || "无障碍案例",
           }));
 
           const allSolutions = reset
@@ -132,12 +133,12 @@ Page({
         _.or([
           { type: "collect_solution", targetId: _.in(ids), _openid: openid },
           { type: "collect_solution", postId: _.in(ids), _openid: openid },
-        ])
+        ]),
       )
       .get()
       .then((res) => {
         const collectedIds = new Set(
-          res.data.map((item) => item.targetId || item.postId)
+          res.data.map((item) => item.targetId || item.postId),
         );
 
         // 更新收藏状态
@@ -223,26 +224,27 @@ Page({
         pageSize: 50,
         orderBy: "createTime",
         order: "desc",
+        ...(this.data.currentCategory
       },
       success: (res) => {
-        wx.hideLoading();
-
+      })
+      .then((result) => {
         if (res.result && res.result.success) {
           let newSolutions = res.result.data;
 
           newSolutions = newSolutions.map((item) => ({
             ...item,
             imageUrl: item.imageUrl || item.beforeImg || item.coverImage || "",
-            title: item.title || "无障碍方案",
+            title: item.title || "无障碍案例",
           }));
-
+          title: item.title || "无障碍案例",
           this.setData({
             solutions: newSolutions,
             hasMore: false,
             loading: false,
             page: 1,
           });
-
+          page: 1,
           this.attachCollectStatus(newSolutions);
 
           console.log("关键词搜索完成，找到", newSolutions.length, "条结果");
@@ -254,15 +256,16 @@ Page({
         }
       },
       fail: (err) => {
-        wx.hideLoading();
-        console.error("搜索失败:", err);
+      })
+      .catch((err) => {
         this.setData({ isSearchMode: false });
-        wx.showToast({
+        wx.hideLoading();
           title: "搜索失败，请重试",
-          icon: "none",
-        });
+        wx.showToast({
+          title: (err && err.message) || "搜索失败",
       },
     });
+      });
   },
 
   // 跳转到详情页
@@ -277,7 +280,7 @@ Page({
   updateSolutionStatus: function (solutionId, status) {
     const solutions = this.data.solutions;
     const solutionIndex = solutions.findIndex(
-      (item) => item._id === solutionId
+      (item) => item._id === solutionId,
     );
 
     if (solutionIndex !== -1) {
@@ -300,7 +303,7 @@ Page({
     const solutionId = e.currentTarget.dataset.id;
     const solutions = this.data.solutions;
     const solutionIndex = solutions.findIndex(
-      (item) => item._id === solutionId
+      (item) => item._id === solutionId,
     );
 
     if (solutionIndex !== -1) {

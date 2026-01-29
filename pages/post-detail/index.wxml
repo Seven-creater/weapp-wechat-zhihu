@@ -3,16 +3,26 @@
   <view class="post-content-section" wx:if="{{post}}">
     <!-- 帖子头部 -->
     <view class="user-info-card">
-      <image class="avatar" src="{{post.userInfo.avatarUrl}}" mode="aspectFill" aria-hidden="true"></image>
+      <image class="avatar" src="{{post.userInfo.avatarUrl}}" mode="aspectFill" aria-hidden="true" bindtap="navigateToProfile" data-id="{{post._openid}}"></image>
       
       <view class="info-right">
         <!-- 第一行：名字 + 标签 -->
         <view class="name-row">
-          <text class="nickname">{{post.userInfo.nickName}}</text>
-          <!-- 路障反馈标签 -->
+          <text class="nickname" bindtap="navigateToProfile" data-id="{{post._openid}}">{{post.userInfo.nickName}}</text>
+          <view class="follow-btn {{isFollowing ? 'followed' : ''}}" bindtap="toggleFollow" wx:if="{{!post.isOwner}}">
+            {{isFollowing ? '已关注' : '关注'}}
+          </view>
           <view class="tag-badge" wx:if="{{post.type === 'issue'}}">
             <text class="tag-icon">🚧</text>
-            <text>路障反馈</text>
+            <text>{{post.category || '随手拍'}}</text>
+          </view>
+          <view class="tag-badge" wx:elif="{{post.type === 'case'}}">
+            <text class="tag-icon">🏗️</text>
+            <text>{{post.category || '案例'}}</text>
+          </view>
+          <view class="tag-badge tag-share" wx:elif="{{post.type === 'community'}}">
+            <text class="tag-icon">💬</text>
+            <text>社区</text>
           </view>
           <view class="tag-badge tag-help" wx:elif="{{post.type === 'help'}}">
             <text class="tag-icon">❓</text>

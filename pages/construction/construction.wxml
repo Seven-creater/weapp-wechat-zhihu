@@ -1,0 +1,73 @@
+<view class="construction-container">
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">
+      <image class="back-icon" src="/images/arrow-right-yellow.png" style="transform: rotate(180deg);"></image>
+    </view>
+    <text class="title">施工服务对接</text>
+    <view class="header-right"></view>
+  </view>
+
+  <!-- Project Summary -->
+  <view class="section project-summary">
+    <text class="section-title">项目概况</text>
+    <view class="summary-item">
+      <text class="label">改造类型</text>
+      <text class="value">{{(solution.plan && solution.plan.schemeName) ? (solution.plan.schemeName + '（' + (solution.plan.material || '') + '）') : (solution.category || '未生成方案')}}</text>
+    </view>
+    <view class="summary-item">
+      <text class="label">预估造价</text>
+      <text class="value price">¥{{(solution.plan && solution.plan.totalCost) ? solution.plan.totalCost : '--'}}</text>
+    </view>
+    <view class="summary-item">
+      <text class="label">施工地点</text>
+      <text class="value">{{solution.formattedAddress || solution.address || '未知'}}</text>
+    </view>
+  </view>
+
+  <!-- Team Selection -->
+  <view class="section">
+    <text class="section-title">推荐施工团队</text>
+    <view class="team-list">
+      <view class="team-card {{selectedTeam === item.id ? 'active' : ''}}" wx:for="{{teams}}" wx:key="id" bindtap="selectTeam" data-id="{{item.id}}">
+        <image class="team-logo" src="{{item.logo}}" />
+        <view class="team-info">
+          <view class="team-header">
+            <text class="team-name">{{item.name}}</text>
+            <text class="team-rating">★ {{item.rating}}</text>
+          </view>
+          <text class="team-tags">{{item.tags}}</text>
+          <text class="team-cases">已完成 {{item.cases}} 单</text>
+        </view>
+        <icon type="success" size="24" color="#0a2463" wx:if="{{selectedTeam === item.id}}" />
+      </view>
+    </view>
+  </view>
+
+  <!-- Progress Tracking (Mock) -->
+  <view class="section" wx:if="{{projectStatus !== 'pending'}}">
+    <text class="section-title">施工进度</text>
+    <view class="progress-timeline">
+      <view class="timeline-item {{item.done ? 'done' : ''}}" wx:for="{{timeline}}" wx:key="index">
+        <view class="timeline-dot"></view>
+        <view class="timeline-content">
+          <text class="timeline-title">{{item.title}}</text>
+          <text class="timeline-date">{{item.date}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Action Button -->
+  <view class="action-area">
+    <button class="submit-btn" bindtap="submitRequest" wx:if="{{projectStatus === 'pending'}}">确认并联系施工方</button>
+    <view wx:elif="{{projectStatus === 'active'}}">
+      <button class="contact-btn" bindtap="contactTeam">联系施工方</button>
+      <button class="submit-btn" bindtap="advanceStage" style="margin-top: 20rpx;">推进到下一节点</button>
+      <button class="submit-btn" bindtap="chooseAfterImage" style="margin-top: 20rpx;">上传完工照片并验收</button>
+    </view>
+    <view wx:else>
+      <button class="contact-btn" bindtap="contactTeam">联系施工方</button>
+      <button class="submit-btn" bindtap="publishCase" style="margin-top: 20rpx;">发布为社区案例</button>
+    </view>
+  </view>
+</view>

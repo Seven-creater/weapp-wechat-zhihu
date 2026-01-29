@@ -20,6 +20,12 @@ App({
       // 恢复全局登录状态
       this.globalData.userInfo = userInfo;
       this.globalData.openid = openid;
+
+      // 立即触发登录成功事件，确保页面及时更新
+      this.triggerLoginSuccess(userInfo, openid);
+
+      // 异步同步本地资料为云端最新资料（仅头像/昵称）
+      this.syncUserInfoFromCloud(openid, userInfo);
       return;
     }
 
@@ -29,11 +35,97 @@ App({
           this.globalData.userInfo = userInfo;
           this.globalData.openid = openidFromCloud;
           wx.setStorageSync("openid", openidFromCloud);
+          // 触发登录成功事件
+          this.triggerLoginSuccess(userInfo, openidFromCloud);
+          // 同步用户信息到云端
+          this.syncUserInfoToCloud(openidFromCloud, userInfo);
         })
         .catch((err) => {
           console.error("获取openid失败:", err);
         });
     }
+  },
+
+  // 从云端同步用户信息
+  syncUserInfoFromCloud: function (openid, localUserInfo) {
+    const db = wx.cloud.database();
+    db.collection("users")
+      .where({ _openid: openid })
+      .limit(1)
+      .get()
+      .then((res) => {
+        const doc = res.data && res.data[0];
+        if (doc) {
+          const latest = {
+            avatarUrl:
+              doc.avatarUrl ||
+              (doc.userInfo && doc.userInfo.avatarUrl) ||
+              localUserInfo.avatarUrl,
+            nickName:
+              doc.nickName ||
+              (doc.userInfo && doc.userInfo.nickName) ||
+              localUserInfo.nickName,
+          };
+
+          // 只有当云端数据与本地数据不同时才更新
+          if (
+            latest.avatarUrl !== localUserInfo.avatarUrl ||
+            latest.nickName !== localUserInfo.nickName
+          ) {
+            const merged = { ...localUserInfo, ...latest };
+            this.globalData.userInfo = merged;
+            wx.setStorageSync("userInfo", merged);
+            // 通知页面用户信息已更新
+            this.triggerLoginSuccess(merged, openid);
+          }
+        }
+      })
+      .catch(() => {});
+  },
+
+  // 同步用户信息到云端
+  syncUserInfoToCloud: function (openid, userInfo) {
+    const db = wx.cloud.database();
+    const baseData = {
+      nickName: userInfo.nickName || "匿名用户",
+      avatarUrl: userInfo.avatarUrl || "/images/zhi.png",
+      userInfo: userInfo,
+    };
+
+    db.collection("users")
+      .where({ _openid: openid })
+      .get()
+      .then((res) => {
+        if (res.data.length === 0) {
+          // 新用户
+          db.collection("users").add({
+            data: {
+              ...baseData,
+              _openid: openid,
+              createTime: db.serverDate(),
+              updatedAt: db.serverDate(),
+              loginCount: 1,
+              lastLoginTime: db.serverDate(),
+            },
+          });
+        } else {
+          // 更新现有用户
+          db.collection("users")
+            .doc(res.data[0]._id)
+            .update({
+              data: {
+                nickName: baseData.nickName,
+                avatarUrl: baseData.avatarUrl,
+                userInfo: baseData.userInfo,
+                updatedAt: db.serverDate(),
+                lastLoginTime: db.serverDate(),
+                loginCount: db.command.inc(1),
+              },
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
   },
 
   globalData: {
@@ -108,20 +200,47 @@ App({
                 })
                 .get()
                 .then((res) => {
+                  const baseData = {
+                    _openid: openid,
+                    nickName: userInfo.nickName || "匿名用户",
+                    avatarUrl: userInfo.avatarUrl || "/images/zhi.png",
+                    userInfo: userInfo,
+                  };
                   if (res.data.length === 0) {
-                    // 新用户，插入数据
+                    // 新用户，插入数据（顶层字段 + 备份 userInfo）
                     db.collection("users").add({
                       data: {
-                        userInfo: userInfo,
-                        _openid: openid,
+                        ...baseData,
                         createTime: db.serverDate(),
+                        updatedAt: db.serverDate(),
+                        loginCount: 1,
+                        lastLoginTime: db.serverDate(),
                       },
                     });
+                  } else {
+                    // 已存在，写入最新头像/昵称
+                    db.collection("users")
+                      .doc(res.data[0]._id)
+                      .update({
+                        data: {
+                          nickName: baseData.nickName,
+                          avatarUrl: baseData.avatarUrl,
+                          userInfo: baseData.userInfo,
+                          updatedAt: db.serverDate(),
+                          lastLoginTime: db.serverDate(),
+                          loginCount: db.command.inc(1),
+                        },
+                      })
+                      .catch(() => {});
                   }
+
+                  // 触发全局登录成功事件
+                  that.triggerLoginSuccess(userInfo, openid);
                 })
                 .catch((err) => {
                   console.error("用户数据保存失败:", err);
                   // 即使数据库保存失败，也不影响登录
+                  that.triggerLoginSuccess(userInfo, openid);
                 });
 
               resolve({ userInfo, openid });
@@ -136,6 +255,16 @@ App({
           reject(err);
         },
       });
+    });
+  },
+
+  // 触发登录成功事件，通知所有页面更新用户信息
+  triggerLoginSuccess: function (userInfo, openid) {
+    const pages = getCurrentPages();
+    pages.forEach((page) => {
+      if (page.onLoginSuccess && typeof page.onLoginSuccess === "function") {
+        page.onLoginSuccess(userInfo, openid);
+      }
     });
   },
 });

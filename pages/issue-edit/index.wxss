@@ -187,10 +187,65 @@ page {
   margin-bottom: 10rpx;
 }
 
-.location-text {
+.section-title {
+  margin-right: 16rpx;
+}
+
+.section-title + .category-required {
+  margin-left: 0;
+}
+
+.category-required {
+  display: inline-block;
+  margin-left: 6rpx;
+  font-size: 24rpx;
+  color: #ff4d4f;
+  vertical-align: middle;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.category-item {
+  background-color: #ffffff;
+  border-radius: 18rpx;
+  padding: 20rpx 10rpx;
+  text-align: center;
+  border: 2rpx solid #e6ecf5;
+  box-shadow: 0 6rpx 16rpx rgba(10, 36, 99, 0.08);
+}
+
+.category-item.active {
+  border-color: #002fa7;
+  box-shadow: 0 8rpx 20rpx rgba(0, 47, 167, 0.18);
+}
+
+.category-text {
   font-size: 26rpx;
   color: #0a2463;
 }
+
+.contact-input {
+  width: 100%;
+  background-color: #f8f8f8;
+  border: 2rpx dashed #cccccc;
+  border-radius: 12rpx;
+  padding: 18rpx 20rpx;
+  font-size: 26rpx;
+  color: #0a2463;
+}
+
+.contact-hint {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #8a96ad;
+}
+
 
 .reselect-btn {
   background-color: #0a2463;

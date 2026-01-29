@@ -1,6 +1,7 @@
 // 通用收藏功能工具函数
 const db = wx.cloud.database();
 const _ = db.command;
+const toggleCollectLocks = new Set();
 
 /**
  * actions 集合数据库结构
@@ -151,6 +152,18 @@ const getCollectCount = function (type, targetId) {
  */
 const toggleCollect = function (context, type, targetId, targetData) {
   return new Promise((resolve, reject) => {
+    const lockKey = `${type}:${targetId}`;
+    if (toggleCollectLocks.has(lockKey)) {
+      resolve({
+        success: true,
+        status: !!context.data.isCollected,
+        count: context.data.collectCount || 0,
+      });
+      return;
+    }
+
+    toggleCollectLocks.add(lockKey);
+
     // 1. 检查登录状态
     checkLogin()
       .then(() => {
@@ -215,6 +228,9 @@ const toggleCollect = function (context, type, targetId, targetData) {
       })
       .catch((err) => {
         reject(err);
+      })
+      .finally(() => {
+        toggleCollectLocks.delete(lockKey);
       });
   });
 };

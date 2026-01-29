@@ -1,83 +1,61 @@
-<!--logs.wxml-->
-<view class="top-tab flex-wrp flex-tab">
-  <view class="toptab flex-item {{currentNavtab==idx ? 'active' : ''}}" wx:for="{{navTab}}" wx:for-index="idx" wx:for-item="itemName" data-idx="{{idx}}" bindtap="switchTab">
-    {{itemName}}
+<view class="notify-container">
+  <!-- Top Tabs -->
+  <view class="top-tabs">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">消息</view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{1}}">私信</view>
+  </view>
+
+  <!-- Message List -->
+  <scroll-view scroll-y class="message-list">
+    
+    <!-- Tab 0: Notifications (Likes, Comments, System) -->
+    <block wx:if="{{currentTab === 0}}">
+      <block wx:for="{{noticeItems}}" wx:key="key">
+        <view class="message-item" bindtap="onNoticeTap" data-key="{{item.key}}">
+          <view class="avatar-box {{item.className}}">
+            <image class="avatar-icon" src="{{item.icon}}" />
+          </view>
+          <view class="message-content">
+            <view class="message-header">
+              <text class="sender-name">{{item.title}}</text>
+              <text class="message-time">{{item.time}}</text>
+            </view>
+            <view class="message-preview">{{item.preview}}</view>
+          </view>
+          <view class="unread-dot" wx:if="{{item.unread > 0}}"></view>
+        </view>
+      </block>
+      <view class="empty-state" wx:if="{{noticeItems.length === 0}}">
+        <text>暂无通知</text>
+      </view>
+    </block>
+
+    <!-- Tab 1: Chat Messages -->
+    <block wx:if="{{currentTab === 1}}">
+      <block wx:for="{{messages}}" wx:key="id">
+        <view class="message-item" bindtap="onChatTap" data-id="{{item.id}}">
+          <image class="user-avatar" src="{{item.avatar}}" />
+          <view class="message-content">
+            <view class="message-header">
+              <text class="sender-name">{{item.name}}</text>
+              <text class="message-time">{{item.time}}</text>
+            </view>
+            <view class="message-preview">{{item.preview}}</view>
+          </view>
+          <view class="unread-badge" wx:if="{{item.unread > 0}}">{{item.unread}}</view>
+        </view>
+      </block>
+      
+      <view wx:if="{{messages.length === 0}}" class="empty-state">
+        <text>暂无私信</text>
+      </view>
+    </block>
+
+  </scroll-view>
+  <view class="list-footer" wx:if="{{messageLoading || noticeLoading}}">
+    <text class="footer-text">加载中...</text>
+  </view>
+  <view class="list-footer" wx:if="{{currentTab === 1 && !messageLoading && !messageHasMore && messages.length > 0}}">
+    <text class="footer-text">没有更多了</text>
   </view>
 </view>
-<scroll-view scroll-y="true" class="container notify withtab" bindscrolltoupper="upper" bindscrolltolower="lower" bindscroll="scroll" scroll-into-view="{{toView}}" scroll-top="{{scrollTop}}">
-  <view class="ctnt0" hidden="{{currentNavtab==0 ? '' : true}}">
-    <view class="unread">
-      <text>0 条未读</text>
-      <image src="../../images/allread.png"></image>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-    <view class="notify-item flex-wrp">
-      <view class="avatar flex-item">
-        <image src="../../images/icon1.jpeg"></image>
-      </view>
-      <view class="notify-content flex-item">
-        <text class="notify-source">Rebecca  回答了问题</text>
-        <text class="notify-title">C#如何在不覆盖原有文件的情况下直接修改某一部分的内容？</text>
-      </view>
-    </view>
-  </view>
-  <view class="ctnt1 placehold" hidden="{{currentNavtab==1 ? '' : true}}">
-    <text>赞与感谢</text>
-  </view>
-  <view class="ctnt2 placehold" hidden="{{currentNavtab==2 ? '' : true}}">
-    <text>关注</text>
-  </view>
-</scroll-view>

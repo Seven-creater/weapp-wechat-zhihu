@@ -9,10 +9,14 @@ npm install
 ```
 
 ### 2. 填写API Key
-在 `cloudfunctions/smartSearch/index.js` 中，找到并填写你的DeepSeek API Key：
+在云函数环境变量中配置你的 DeepSeek API Key（推荐），避免将密钥写入代码仓库。
+
+在 `cloudfunctions/smartSearch/index.js` 中会从环境变量读取：
 ```javascript
-const DEEPSEEK_API_KEY = 'your-deepseek-api-key'; // 替换为你的API Key
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 ```
+
+如果未配置 `DEEPSEEK_API_KEY`，云函数会降级为使用用户原始关键词进行搜索（不调用 DeepSeek）。
 
 ### 3. 部署云函数
 右键点击 `cloudfunctions/smartSearch` 文件夹，选择 **"上传并部署：云端安装依赖"**

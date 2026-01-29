@@ -47,6 +47,7 @@ Page({
   // 初始化检查点赞和收藏状态
   checkStatus: function () {
     const db = wx.cloud.database();
+    const _ = db.command;
     const currentId = this.data.id;
     const openid = this.getOpenid();
 
@@ -55,21 +56,17 @@ Page({
     }
 
     db.collection("actions")
-      .where({
-        _openid: openid,
-        postId: currentId,
-        type: "like",
-      })
+      .where(
+        _.and([
+          { _openid: openid },
+          { type: _.in(["like_post", "like"]) },
+          _.or([{ targetId: currentId }, { postId: currentId }]),
+        ])
+      )
       .get()
       .then((res) => {
         console.log("检查状态结果:", res);
-        let isLiked = false;
-
-        res.data.forEach((item) => {
-          if (item.type === "like") {
-            isLiked = true;
-          }
-        });
+        const isLiked = res.data.length > 0;
 
         this.setData({
           isLiked: isLiked,

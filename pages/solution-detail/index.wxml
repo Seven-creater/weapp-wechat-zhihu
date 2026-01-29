@@ -51,7 +51,32 @@
     </view>
   </view>
 
-  <!-- 4. 底部固定栏 -->
+  <view class="case-detail-container" wx:if="{{solution.plan}}">
+    <view class="header">
+      <text class="title">{{solution.plan.schemeName || '改造方案'}}</text>
+      <text class="description">{{solution.plan.planDesc || ''}}</text>
+    </view>
+
+    <view class="images">
+      <image class="image" src="{{solution.beforeImg}}" mode="aspectFill" />
+      <text class="label">改造前</text>
+      <image class="image" src="{{solution.afterImg || '/images/24280.jpg'}}" mode="aspectFill" />
+      <text class="label">改造后</text>
+    </view>
+
+    <view class="budget">
+      <text>预算：¥{{solution.plan.totalCost || '--'}}</text>
+    </view>
+
+    <view class="steps" wx:if="{{solution.plan.steps && solution.plan.steps.length}}">
+      <text class="steps-title">改造步骤：</text>
+      <block wx:for="{{solution.plan.steps}}" wx:key="index">
+        <text class="step">{{index + 1}}. {{item}}</text>
+      </block>
+    </view>
+  </view>
+
+  <!-- 5. 底部固定栏 -->
   <view class="bottom-bar">
     <!-- 左侧：收藏按钮 -->
     <view class="action-btn" bindtap="toggleCollect" aria-role="button" aria-label="{{isCollected ? '取消收藏' : '收藏'}}">
@@ -59,8 +84,10 @@
       <text class="btn-text">{{isCollected ? '已收藏' : '收藏'}}</text>
     </view>
 
-    <!-- 右侧：生成公文 (主按钮) -->
-    <view class="main-btn" bindtap="generateDoc" aria-role="button" aria-label="生成专业汇报材料">
+    <view class="main-btn" bindtap="goToConstruction" aria-role="button" aria-label="施工服务对接" wx:if="{{solution.plan && solution.status !== '已完成'}}">
+      <text>施工服务对接</text>
+    </view>
+    <view class="main-btn" bindtap="generateDoc" aria-role="button" aria-label="生成专业汇报材料" wx:else>
       <text>生成专业汇报材料</text>
     </view>
   </view>

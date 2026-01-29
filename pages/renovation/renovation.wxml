@@ -1,0 +1,93 @@
+<view class="renovation-container">
+  <view class="header">
+    <view class="back-btn" bindtap="goBack">
+      <image class="back-icon" src="/images/arrow-right-yellow.png" style="transform: rotate(180deg);"></image>
+    </view>
+    <text class="title">个性化改造方案</text>
+    <view class="header-right"></view>
+  </view>
+
+  <!-- Diagnosis Summary -->
+  <view class="section diagnosis-section">
+    <text class="section-title">AI 诊断结果</text>
+    <view class="diagnosis-card">
+      <text class="diagnosis-text">{{diagnosis || '检测到入口处存在高差，缺乏无障碍坡道，建议进行坡道改造。'}}</text>
+    </view>
+  </view>
+
+  <!-- Scheme Selection -->
+  <view class="section">
+    <text class="section-title">推荐改造方案</text>
+    <radio-group class="scheme-group" bindchange="onSchemeChange">
+      <label class="scheme-item {{selectedScheme === item.id ? 'active' : ''}}" wx:for="{{schemes}}" wx:key="id">
+        <radio value="{{item.id}}" checked="{{selectedScheme === item.id}}" hidden />
+        <view class="scheme-content">
+          <text class="scheme-name">{{item.name}}</text>
+          <text class="scheme-desc">{{item.desc}}</text>
+        </view>
+        <icon type="success_no_circle" size="20" color="#fff" wx:if="{{selectedScheme === item.id}}" />
+      </label>
+    </radio-group>
+  </view>
+
+  <!-- Customization -->
+  <view class="section">
+    <text class="section-title">定制参数</text>
+    <view class="input-group">
+      <view class="input-item">
+        <text class="label">用地尺寸 (㎡)</text>
+        <input type="digit" placeholder="请输入面积" bindinput="onAreaInput" value="{{area}}" />
+      </view>
+      <view class="input-item">
+        <text class="label">材质偏好</text>
+        <picker bindchange="onMaterialChange" value="{{materialIndex}}" range="{{materials}}">
+          <view class="picker">
+            {{materials[materialIndex] || '请选择材质'}}
+          </view>
+        </picker>
+      </view>
+    </view>
+  </view>
+
+  <!-- Action Button -->
+  <view class="action-area">
+    <button class="generate-btn" bindtap="generatePlan" loading="{{loading}}">生成方案与预算</button>
+  </view>
+
+  <!-- Result Section (Plan & Budget) -->
+  <view class="result-section" wx:if="{{result}}">
+    <view class="section-title">改造方案详情</view>
+    
+    <!-- Plan Preview -->
+    <view class="plan-card">
+      <image class="plan-image" src="{{result.planImage}}" mode="aspectFill" />
+      <view class="plan-details">
+        <text class="detail-title">施工示意图</text>
+        <text class="detail-desc">{{result.planDesc}}</text>
+      </view>
+    </view>
+
+    <!-- Budget Table -->
+    <view class="budget-card">
+      <text class="card-title">造价估算表</text>
+      <view class="budget-table">
+        <view class="table-header">
+          <text>项目</text>
+          <text>费用 (元)</text>
+        </view>
+        <view class="table-row" wx:for="{{result.budgetItems}}" wx:key="name">
+          <text>{{item.name}}</text>
+          <text>{{item.cost}}</text>
+        </view>
+        <view class="table-footer">
+          <text>总计</text>
+          <text class="total-cost">¥{{result.totalCost}}</text>
+        </view>
+      </view>
+      <text class="disclaimer">* 估算价格仅供参考，实际费用以施工方报价为准</text>
+    </view>
+
+    <!-- Next Step -->
+    <button class="next-btn" bindtap="goToConstruction">发布施工需求</button>
+  </view>
+</view>

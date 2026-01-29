@@ -242,3 +242,65 @@ page {
   font-size: 32rpx;
   font-weight: bold;
 }
+
+/* Case detail container styling */
+.case-detail-container {
+  padding: 20px;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.description {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.images {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.image {
+  width: 100%;
+  height: 200px;
+  border-radius: 10px;
+  margin-bottom: 5px;
+}
+
+.label {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+.budget {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.steps {
+  margin-top: 20px;
+}
+
+.steps-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.step {
+  font-size: 16px;
+  margin-bottom: 5px;
+}

@@ -5,14 +5,20 @@
       <view class="filter-item {{currentCategory === '' ? 'active' : ''}}" bindtap="onFilterChange" data-category="">
         全部
       </view>
-      <view class="filter-item {{currentCategory === '轮椅通行' ? 'active' : ''}}" bindtap="onFilterChange" data-category="轮椅通行">
-        轮椅通行
+      <view class="filter-item {{currentCategory === '无障碍通行系统' ? 'active' : ''}}" bindtap="onFilterChange" data-category="无障碍通行系统">
+        无障碍通行系统
       </view>
-      <view class="filter-item {{currentCategory === '视障辅助' ? 'active' : ''}}" bindtap="onFilterChange" data-category="视障辅助">
-        视障辅助
+      <view class="filter-item {{currentCategory === '无障碍卫生间' ? 'active' : ''}}" bindtap="onFilterChange" data-category="无障碍卫生间">
+        无障碍卫生间
       </view>
-      <view class="filter-item {{currentCategory === '听障关怀' ? 'active' : ''}}" bindtap="onFilterChange" data-category="听障关怀">
-        听障关怀
+      <view class="filter-item {{currentCategory === '无障碍通道' ? 'active' : ''}}" bindtap="onFilterChange" data-category="无障碍通道">
+        无障碍通道
+      </view>
+      <view class="filter-item {{currentCategory === '无障碍出入口' ? 'active' : ''}}" bindtap="onFilterChange" data-category="无障碍出入口">
+        无障碍出入口
+      </view>
+      <view class="filter-item {{currentCategory === '缘石坡道' ? 'active' : ''}}" bindtap="onFilterChange" data-category="缘石坡道">
+        缘石坡道
       </view>
     </scroll-view>
   </view>
@@ -21,10 +27,10 @@
   <view class="search-bar">
     <view class="search-input">
       <input 
-        placeholder="搜索解决方案..." 
-        bindinput="onSearchInput" 
+        placeholder="搜索无障碍案例..."
+        bindinput="onSearchInput"
         value="{{searchKeyword}}"
-        aria-label="搜索解决方案"
+        aria-label="搜索无障碍案例"
       />
       <image class="search-icon" src="/images/search.png"></image>
     </view>
@@ -36,10 +42,10 @@
       <view class="solution-image">
         <image src="{{item.beforeImg}}" mode="aspectFill"></image>
         <view class="status-tag {{item.status === '已解决' ? 'solved' : 'processing'}}">
-          {{item.status === '已解决' ? 'AI 已解决' : '跟进中'}}
+          {{item.status === '已解决' ? '已解决' : '跟进中'}}
         </view>
       </view>
-      
+
       <view class="solution-content">
         <text class="solution-title">{{item.title}}</text>
         <text class="solution-desc">{{item.aiAnalysis}}</text>
@@ -62,6 +68,6 @@
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{solutions.length === 0}}">
     <image src="/images/empty-solutions.png" class="empty-image"></image>
-    <text class="empty-text">暂无解决方案</text>
+    <text class="empty-text">暂无无障碍案例</text>
   </view>
 </view>

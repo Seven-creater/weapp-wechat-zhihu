@@ -1,390 +1,154 @@
-/* 社区页面样式 - Flex布局修复版 */
-
+/* pages/community/community.wxss */
 .community-container {
-  min-height: 100vh;
-  background-color: var(--color-bg-page);
-  padding-bottom: 160rpx;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8f8f8;
 }
 
-/* 页面头部：搜索栏 */
-.custom-header {
-  background-color: var(--color-primary);
-  padding: 20rpx 30rpx;
+/* Top Tabs */
+.top-tabs {
   display: flex;
+  justify-content: center;
   align-items: center;
+  height: 44px;
+  background: #fff;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
 }
 
-/* 白色搜索条 */
-.search-bar {
-  flex: 1;
-  background: #ffffff;
-  height: 72rpx;
-  border-radius: 36rpx;
-  display: flex;
-  align-items: center;
-  padding: 0 24rpx;
-  margin-right: 20rpx;
+.tab-item {
+  font-size: 16px;
+  color: #999;
+  margin: 0 16px;
+  position: relative;
+  padding: 8px 0;
 }
 
-.search-input {
-  flex: 1;
-  height: 100%;
-  font-size: 28rpx;
-  margin-left: 10rpx;
+.tab-item.active {
   color: #333;
-}
-
-.ph-style {
-  color: #999;
-}
-
-.search-btn {
-  color: #ffffff;
-  font-size: 30rpx;
   font-weight: bold;
+  font-size: 18px;
 }
 
-.clear-btn {
-  color: #999;
-  padding: 10rpx;
-  font-size: 28rpx;
+.tab-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: #ff2442; /* Xiaohongshu Red */
+  border-radius: 2px;
 }
 
-/* 帖子列表 */
-.post-list {
-  padding: var(--spacing-lg);
-}
-
-/* 卡片容器 */
-.post-card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin: 30rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  transition: all var(--transition-normal);
-}
-
-.post-card:active {
-  transform: scale(0.98);
-  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.08);
-}
-
-/* 头部 */
-.card-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20rpx;
-}
-
-.avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  margin-right: 20rpx;
-  background: #eee;
-  flex-shrink: 0;
-}
-
-.info-box {
+/* Waterfall Layout */
+.content-scroll {
   flex: 1;
+  padding: 6px;
+}
+
+.waterfall {
+  display: flex;
+  justify-content: space-between;
+}
+
+.waterfall-column {
+  width: 49%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  gap: 6px;
 }
 
-.name-row {
-  display: flex;
-  align-items: center;
+/* Post Card */
+.post-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 6px;
 }
 
-.nickname {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #333;
-  margin-right: 16rpx;
-}
-
-/* 标签样式修复 - 放在名字旁边 */
-.tag {
-  font-size: 20rpx;
-  color: #fff;
-  background-color: #ff9800;
-  padding: 4rpx 12rpx;
-  border-radius: 8rpx;
-}
-
-.tag-help {
-  background-color: var(--color-error);
-}
-
-.tag-share {
-  background-color: var(--color-success);
-}
-
-.time {
-  font-size: 24rpx;
-  color: #999;
-  margin-top: 6rpx;
+.post-image {
+  width: 100%;
   display: block;
 }
 
-/* 内容区 */
-.card-content {
-  margin-bottom: 20rpx;
+.post-info {
+  padding: 8px;
 }
 
-.content-text {
-  font-size: 30rpx;
-  line-height: 1.6;
+.post-tag {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #2b6ef2;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.post-title {
+  font-size: 14px;
   color: #333;
-  word-break: break-word;
+  line-height: 1.4;
+  margin-bottom: 8px;
   display: -webkit-box;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* 标签区域 */
-.post-tags {
+.post-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  margin-bottom: 20rpx;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.tag-item {
-  padding: 8rpx 20rpx;
-  background-color: rgba(0, 47, 167, 0.08);
-  border-radius: 999rpx;
-}
-
-.tag-text {
-  font-size: 24rpx;
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-/* 定位信息 */
-.post-location {
+.user-info {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  margin-bottom: 20rpx;
-  padding: 16rpx 20rpx;
-  background-color: rgba(0, 47, 167, 0.05);
-  border-radius: var(--border-radius-sm);
 }
 
-.location-icon {
-  width: 32rpx;
-  height: 32rpx;
-  flex-shrink: 0;
+.user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-right: 4px;
 }
 
-.location-text {
-  font-size: 26rpx;
-  color: var(--color-primary);
+.user-name {
+  font-size: 11px;
+  color: #666;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 图片区域 */
-.post-images {
-  margin-bottom: 20rpx;
-}
-
-.image-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-xs);
-}
-
-.content-img {
-  width: 100%;
-  height: 200rpx;
-  border-radius: var(--border-radius-sm);
-  object-fit: cover;
-}
-
-/* 底部操作栏 - 强制对齐 */
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 30rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #f5f5f5;
-}
-
-.action-btn {
+.like-info {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  height: 60rpx;
-  background: transparent;
-  transition: background-color var(--transition-fast);
 }
 
-.action-btn:active {
-  background-color: rgba(0, 0, 0, 0.05);
+.like-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 2px;
 }
 
-.action-btn .icon {
-  font-size: 36rpx;
-  margin-right: 8rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44rpx;
-  height: 44rpx;
-}
-
-.action-btn .heart-icon,
-.action-btn .star-icon {
-  font-size: 36rpx;
-  margin-right: 8rpx;
-}
-
-.action-btn .num {
-  font-size: 26rpx;
+.like-count {
+  font-size: 11px;
   color: #666;
 }
 
-/* 点赞和收藏变亮效果 */
-.action-btn.liked {
-  background-color: rgba(230, 67, 64, 0.08);
-}
-
-.action-btn.collected {
-  background-color: rgba(255, 215, 0, 0.12);
-}
-
-.like-btn.liked .num {
-  color: #ff4d4f;
-}
-
-.collect-btn.collected .num {
-  color: #ffd700;
-}
-
-/* 加载更多 */
-.load-more {
+.empty,
+.loading {
+  padding: 18px 0;
   text-align: center;
-  padding: var(--spacing-xl);
-}
-
-.loading-text {
-  font-size: 32rpx;
-  color: var(--color-text-secondary);
-}
-
-.no-more-text {
-  font-size: 32rpx;
-  color: var(--color-text-disabled);
-}
-
-/* 悬浮发布按钮 */
-.fab-button {
-  position: fixed;
-  right: var(--spacing-lg);
-  bottom: 160rpx;
-  width: 120rpx;
-  height: 120rpx;
-  background-color: var(--color-accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 32rpx rgba(255, 215, 0, 0.4);
-  z-index: 1000;
-  transition: transform var(--transition-normal);
-}
-
-.fab-button:active {
-  transform: scale(0.9);
-}
-
-.fab-icon {
-  font-size: 60rpx;
-  color: var(--color-primary);
-  font-weight: bold;
-}
-
-/* 空状态 */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 160rpx var(--spacing-lg);
-  text-align: center;
-}
-
-.empty-icon {
-  width: 200rpx;
-  height: 200rpx;
-  margin-bottom: var(--spacing-lg);
-  opacity: 0.6;
-}
-
-.empty-text {
-  font-size: 36rpx;
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-sm);
-  font-weight: bold;
-}
-
-.empty-subtext {
-  font-size: 28rpx;
-  color: var(--color-text-disabled);
-}
-
-/* 无障碍优化 */
-.post-card {
-  min-height: 200rpx;
-}
-
-.action-btn {
-  min-height: 60rpx;
-  min-width: 88rpx;
-}
-
-.fab-button {
-  min-height: 120rpx;
-  min-width: 120rpx;
-}
-
-/* 高对比度模式支持 */
-@media (prefers-contrast: high) {
-  .post-card {
-    border: 3rpx solid var(--color-primary);
-  }
-
-  .action-btn {
-    border: 2rpx solid var(--color-primary);
-  }
-}
-
-/* 大字体模式支持 */
-@media (prefers-font-size: large) {
-  .content-text {
-    font-size: 36rpx;
-    line-height: 1.8;
-  }
-
-  .nickname {
-    font-size: 36rpx;
-  }
-
-  .action-btn .num {
-    font-size: 28rpx;
-  }
+  color: #999;
+  font-size: 14px;
 }

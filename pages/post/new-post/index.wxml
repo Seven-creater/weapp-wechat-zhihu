@@ -1,0 +1,56 @@
+<view class="create-post-container">
+  <!-- Header -->
+  <view class="header-bar">
+    <view class="cancel-btn" bindtap="cancelPost">取消</view>
+    <view class="submit-btn {{content.trim().length > 0 ? 'active' : ''}}" bindtap="submitPost">发布</view>
+  </view>
+
+  <!-- Content Area -->
+  <scroll-view scroll-y class="content-scroll">
+    <!-- Image Uploader -->
+    <view class="image-uploader">
+      <view class="image-grid">
+        <block wx:for="{{images}}" wx:key="index">
+          <view class="image-item">
+            <image src="{{item}}" mode="aspectFill" bindtap="previewImage" data-src="{{item}}" />
+            <view class="delete-btn" catchtap="removeImage" data-index="{{index}}">×</view>
+          </view>
+        </block>
+        <view class="add-btn" bindtap="chooseImage" wx:if="{{images.length < 9}}">
+          <text class="plus">+</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Title Input -->
+    <view class="input-group">
+      <input class="title-input" placeholder="填写标题会有更多赞哦~" placeholder-class="placeholder" value="{{title}}" bindinput="onTitleInput" maxlength="20" />
+    </view>
+
+    <!-- Content Input -->
+    <view class="input-group">
+      <textarea class="content-input" placeholder="添加正文" placeholder-class="placeholder" value="{{content}}" bindinput="onContentInput" maxlength="1000" auto-height />
+    </view>
+
+    <!-- Options -->
+    <view class="options-list">
+      <view class="option-item" bindtap="chooseLocation">
+        <view class="option-left">
+          <image class="option-icon" src="/images/flag.png" />
+          <text class="option-text">{{locationName || '添加地点'}}</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      
+      <view class="option-item">
+        <view class="option-left">
+          <text class="option-label">发布到</text>
+        </view>
+        <view class="radio-group">
+          <view class="radio-item {{postType === 'community' ? 'active' : ''}}" bindtap="setPostType" data-type="community">社区</view>
+          <view class="radio-item {{postType === 'case' ? 'active' : ''}}" bindtap="setPostType" data-type="case">案例</view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

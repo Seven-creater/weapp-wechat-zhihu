@@ -1,0 +1,72 @@
+<view class="container">
+  <!-- 顶部个人信息 -->
+  <view class="profile-header">
+    <view class="user-info">
+      <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+      <view class="info-content">
+        <text class="nickname">{{userInfo.nickName}}</text>
+        <text class="bio">这个人很懒，什么都没写~</text>
+      </view>
+    </view>
+    
+    <view class="stats-row">
+      <view class="stat-item">
+        <text class="stat-num">{{stats.following}}</text>
+        <text class="stat-label">关注</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.followers}}</text>
+        <text class="stat-label">粉丝</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{stats.likes}}</text>
+        <text class="stat-label">获赞</text>
+      </view>
+    </view>
+
+    <view class="action-row">
+      <view class="btn follow-btn {{isFollowing ? 'followed' : ''}}" bindtap="toggleFollow">
+        {{isFollowing ? '已关注' : '关注'}}
+      </view>
+      <view class="btn chat-btn" bindtap="navigateToChat">私信</view>
+    </view>
+  </view>
+
+  <!-- 内容标签页 -->
+  <view class="tabs">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">
+      <text>动态</text>
+      <view class="indicator" wx:if="{{currentTab === 0}}"></view>
+    </view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{1}}">
+      <text>收藏</text>
+      <view class="indicator" wx:if="{{currentTab === 1}}"></view>
+    </view>
+    <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{2}}">
+      <text>赞过</text>
+      <view class="indicator" wx:if="{{currentTab === 2}}"></view>
+    </view>
+  </view>
+
+  <!-- 内容列表 -->
+  <view class="content-list">
+    <view class="post-grid">
+      <block wx:for="{{posts}}" wx:key="id">
+        <view class="post-item" bindtap="navigateToDetail" data-id="{{item.id}}">
+          <image class="post-cover" src="{{item.image}}" mode="aspectFill"></image>
+          <view class="post-title">{{item.title}}</view>
+          <view class="post-footer">
+            <view class="like-info">
+              <text class="icon">❤️</text>
+              <text>{{item.likes}}</text>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+    
+    <view wx:if="{{posts.length === 0}}" class="empty-state">
+      <text>暂无内容</text>
+    </view>
+  </view>
+</view>

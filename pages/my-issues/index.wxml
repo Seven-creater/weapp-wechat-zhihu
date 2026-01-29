@@ -62,7 +62,7 @@
       <view class="posts-list" wx:if="{{posts.length > 0}}">
         <view class="post-item" wx:for="{{posts}}" wx:key="_id" bindtap="goToPostDetail" data-id="{{item._id}}">
           <view class="post-header">
-            <image class="post-avatar" src="{{item.userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+            <image class="post-avatar" src="{{item.userInfo.avatarUrl || '/images/zhi.png'}}"></image>
             <view class="post-user-info">
               <text class="post-user-name">{{item.userInfo.nickName || '匿名用户'}}</text>
               <text class="post-time">{{item.createTime}}</text>

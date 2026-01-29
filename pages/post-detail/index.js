@@ -3,6 +3,17 @@ const app = getApp();
 const db = wx.cloud.database();
 const _ = db.command;
 
+const isCollectionNotExistError = (err) => {
+  if (!err) return false;
+  const msg = String(err.errMsg || err.message || "");
+  const code = err.errCode || err.code;
+  if (code === 502005) return true;
+  return (
+    msg.includes("collection not exist") ||
+    msg.includes("DATABASE_COLLECTION_NOT_EXIST")
+  );
+};
+
 Page({
   data: {
     post: null,
@@ -13,6 +24,7 @@ Page({
     showCommentInput: false,
     isCollected: false, // 是否已收藏
     collectCount: 0, // 收藏数量
+    isFollowing: false, // 是否已关注
     // 动态输入相关状态
     placeholderText: "发表评论",
     isInputFocus: false,
@@ -38,9 +50,6 @@ Page({
 
   // 加载帖子详情
   loadPostDetail: function (postId) {
-    this.setData({ loading: true });
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-
     // 调用云函数获取详情（云函数会自动转换图片URL）
     wx.cloud.callFunction({
       name: "getPublicData",
@@ -59,12 +68,12 @@ Page({
             if (!post.userInfo) {
               post.userInfo = {
                 nickName: "匿名用户",
-                avatarUrl: "/images/default-avatar.png",
+                avatarUrl: "/images/zhi.png",
               };
             } else if (!post.userInfo.nickName) {
               post.userInfo.nickName = "匿名用户";
             }
-
+            nickName: "匿名用户",
             // 🟢 关键修复：分离用户内容和AI诊断
             if (post.content && typeof post.content === "string") {
               const aiDiagnosisRegex = /AI诊断：|AI诊断：/;
@@ -76,7 +85,7 @@ Page({
                 post.aiDiagnosis = parts[1].trim();
               }
             }
-
+          const parts = post.content.split(/AI诊断：/);
             this.updatePostData(post, openid);
             this.initLikeStatus(postId, openid);
           } else {
@@ -89,14 +98,20 @@ Page({
       },
       fail: (err) => {
         wx.hideLoading();
-        console.error("加载帖子详情失败:", err);
-        this.setData({ loading: false });
-        wx.showToast({
+        }
+
+        this.updatePostData(post, openid);
           title: "加载失败",
-          icon: "none",
-        });
+      })
+      .catch((err) => {
       },
     });
+        this.setData({ loading: false });
+        wx.showToast({
+          title: (err && err.message) || "加载失败",
+          icon: "none",
+        });
+      });
   },
 
   // 更新帖子数据
@@ -106,7 +121,7 @@ Page({
         ...post,
         userInfo: post.userInfo || {
           nickName: "匿名用户",
-          avatarUrl: "/images/default-avatar.png",
+          avatarUrl: "/images/zhi.png",
         },
         stats: post.stats || { view: 0, like: 0, comment: 0 },
         createTime: this.formatTime(post.createTime),
@@ -120,6 +135,79 @@ Page({
       .initCollectStatus(this, "collect_post", post._id || post.postId)
       .catch(() => {
         // 初始化失败不影响主要功能
+      });
+
+    // 初始化关注状态
+    this.initFollowStatus(post._openid, openid);
+  },
+
+  // 初始化关注状态
+  initFollowStatus: function (targetId, openid) {
+    if (!openid || !targetId || openid === targetId) return;
+
+    db.collection("follows")
+      .where({
+        followerId: openid,
+        targetId: targetId,
+      })
+      .get()
+      .then((res) => {
+        this.setData({ isFollowing: res.data.length > 0 });
+      })
+      .catch((err) => {
+        if (isCollectionNotExistError(err)) {
+          this.setData({ isFollowing: false });
+          return;
+        }
+        this.setData({ isFollowing: false });
+      });
+  },
+    app.checkLogin().then(() => {
+      const openid = app.globalData.openid;
+      if (openid === targetId) {
+        wx.showToast({ title: '不能关注自己', icon: 'none' });
+        return;
+      }
+
+      if (this.data.isFollowing) {
+        // 取消关注
+        db.collection("follows")
+          .where({
+            followerId: openid,
+            targetId: targetId
+          })
+          .remove()
+          .then(() => {
+            this.setData({ isFollowing: false });
+            wx.showToast({ title: '已取消关注', icon: 'none' });
+          });
+      } else {
+        // 关注
+        db.collection("follows").add({
+          data: {
+            followerId: openid,
+            targetId: targetId,
+            createTime: db.serverDate()
+          }
+        }).then(() => {
+          this.setData({ isFollowing: true });
+          wx.showToast({ title: '关注成功', icon: 'success' });
+        });
+      }
+    }).catch(() => {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+    });
+        wx.showToast({
+          title: status ? "关注成功" : "已取消关注",
+          icon: "none",
+        });
+      })
+      .catch((err) => {
+        if (err && err.message === "未登录") return;
+        wx.showToast({
+          title: (err && err.message) || "操作失败",
+          icon: "none",
+        });
       });
   },
 
@@ -162,7 +250,7 @@ Page({
             ...comment,
             userInfo: comment.userInfo || {
               nickName: "匿名用户",
-              avatarUrl: "/images/default-avatar.png",
+              avatarUrl: "/images/zhi.png",
             },
             createTime: this.formatTime(comment.createTime),
             likes: comment.likes || 0,
@@ -205,12 +293,12 @@ Page({
         _.or([
           { type: "like_comment", targetId: _.in(commentIds), _openid: openid },
           { type: "like_comment", postId: _.in(commentIds), _openid: openid },
-        ])
+        ]),
       )
       .get()
       .then((res) => {
         const likedIds = new Set(
-          res.data.map((item) => item.targetId || item.postId)
+          res.data.map((item) => item.targetId || item.postId),
         );
 
         const comments = this.data.comments.map((comment) => {
@@ -226,18 +314,6 @@ Page({
             liked: likedIds.has(comment._id),
             replies,
           };
-        });
-
-        this.setData({ comments });
-      })
-      .catch(() => {});
-  },
-
-  // 点赞帖子
-  likePost: function () {
-    const post = this.data.post;
-    if (!post) return;
-
     app
       .checkLogin()
       .catch(() => {
@@ -266,7 +342,7 @@ Page({
         const newLikeCount = isLiked
           ? Math.max(0, currentLike - 1)
           : currentLike + 1;
-
+      })
         const updatedPost = {
           ...post,
           liked: !isLiked,
@@ -277,7 +353,7 @@ Page({
         };
 
         this.setData({ post: updatedPost });
-
+    const currentLike = post.stats?.like || 0;
         // 调用云函数执行原子操作
         wx.cloud
           .callFunction({
@@ -315,6 +391,22 @@ Page({
           });
       })
       .catch(() => {});
+              : this.data.post.liked,
+          stats: {
+            ...this.data.post.stats,
+            like:
+              typeof serverCount === "number"
+                ? serverCount
+                : this.data.post.stats?.like || 0,
+          },
+        };
+        this.setData({ post: nextPost });
+      })
+      .catch((err) => {
+        if (err && err.message === "未登录") return;
+        this.setData({ post });
+        wx.showToast({ title: err.message || "操作失败", icon: "none" });
+      });
   },
 
   // 显示评论输入框
@@ -442,7 +534,7 @@ Page({
         postTitle: post.content ? post.content.substring(0, 30) : "",
         userInfo: userInfo || {
           nickName: "匿名用户",
-          avatarUrl: "/images/default-avatar.png",
+          avatarUrl: "/images/zhi.png",
         },
         createTime: db.serverDate(),
         likes: 0,
@@ -517,22 +609,6 @@ Page({
 
       // 弹出红色警告，且**不清空输入框**（方便用户修改）
       wx.showModal({
-        title: "发布失败",
-        content: err.message || "内容包含敏感信息",
-        showCancel: false,
-        confirmText: "我知道了",
-      });
-    }
-  },
-
-  // 点赞评论
-  likeComment: function (e) {
-    const commentId = e.currentTarget.dataset.commentid;
-    const isReply = e.currentTarget.dataset.isreply;
-    const parentId = e.currentTarget.dataset.parentid;
-
-    if (!commentId) return;
-
     app
       .checkLogin()
       .catch(() => {
@@ -558,7 +634,7 @@ Page({
       .then(() => {
         const comments = [...this.data.comments];
         let comment = null;
-
+        showCancel: false,
         if (isReply && parentId) {
           const parentComment = comments.find((c) => c._id === parentId);
           if (parentComment && parentComment.replies) {
@@ -567,7 +643,7 @@ Page({
         } else {
           comment = comments.find((c) => c._id === commentId);
         }
-
+    const isReply = e.currentTarget.dataset.isreply;
         if (!comment) return;
 
         const isLiked = !!comment.liked;
@@ -575,11 +651,11 @@ Page({
         const newLikes = isLiked
           ? Math.max(0, currentLikes - 1)
           : currentLikes + 1;
-
+    let comment = null;
         comment.likes = newLikes;
         comment.liked = !isLiked;
 
-        this.setData({ comments });
+    const isLiked = !!comment.liked;
 
         wx.cloud
           .callFunction({
@@ -611,6 +687,27 @@ Page({
           });
       })
       .catch(() => {});
+        id: commentId,
+        collection: "comments",
+        type: "like",
+      })
+      .then((result) => {
+        const serverCount = result && result.count;
+        comment.likes =
+          typeof serverCount === "number" ? serverCount : comment.likes;
+        if (typeof result.status === "boolean") {
+          comment.liked = result.status;
+        }
+        this.setData({ comments });
+      })
+      .catch((err) => {
+        if (err && err.message === "未登录") return;
+        console.error("评论点赞失败:", err);
+        comment.likes = currentLikes;
+        comment.liked = isLiked;
+        this.setData({ comments });
+        wx.showToast({ title: err.message || "操作失败", icon: "none" });
+      });
   },
 
   // 删除帖子
@@ -637,7 +734,7 @@ Page({
             const success = result && result.result && result.result.success;
             if (!success) {
               throw new Error(
-                (result && result.result && result.result.error) || "删除失败"
+                (result && result.result && result.result.error) || "删除失败",
               );
             }
 
@@ -680,7 +777,7 @@ Page({
             const success = result && result.result && result.result.success;
             if (!success) {
               throw new Error(
-                (result && result.result && result.result.error) || "删除失败"
+                (result && result.result && result.result.error) || "删除失败",
               );
             }
 
@@ -695,7 +792,7 @@ Page({
                   ...this.data.post.stats,
                   comment: Math.max(
                     0,
-                    (this.data.post.stats?.comment || 0) - removedCount
+                    (this.data.post.stats?.comment || 0) - removedCount,
                   ),
                 },
               },
@@ -735,6 +832,15 @@ Page({
       wx.previewImage({
         current: current,
         urls: urls,
+      });
+    }
+  },
+
+  navigateToProfile: function (e) {
+    const id = e.currentTarget.dataset.id;
+    if (id) {
+      wx.navigateTo({
+        url: `/pages/user-profile/index?id=${id}`,
       });
     }
   },

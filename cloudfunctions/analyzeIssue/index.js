@@ -1,18 +1,10 @@
-// 云函数入口文件 - 使用阿里云百炼 Qwen-VL-Max 进行图片分析
+// 云函数入口文件 - 使用外部 AI API 进行无障碍设施诊断
 const cloud = require("wx-server-sdk");
 const axios = require("axios");
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV,
 });
-
-// 阿里云百炼 API 配置
-// API Key：优先从环境变量读取，否则使用默认值
-const DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-const MODEL_NAME = "qwen-vl-max";
-
-// 阿里云 API Key（请勿泄露给他人）
-const DEFAULT_API_KEY = "sk-2f0c1ef0d3d343e39e893c47211ad541";
 
 // 云函数入口函数
 exports.main = async (event, context) => {
@@ -53,7 +45,7 @@ exports.main = async (event, context) => {
         const envId = process.env.WXENV || "your-env-id";
         accessibleImageUrl = fileID.replace(
           "cloud://",
-          `https://${envId}.cloud.tcb.qcloud.la/`
+          `https://${envId}.cloud.tcb.qcloud.la/`,
         );
         console.log("使用备用URL:", accessibleImageUrl);
       }
@@ -63,12 +55,21 @@ exports.main = async (event, context) => {
       throw new Error("无法获取图片访问地址");
     }
 
-    // 调用 AI 服务进行分析
-    const aiSolution = await analyzeWithQwenVL(accessibleImageUrl, location);
+    let aiSolution = "";
+    let mode = "fallback";
+    try {
+      const aiResult = await analyzeWithAI(accessibleImageUrl, location);
+      aiSolution = normalizeSolution(aiResult, location);
+      mode = "ai";
+    } catch (err) {
+      aiSolution = buildFallbackSolution(location);
+      mode = "fallback";
+    }
 
     return {
       success: true,
-      aiSolution: aiSolution,
+      aiSolution,
+      mode,
     };
   } catch (err) {
     console.error("AI分析失败:", err);
@@ -93,81 +94,72 @@ exports.main = async (event, context) => {
   }
 };
 
-/**
- * 使用 Qwen-VL-Max 分析图片
- * @param {string} imageUrl - 图片的 HTTP URL
- * @param {object} location - 位置信息
- * @returns {string} - AI分析结果
- */
-async function analyzeWithQwenVL(imageUrl, location) {
-  // 获取 API Key：优先从环境变量读取，否则使用默认值
-  const apiKey = process.env.DASHSCOPE_API_KEY || DEFAULT_API_KEY;
-
-  if (!apiKey || apiKey === "YOUR_API_KEY_HERE") {
-    throw new Error("未配置阿里云百炼 API Key");
+async function analyzeWithAI(imageUrl, location) {
+  const url = process.env.AI_DIAGNOSIS_URL;
+  const apiKey = process.env.AI_API_KEY;
+  if (!url) {
+    throw new Error("AI_DIAGNOSIS_URL not configured");
   }
 
-  // 构建消息
-  const messages = [
-    {
-      role: "system",
-      content: `你是一个无障碍环境改造专家。请分析图片中的障碍问题（如台阶过高、盲道被占、路面破损、电梯缺失、无卫生间扶手等），并用简练、专业的语言给出：
+  const headers = {};
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
 
-1. 问题诊断：简要描述图片中存在的无障碍障碍问题
-2. 改造建议：提供具体可行的改造方案
-3. 预估预算：给出大致的改造预算范围
-
-请用中文回复，保持专业但通俗易懂。`,
-    },
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `请分析这张现场照片中的无障碍设施问题。${
-            location?.address ? `位置信息：${location.address}` : ""
-          }`,
-        },
-        {
-          type: "image_url",
-          image_url: {
-            url: imageUrl,
-          },
-        },
-      ],
-    },
-  ];
-
-  // 调用阿里云百炼 API
   const response = await axios.post(
-    `${DASHSCOPE_API_BASE}/chat/completions`,
+    url,
     {
-      model: MODEL_NAME,
-      messages: messages,
-      max_tokens: 1000,
-      temperature: 0.7,
+      imageUrl,
+      location: location || null,
     },
     {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      timeout: 30000, // 30秒超时
+      headers,
+      timeout: 20000,
     }
   );
 
-  // 解析返回结果
-  if (
-    response.data &&
-    response.data.choices &&
-    response.data.choices.length > 0
-  ) {
-    const content = response.data.choices[0].message?.content;
+  return response.data;
+}
 
-    if (content) {
-      return content.trim();
-    }
+function normalizeSolution(aiResult, location) {
+  if (typeof aiResult === "string" && aiResult.trim()) return aiResult.trim();
+  if (aiResult && typeof aiResult === "object") {
+    const json = JSON.stringify(aiResult, null, 2);
+    if (json && json.trim()) return json.trim();
   }
+  return buildFallbackSolution(location);
+}
 
-  throw new Error("AI返回结果为空");
+function buildFallbackSolution(location) {
+  const address =
+    (location && (location.formattedAddress || location.address)) || "";
+  const loc =
+    location && typeof location.latitude === "number" && typeof location.longitude === "number"
+      ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+      : "";
+
+  const lines = [
+    "诊断报告（自动生成-待复核）",
+    "",
+    address ? `位置：${address}` : "",
+    loc ? `坐标：${loc}` : "",
+    "",
+    "可能问题类型：",
+    "- 坡道缺失/坡度过大",
+    "- 通道被占用/宽度不足",
+    "- 门槛过高/无扶手",
+    "- 无障碍卫生间不可用",
+    "- 电梯不可达/按钮不便操作",
+    "",
+    "对轮椅使用者的影响：",
+    "- 可能无法通过或存在侧翻风险",
+    "- 需要绕行导致路程显著增加",
+    "",
+    "建议处置：",
+    "- 先设置临时警示标识并清理占道障碍",
+    "- 记录尺寸（坡度/宽度/高度）用于后续方案生成",
+    "- 如涉及公共设施，建议同步社区管理员/物业",
+  ].filter(Boolean);
+
+  return lines.join("\n");
 }

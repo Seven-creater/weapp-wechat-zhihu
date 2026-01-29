@@ -26,7 +26,7 @@
       data-index="{{index}}"
     >
       <!-- 左侧图片 -->
-      <image class="item-image" src="{{item.image || '../../images/default-avatar.png'}}"></image>
+      <image class="item-image" src="{{item.image || '../../images/zhi.png'}}"></image>
       
       <!-- 右侧内容 -->
       <view class="item-content">

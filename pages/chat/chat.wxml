@@ -1,30 +1,42 @@
+<view class="chat-container">
+  <scroll-view 
+    class="message-list" 
+    scroll-y 
+    scroll-into-view="{{toView}}" 
+    scroll-with-animation
+    bindtap="hideKeyboard"
+  >
+    <view class="loading-more" wx:if="{{loading}}">
+      <text>加载中...</text>
+    </view>
 
-<view class="container chat">
-  <view class="chat-item flex-wrp">
-    <view class="avatar flex-item">
-      <image src="../../images/icon8.jpg"></image>
-    </view>
-    <view class="chat-content flex-item">
-      <view class="chat-source">
-        <text class="chatmate">Alex</text>
-        <text class="lasttime">1 个月前</text>
+    <block wx:for="{{messages}}" wx:key="_id">
+      <view class="message-item {{item.isMy ? 'my-message' : 'other-message'}}" id="msg-{{item._id}}">
+        <image class="avatar" src="{{item.isMy ? userInfo.avatarUrl : targetUserInfo.avatarUrl}}" mode="aspectFill" />
+        <view class="content-wrapper">
+          <view class="content-bubble">
+            <text>{{item.content}}</text>
+          </view>
+        </view>
       </view>
-      <text class="chat-txt">你好~ 你好~ 你好~</text>
-    </view>
-  </view>
-  <view class="chat-item flex-wrp">
-    <view class="avatar flex-item">
-      <image src="../../images/icon9.jpeg"></image>
-    </view>
-    <view class="chat-content flex-item">
-      <view class="chat-source">
-        <text class="chatmate">George</text>
-        <text class="lasttime">3 个月前</text>
-      </view>
-      <text class="chat-txt">你好~ 你好~ 你好~</text>
-    </view>
-  </view>
+    </block>
+    
+    <!-- Anchor for scrolling to bottom -->
+    <view id="bottom-anchor" style="height: 20rpx;"></view>
+  </scroll-view>
 
+  <view class="input-area" style="bottom: {{inputBottom}}px">
+    <input 
+      class="chat-input" 
+      value="{{inputValue}}" 
+      bindinput="onInput" 
+      bindfocus="onFocus" 
+      bindblur="onBlur"
+      confirm-type="send" 
+      bindconfirm="sendMessage"
+      placeholder="发消息..." 
+      cursor-spacing="20"
+    />
+    <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="sendMessage">发送</view>
+  </view>
 </view>
-
-

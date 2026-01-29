@@ -1,81 +1,127 @@
-<view class="accessibility-home">
-  <!-- 顶部渐变背景区 -->
-  <view class="hero-section">
-    <view class="hero-bg"></view>
+<view class="map-home-container">
+  <view wx:if="{{!searchVisible}}" class="content">
+    <view class="map-area">
+      <map
+        id="mainMap"
+        class="map-view"
+        longitude="{{longitude}}"
+        latitude="{{latitude}}"
+        scale="{{scale}}"
+        markers="{{markers}}"
+        show-location
+        bindmarkertap="handleMarkerTap"
+      >
+        <cover-view class="top-bar" style="top: {{topInset}}px;">
+          <cover-view class="location-selector" bindtap="onCenterTap">
+            <cover-image class="location-icon" src="/images/flag.png" />
+            <cover-view class="location-text">附近</cover-view>
+            <cover-view class="arrow-down">▼</cover-view>
+          </cover-view>
+          <cover-view class="search-box" bindtap="onSearchTap">
+            <cover-image class="search-icon" src="/images/search.png" />
+            <cover-view class="search-placeholder">请输入您想去的地点</cover-view>
+          </cover-view>
+        </cover-view>
 
-    <!-- 磨砂玻璃定位胶囊 -->
-    <view class="location-capsule" bindtap="reselectLocation" aria-role="button" aria-label="当前位置：{{currentAddress}}，点击重新选择">
-      <view class="location-icon-wrap">
-        <image class="location-icon-small" src="/images/location.png" aria-hidden="true"></image>
-      </view>
-      <text class="location-address">{{currentAddress || "定位中..."}}</text>
-      <view class="refresh-btn">
-        <text class="refresh-text">重选</text>
-      </view>
+        <cover-view class="map-controls">
+          <cover-view class="control-btn" bindtap="onLayerTap">
+            <cover-image class="control-icon" src="/images/icon_layer.png" />
+            <cover-view class="control-text">图层</cover-view>
+          </cover-view>
+          <cover-view class="control-btn" bindtap="onCenterTap">
+            <cover-image class="control-icon" src="/images/icon_center.png" />
+            <cover-view class="control-text">居中</cover-view>
+          </cover-view>
+        </cover-view>
+
+
+      </map>
     </view>
 
-    <!-- 地图模式入口 -->
-    <view class="map-entry" bindtap="goToMapView" aria-role="button" aria-label="地图模式">
-      <text class="map-entry-text">🗺️</text>
-    </view>
+    <view class="bottom-sheet {{dragging ? 'dragging' : ''}}" style="height: {{sheetHeight}}px; padding-bottom: {{safeBottom}}px;">
+    <view
+      class="sheet-handle"
+      bindtap="onSheetHandleTap"
+      catchtouchstart="onSheetTouchStart"
+      catchtouchmove="onSheetTouchMove"
+      catchtouchend="onSheetTouchEnd"
+      catchtouchcancel="onSheetTouchEnd"
+    >
+        <view class="sheet-handle-bar"></view>
+      </view>
 
-    <!-- 核心拍照按钮 -->
-    <view class="hero-content">
-      <view class="camera-button-wrapper">
-        <view class="camera-glow"></view>
-        <view 
-          class="camera-button"
-          bindtap="takePhoto"
-          aria-role="button"
-          aria-label="点击拍照，反馈无障碍问题"
+      <scroll-view scroll-x class="category-scroll" enable-flex>
+        <view
+          class="category-item {{currentCategoryId === item.id ? 'active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="id"
+          bindtap="onCategoryTap"
+          data-id="{{item.id}}"
         >
-          <view class="camera-ring"></view>
-          <view class="camera-core">
-            <text class="camera-icon">📷</text>
+          <image class="cat-icon" src="{{item.icon}}" mode="aspectFit" />
+          <text class="cat-name">{{item.shortName}}</text>
+        </view>
+      </scroll-view>
+
+      <scroll-view scroll-x class="filter-scroll" enable-flex wx:if="{{sheetMode !== 'collapsed'}}">
+        <view
+          class="filter-item {{currentChipId === item.id ? 'active' : ''}}"
+          wx:for="{{chips}}"
+          wx:key="id"
+          bindtap="onChipTap"
+          data-id="{{item.id}}"
+        >
+          {{item.name}}
+        </view>
+      </scroll-view>
+
+      <view class="sheet-content" wx:if="{{sheetMode !== 'collapsed'}}">
+        <scroll-view scroll-y class="facility-list">
+          <view class="facility-card" wx:for="{{facilities}}" wx:key="id" bindtap="onFacilityTap" data-id="{{item.id}}">
+            <view class="card-header">
+              <view class="header-left">
+                <image class="header-icon" src="{{item.icon}}" mode="aspectFit" />
+                <text class="tag">{{item.categoryName}}</text>
+              </view>
+              <text class="distance">{{item.distanceText}}</text>
+            </view>
+            <view class="place-name">{{item.name}}</view>
+            <view class="card-actions">
+              <view class="btn-detail" catchtap="onFacilityTap" data-id="{{item.id}}">
+                <image class="btn-icon-small" src="/images/icon_list.png" />
+                <text>查看详情</text>
+              </view>
+              <view class="btn-go" catchtap="onGoTap" data-id="{{item.id}}">
+                <image class="btn-icon-small" src="/images/icon_nav.png" />
+                <text>去这里</text>
+              </view>
+            </view>
           </view>
-        </view>
-        <text class="camera-text">拍摄路障</text>
+
+          <view class="empty" wx:if="{{!loading && facilities.length === 0}}">当前条件下暂无结果</view>
+          <view class="loading" wx:if="{{loading}}">加载中...</view>
+        </scroll-view>
       </view>
-    </view>
   </view>
 
-  <!-- 悬浮功能卡片区 -->
-  <view class="features-section">
-    <view class="features-grid">
-      <view class="feature-card" bindtap="navigateToSolutions" aria-role="button" aria-label="AI无障碍方案库">
-        <view class="feature-icon-circle bg-solution">
-          <text class="feature-icon">💡</text>
-        </view>
-        <view class="feature-info">
-          <text class="feature-card-title">AI 方案</text>
-          <text class="feature-card-desc">智能生成整改建议</text>
-        </view>
-      </view>
-
-      <view class="feature-card" bindtap="navigateToCommunity" aria-role="button" aria-label="无障碍社区">
-        <view class="feature-icon-circle bg-community">
-          <text class="feature-icon">👥</text>
-        </view>
-        <view class="feature-info">
-          <text class="feature-card-title">社区</text>
-          <text class="feature-card-desc">分享经验交流讨论</text>
-        </view>
-      </view>
-
-      <view class="feature-card" bindtap="navigateToHistory" aria-role="button" aria-label="我的发布历史">
-        <view class="feature-icon-circle bg-history">
-          <text class="feature-icon">📋</text>
-        </view>
-        <view class="feature-info">
-          <text class="feature-card-title">历史</text>
-          <text class="feature-card-desc">查看我的记录</text>
-        </view>
-      </view>
-    </view>
   </view>
 
-  <!-- 底部标语 -->
-  <view class="footer-note">
-    <text class="footer-slogan">让城市更无障碍 · 让出行更自由</text>
+  <view class="search-overlay" wx:if="{{searchVisible}}">
+    <view class="search-mask" bindtap="onSearchClose"></view>
+    <view class="search-panel">
+      <view class="search-input-row">
+        <image class="search-icon" src="/images/search.png" />
+        <input class="search-input" placeholder="输入你想去的地点" value="{{searchKeyword}}" bindinput="onSearchInput" focus />
+        <view class="search-cancel" bindtap="onSearchClose">取消</view>
+      </view>
+      <scroll-view scroll-y class="search-result-list">
+        <view class="search-result" wx:for="{{searchResults}}" wx:key="id" bindtap="onSearchSelect" data-id="{{item.id}}">
+          <text class="search-title">{{item.title}}</text>
+          <text class="search-sub">{{item.address}}</text>
+        </view>
+        <view class="empty" wx:if="{{!searchLoading && searchKeyword && searchResults.length === 0}}">暂无结果</view>
+        <view class="loading" wx:if="{{searchLoading}}">搜索中...</view>
+      </scroll-view>
+    </view>
   </view>
 </view>

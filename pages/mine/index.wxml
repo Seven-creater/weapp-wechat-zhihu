@@ -1,118 +1,57 @@
 <view class="mine-container">
-  <!-- 头部登录区 -->
+  <!-- Header Section -->
   <view class="header-section">
-    <view class="user-info" bindtap="handleLogin" aria-role="button" aria-label="点击登录或查看用户信息">
-      <view class="avatar-section">
-        <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true"></image>
-      </view>
+    <view class="user-info" bindtap="handleLogin">
+      <image class="avatar" src="{{userInfo.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" />
       <view class="user-details">
-        <text class="user-name" aria-label="用户昵称">
-          {{userInfo.nickName || '点击登录'}}
-        </text>
-        <text class="user-status" wx:if="{{userInfo.nickName}}" aria-label="登录状态">
-          已同步云端数据
-        </text>
-        <text class="login-tip" wx:else aria-label="登录提示">
-          登录后同步您的无障碍随手拍记录
-        </text>
-      </view>
-      <view class="login-arrow" wx:if="{{!userInfo.nickName}}">
-        <image src="/images/arrow-right.png" class="arrow-icon" aria-hidden="true"></image>
-      </view>
-      <view class="edit-tip" wx:if="{{userInfo.nickName}}">
-        <text>编辑资料</text>
+        <text class="user-name">{{userInfo.nickName || '点击登录'}}</text>
+        <text class="user-id" wx:if="{{userInfo.nickName}}">小红书号：{{userInfo.id || '123456789'}}</text>
       </view>
     </view>
   </view>
 
-  <!-- 功能菜单列表 -->
-  <view class="menu-section">
-    <button 
-      class="menu-item" 
-      hover-class="menu-item-hover"
-      bindtap="handleNav" 
-      data-url="/pages/my-issues/index"
-      aria-label="我的随手拍"
-    >
-      <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-camera.png" aria-hidden="true"></image>
-        <text class="menu-text">我的随手拍</text>
-        <text class="menu-desc">查看我上报的无障碍问题</text>
-      </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
-    </button>
-
-    <button 
-      class="menu-item" 
-      hover-class="menu-item-hover"
-      bindtap="handleNav" 
-      data-url="/pages/my-favorites/index"
-      aria-label="我的方案收藏"
-    >
-      <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-favorite.png" aria-hidden="true"></image>
-        <text class="menu-text">我的方案收藏</text>
-        <text class="menu-desc">收藏的AI解决方案</text>
-      </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
-    </button>
-
-    <button 
-      class="menu-item" 
-      hover-class="menu-item-hover"
-      bindtap="handleNav" 
-      data-url="/pages/my-comments/index"
-      aria-label="我的评论互动"
-    >
-      <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-comment.png" aria-hidden="true"></image>
-        <text class="menu-text">我的评论/互动</text>
-        <text class="menu-desc">我的评论和互动记录</text>
-      </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
-    </button>
-
-    <button 
-      class="menu-item" 
-      hover-class="menu-item-hover"
-      open-type="contact"
-      aria-label="联系客服反馈"
-    >
-      <view class="menu-content">
-        <image class="menu-icon" src="/images/icon-service.png" aria-hidden="true"></image>
-        <text class="menu-text">联系客服/反馈</text>
-        <text class="menu-desc">问题反馈与客服联系</text>
-      </view>
-      <image class="menu-arrow" src="/images/arrow-right-yellow.png" aria-hidden="true"></image>
-    </button>
-  </view>
-
-  <!-- 底部退出按钮 -->
-  <view class="logout-section" wx:if="{{userInfo.nickName}}">
-    <button 
-      class="logout-btn" 
-      hover-class="logout-btn-hover"
-      bindtap="handleLogout"
-      aria-label="退出登录"
-    >
-      退出登录
-    </button>
-  </view>
-
-  <!-- 登录提示模态框 -->
-  <view class="modal {{showLoginModal ? 'show' : ''}}" wx:if="{{showLoginModal}}">
-    <view class="modal-mask" bindtap="hideLoginModal"></view>
-    <view class="modal-content">
-      <view class="modal-header">
-        <text class="modal-title">登录提示</text>
-      </view>
-      <view class="modal-body">
-        <text class="modal-text">请先登录以查看您的数据</text>
-      </view>
-      <view class="modal-footer">
-        <button class="modal-btn cancel-btn" bindtap="hideLoginModal" aria-label="取消">取消</button>
-        <button class="modal-btn confirm-btn" bindtap="handleLogin" aria-label="立即登录">立即登录</button>
-      </view>
+  <!-- Stats Section -->
+  <view class="stats-section">
+    <view class="stat-item" bindtap="navigateToFollowList" data-type="following">
+      <text class="stat-num">{{stats.following}}</text>
+      <text class="stat-label">关注</text>
     </view>
+    <view class="stat-item" bindtap="navigateToFollowList" data-type="followers">
+      <text class="stat-num">{{stats.followers}}</text>
+      <text class="stat-label">粉丝</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.likes}}</text>
+      <text class="stat-label">获赞与收藏</text>
+    </view>
+  </view>
+
+  <!-- Tabs Section -->
+  <view class="tabs-section">
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">笔记</view>
+    <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{1}}">收藏</view>
+    <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{2}}">赞过</view>
+  </view>
+
+  <!-- Content Grid -->
+  <view class="content-grid">
+    <block wx:for="{{posts}}" wx:key="id">
+      <view class="grid-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
+        <image class="post-img" src="{{item.image}}" mode="aspectFill" />
+        <view class="post-title">{{item.title}}</view>
+        <view class="post-likes">❤️ {{item.likes}}</view>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:if="{{posts.length === 0}}">
+      <image class="empty-img" src="/images/empty.png" />
+      <text class="empty-text">{{emptyText}}</text>
+    </view>
+  </view>
+  <view class="list-footer" wx:if="{{loading}}">
+    <text class="footer-text">加载中...</text>
+  </view>
+  <view class="list-footer" wx:if="{{!loading && !hasMore && posts.length > 0}}">
+    <text class="footer-text">没有更多了</text>
   </view>
 </view>

@@ -1,0 +1,18 @@
+<view class="container">
+  <view class="user-list">
+    <block wx:for="{{users}}" wx:key="_id">
+      <view class="user-item" bindtap="navigateToProfile" data-id="{{item.userInfo._openid || item.targetId || item.followerId}}">
+        <image class="avatar" src="{{item.userInfo.avatarUrl}}" mode="aspectFill"></image>
+        <view class="info">
+          <text class="nickname">{{item.userInfo.nickName}}</text>
+        </view>
+        <view class="action-btn" catchtap="toggleFollow" data-index="{{index}}" wx:if="{{!item.isSelf}}">
+          {{item.isFollowing ? '已关注' : '关注'}}
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{users.length === 0}}" class="empty-state">
+      <text>暂无数据</text>
+    </view>
+  </view>
+</view>

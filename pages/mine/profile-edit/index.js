@@ -1,3 +1,5 @@
+﻿﻿const app = getApp();
+
 Page({
   data: {
     form: {
@@ -22,28 +24,20 @@ Page({
     });
   },
 
-  onNameInput: function (e) {
-    const value = e.detail.value;
-    this.setData({
-      form: {
-        ...this.data.form,
-        nickName: value,
-      },
-    });
-  },
-
   chooseAvatar: function () {
-    wx.chooseImage({
+    wx.chooseMedia({
       count: 1,
-      sizeType: ["compressed"],
+      mediaType: ["image"],
       sourceType: ["album", "camera"],
       success: (res) => {
-        const filePath = res.tempFilePaths && res.tempFilePaths[0];
-        if (!filePath) return;
+        const tempFile = res && res.tempFiles && res.tempFiles[0];
+        const tempFilePath = tempFile && tempFile.tempFilePath;
+        if (!tempFilePath) return;
+
         this.setData({
           form: {
             ...this.data.form,
-            avatarUrl: filePath,
+            avatarUrl: tempFilePath,
           },
         });
       },
@@ -53,21 +47,34 @@ Page({
     });
   },
 
-  syncWechatProfile: function () {
-    wx.getUserProfile({
-      desc: "同步微信头像昵称",
-      success: (res) => {
-        const userInfo = res.userInfo || {};
-        this.setData({
-          form: {
-            ...this.data.form,
-            avatarUrl: userInfo.avatarUrl || "",
-            nickName: userInfo.nickName || "",
-          },
-        });
+  onChooseAvatar: function (e) {
+    const avatarUrl = e && e.detail && e.detail.avatarUrl;
+    if (!avatarUrl) return;
+    this.setData({
+      form: {
+        ...this.data.form,
+        avatarUrl,
       },
-      fail: () => {
-        wx.showToast({ title: "同步失败", icon: "none" });
+    });
+  },
+
+  onNameInput: function (e) {
+    const value = (e && e.detail && e.detail.value) || "";
+    this.setData({
+      form: {
+        ...this.data.form,
+        nickName: value,
+      },
+    });
+  },
+
+  onNameBlur: function (e) {
+    const value = (e && e.detail && e.detail.value) || "";
+    if (!value) return;
+    this.setData({
+      form: {
+        ...this.data.form,
+        nickName: value,
       },
     });
   },
@@ -85,40 +92,57 @@ Page({
 
     this.setData({ saving: true });
 
+    const isLocalTempFile = /^wxfile:|^https?:\/\/tmp\//.test(avatarUrl || "");
     const needsUpload =
       avatarUrl &&
+      isLocalTempFile &&
       avatarUrl !== this.data.original.avatarUrl &&
-      avatarUrl.indexOf("cloud://") !== 0;
+      avatarUrl.indexOf("cloud://") !== 0 &&
+      !avatarUrl.startsWith("https://thirdwx.qlogo.cn");
 
     this.uploadAvatarIfNeeded(avatarUrl, needsUpload)
       .then((finalAvatarUrl) => {
         const nextUserInfo = {
           ...(wx.getStorageSync("userInfo") || {}),
-          avatarUrl: finalAvatarUrl,
+          avatarUrl: finalAvatarUrl || "",
           nickName: trimmedName,
         };
 
-        wx.setStorageSync("userInfo", nextUserInfo);
-        const app = getApp();
-        app.globalData.userInfo = nextUserInfo;
+        return app.ensureOpenid().then((openid) => {
+          const applied = app.applyUserState(nextUserInfo, openid);
 
-        return this.syncToCloud(nextUserInfo);
+          this.setData({
+            form: {
+              ...this.data.form,
+              avatarUrl: applied.avatarUrl,
+              nickName: applied.nickName,
+            },
+            original: {
+              avatarUrl: applied.avatarUrl,
+              nickName: applied.nickName,
+            },
+          });
+
+          const pages = getCurrentPages();
+          if (pages.length > 1) {
+            const prevPage = pages[pages.length - 2];
+            if (prevPage && prevPage.setData) {
+              prevPage.setData({ userInfo: applied });
+            }
+          }
+
+          return app.upsertUserProfile(openid, applied);
+        });
       })
       .then(() => {
-        const pages = getCurrentPages();
-        if (pages.length > 1) {
-          const prevPage = pages[pages.length - 2];
-          if (prevPage && prevPage.setData) {
-            prevPage.setData({ userInfo: wx.getStorageSync("userInfo") });
-          }
-        }
-
         wx.showToast({ title: "保存成功", icon: "success" });
-        wx.navigateBack();
       })
-      .catch((err) => {
-        console.error("保存资料失败:", err);
-        wx.showToast({ title: "保存失败", icon: "none" });
+      .catch((error) => {
+        console.error("保存失败:", error);
+        wx.showToast({
+          title: (error && error.message) || "保存失败",
+          icon: "none",
+        });
       })
       .finally(() => {
         this.setData({ saving: false });
@@ -130,53 +154,10 @@ Page({
       return Promise.resolve(avatarUrl);
     }
 
-    return wx.cloud
-      .uploadFile({
-        cloudPath: `avatars/${Date.now()}-${Math.random()
-          .toString(16)
-          .slice(2)}.jpg`,
-        filePath: avatarUrl,
-      })
-      .then((res) => res.fileID);
-  },
+    if (!avatarUrl) {
+      return Promise.resolve("");
+    }
 
-  syncToCloud: function (userInfo) {
-    const db = wx.cloud.database();
-    const app = getApp();
-    const ensureOpenid = app.globalData.openid
-      ? Promise.resolve(app.globalData.openid)
-      : app
-          .loginWithCloud()
-          .then((openid) => {
-            app.globalData.openid = openid;
-            wx.setStorageSync("openid", openid);
-            return openid;
-          });
-
-    return ensureOpenid.then((openid) => {
-      return db
-        .collection("users")
-        .where({ _openid: openid })
-        .get()
-        .then((res) => {
-          if (res.data.length > 0) {
-            return db.collection("users").doc(res.data[0]._id).update({
-              data: {
-                ...userInfo,
-                updatedAt: db.serverDate(),
-              },
-            });
-          }
-
-          return db.collection("users").add({
-            data: {
-              ...userInfo,
-              _openid: openid,
-              createTime: db.serverDate(),
-              updatedAt: db.serverDate(),
-            },
-          });
-        });
-    });
+    return app.uploadFile({ filePath: avatarUrl, dir: "avatars" });
   },
 });

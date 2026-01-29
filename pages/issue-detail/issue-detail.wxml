@@ -50,6 +50,7 @@
     <view class="info-card">
       <text class="info-title">AI建议</text>
       <text class="info-text">{{issue.aiSolution || '暂无AI建议'}}</text>
+      <button class="action-btn" bindtap="goToRenovation" wx:if="{{issue.aiSolution}}">生成改造方案</button>
     </view>
 
     <view class="info-card">

@@ -3,7 +3,7 @@
     <view class="back-btn" bindtap="handleCancel" aria-role="button" aria-label="返回">
       <image class="back-icon" src="/images/arrow-right-yellow.png" style="transform: rotate(180deg);"></image>
     </view>
-    <text class="title">问题编辑</text>
+    <text class="title">新建位置</text>
     <view class="header-right"></view>
   </view>
 
@@ -79,6 +79,38 @@
   </view>
 
   <view class="section">
+    <text class="section-title">请选择分类</text>
+    <text class="category-required">*</text>
+    <view class="category-grid">
+      <view
+        class="category-item {{selectedCategory === item ? 'active' : ''}}"
+        wx:for="{{categoryOptions}}"
+        wx:key="item"
+        data-category="{{item}}"
+        bindtap="onCategorySelect"
+        aria-role="button"
+        aria-label="{{item}}"
+      >
+        <text class="category-text">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">联系方式（选填）：</text>
+    <input
+      class="contact-input"
+      placeholder="该设施联系方式（如有人想咨询可以拨打）"
+      value="{{contactPhone}}"
+      bindinput="onContactPhoneInput"
+      bindblur="onContactPhoneBlur"
+      type="text"
+      aria-label="联系电话"
+    />
+    <text class="contact-hint">* 填写后他人可一键拨打联系您，非必填</text>
+  </view>
+
+  <view class="section">
     <view class="section-header">
       <text class="section-title">位置信息</text>
       <view class="reselect-btn" bindtap="chooseLocation" aria-role="button" aria-label="重新定位">
@@ -90,10 +122,10 @@
 
   <view class="section">
     <view class="section-header">
-      <text class="section-title">🤖 AI 方案 (可编辑)</text>
+      <text class="section-title">🤖 AI 生成材料报告 (可编辑)</text>
       <text class="label-hint">点击下方可修改</text>
-      <view class="ai-btn" bindtap="generateAISolution" aria-role="button" aria-label="生成AI方案">
-        <text>{{aiSolution ? '重新生成' : '生成方案'}}</text>
+      <view class="ai-btn" bindtap="generateAISolution" aria-role="button" aria-label="生成材料报告">
+        <text>{{aiSolution ? '重新生成' : '生成报告'}}</text>
       </view>
     </view>
     <view class="ai-content">
@@ -104,21 +136,21 @@
           placeholder="AI 正在分析中..."
           value="{{aiSolution}}"
           bindinput="onAiSolutionInput"
-          aria-label="AI方案内容"
+          aria-label="AI生成材料报告"
         ></textarea>
       </view>
   </view>
 
   <view class="section">
     <view class="switch-row">
-      <text class="switch-label">同步到社区</text>
-      <switch checked="{{syncToCommunity}}" bindchange="onSyncChange" aria-label="同步到社区"></switch>
+      <text class="switch-label">是否发布社区</text>
+      <switch checked="{{syncToCommunity}}" bindchange="onSyncChange" aria-label="是否发布社区"></switch>
     </view>
   </view>
 
   <view class="footer-actions">
     <button class="submit-btn" bindtap="submitIssue" aria-label="提交">
-      提交并生成方案库
+      提交并生成无障碍案例库
     </button>
   </view>
 

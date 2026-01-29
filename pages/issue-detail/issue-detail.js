@@ -73,4 +73,12 @@ Page({
   goBack: function () {
     wx.navigateBack();
   },
+
+  goToRenovation: function() {
+    const issueId = this.data.issue?._id;
+    const diagnosis = encodeURIComponent((this.data.issue && this.data.issue.aiSolution) || "");
+    wx.navigateTo({
+      url: `/pages/renovation/renovation?issueId=${issueId || ""}&diagnosis=${diagnosis}`
+    });
+  }
 });

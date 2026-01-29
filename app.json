@@ -1,9 +1,13 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/scheme/scheme",
     "pages/community/community",
+    "pages/post/create",
+    "pages/post/new-post/index",
+    "pages/notify/notify",
+    "pages/chat/chat",
     "pages/mine/index",
+    "pages/scheme/scheme",
     "pages/case-detail/case-detail",
     "pages/more/more",
     "pages/my-favorites/index",
@@ -13,11 +17,14 @@
     "pages/my-issues/index",
     "pages/issue-detail/issue-detail",
     "pages/post-detail/index",
-    "pages/post/create",
     "pages/issue-edit/index",
     "pages/profile-edit/index",
     "pages/mine/profile-edit/index",
-    "pages/map-view/index"
+    "pages/map-view/index",
+    "pages/renovation/renovation",
+    "pages/construction/construction",
+    "pages/follow-list/index",
+    "pages/user-profile/index"
   ],
   "plugins": {
     "WeChatSI": {
@@ -28,7 +35,7 @@
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#FFFFFF",
-    "navigationBarTitleText": "推荐",
+    "navigationBarTitleText": "无障碍地图",
     "navigationBarTextStyle": "black",
     "enablePullDownRefresh": true
   },
@@ -42,34 +49,38 @@
     "fetchMode": "simple"
   },
   "tabBar": {
-    "color": "#FFFFFF",
-    "selectedColor": "#FFD700",
-    "backgroundColor": "#1E90FF",
+    "color": "#999999",
+    "selectedColor": "#333333",
+    "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
-    "fontSize": 12,
-    "iconSize": 24,
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "随手拍",
+        "text": "首页",
         "iconPath": "images/index.png",
         "selectedIconPath": "images/index_focus.png"
       },
       {
-        "pagePath": "pages/solutions/index",
-        "text": "方案库",
+        "pagePath": "pages/community/community",
+        "text": "社区",
         "iconPath": "images/discovery.png",
         "selectedIconPath": "images/discovery_focus.png"
       },
       {
-        "pagePath": "pages/community/community",
-        "text": "社区",
+        "pagePath": "pages/post/create",
+        "text": "发布",
+        "iconPath": "images/write.png",
+        "selectedIconPath": "images/write.png"
+      },
+      {
+        "pagePath": "pages/notify/notify",
+        "text": "消息",
         "iconPath": "images/chat.png",
         "selectedIconPath": "images/chat_focus.png"
       },
       {
         "pagePath": "pages/mine/index",
-        "text": "个人中心",
+        "text": "我的",
         "iconPath": "images/ring.png",
         "selectedIconPath": "images/ring_focus.png"
       }

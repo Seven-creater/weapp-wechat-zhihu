@@ -8,7 +8,7 @@
     >
       <image 
         class="avatar" 
-        src="{{form.avatarUrl || '/images/default-avatar.png'}}" 
+        src="{{form.avatarUrl || '/images/zhi.png'}}"
         mode="aspectFill"
       ></image>
     </button>

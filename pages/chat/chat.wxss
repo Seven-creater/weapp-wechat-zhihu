@@ -1,43 +1,102 @@
-.chat-item{
-  width: 725rpx;
-  background: #ffffff;
-  padding: 25rpx 25rpx 25rpx 0;
-  border-bottom: solid 1px #ebebeb;
+/* pages/chat/chat.wxss */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f5f5f5;
 }
-.chat-item  image{
+
+.message-list {
+  flex: 1;
+  padding: 20rpx;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.loading-more {
+  text-align: center;
+  padding: 20rpx;
+  color: #999;
+  font-size: 24rpx;
+}
+
+.message-item {
+  display: flex;
+  margin-bottom: 30rpx;
+  align-items: flex-start;
+}
+
+.my-message {
+  flex-direction: row-reverse;
+}
+
+.other-message {
+  flex-direction: row;
+}
+
+.avatar {
   width: 80rpx;
   height: 80rpx;
-  border-radius: 80rpx;
+  border-radius: 50%;
+  margin: 0 20rpx;
+  background-color: #ddd;
 }
-.chat-item .avatar{
+
+.content-wrapper {
+  max-width: 60%;
+}
+
+.content-bubble {
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  line-height: 1.5;
+  word-break: break-all;
+  position: relative;
+}
+
+.my-message .content-bubble {
+  background-color: #ff2442;
+  color: #fff;
+  border-top-right-radius: 4rpx;
+}
+
+.other-message .content-bubble {
+  background-color: #fff;
+  color: #333;
+  border-top-left-radius: 4rpx;
+}
+
+.input-area {
+  background-color: #fff;
+  padding: 20rpx;
+  display: flex;
+  align-items: center;
+  border-top: 1rpx solid #eee;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.chat-input {
   flex: 1;
-}
-.chat-item .chat-content{
-  flex: 4;
-  text-align: left;
-}
-.chat-item .chat-content text{
-  /*display: block;*/
-}
-.chat-item .chat-content .chat-source{
-  color: #818A8F;
+  background-color: #f5f5f5;
+  height: 72rpx;
+  border-radius: 36rpx;
+  padding: 0 30rpx;
   font-size: 28rpx;
-  padding: 4rpx 0 8rpx 0;
+  margin-right: 20rpx;
 }
-.chat-item .chat-content .chat-source .chatmate{
-  font-size: 34rpx;
-  color: #000000;
-  text-align: left;
+
+.send-btn {
+  color: #999;
+  font-size: 30rpx;
+  font-weight: bold;
+  padding: 10rpx 20rpx;
 }
-.chat-item .chat-content .chat-source .lasttime{
-  flex: 1;
-  font-size: 22rpx;
-  float: right;
-  vertical-align: text-bottom;
-}
-.chat-item .chat-content .chat-txt{
-  display: block;
-  color: #7b7b7b;
-  font-size: 26rpx;
-  line-height: 34rpx;
+
+.send-btn.active {
+  color: #ff2442;
 }

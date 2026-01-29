@@ -1,7 +1,7 @@
 <view class="profile-edit-container">
   <view class="header-card">
     <view class="avatar-section">
-      <image class="avatar" src="{{form.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" aria-hidden="true"></image>
+      <image class="avatar" src="{{form.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" aria-hidden="true"></image>
       <button
         class="avatar-btn"
         bindtap="chooseAvatar"

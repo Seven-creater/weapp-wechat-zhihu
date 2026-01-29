@@ -5,6 +5,22 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 
+const getCurrentCount = (collection, type, targetData) => {
+  if (!targetData) return 0;
+
+  if (collection === "comments") {
+    if (typeof targetData.likeCount === "number") return targetData.likeCount;
+    return targetData.likes || 0;
+  }
+
+  if (type === "like") {
+    return (targetData.stats && targetData.stats.like) || 0;
+  }
+
+  if (typeof targetData.collectCount === "number") return targetData.collectCount;
+  return (targetData.stats && targetData.stats.collect) || 0;
+};
+
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
@@ -67,103 +83,67 @@ exports.main = async (event, context) => {
             ? ["collect_solution", "collect_post", "collect"]
             : ["collect_post", "collect"];
 
-    // 查询用户是否已经点赞/收藏
-    const actionQuery = db
-      .collection("actions")
-      .where(
-        _.and([
-          { _openid: openid },
-          { type: _.in(actionTypesForQuery) },
-          _.or([{ targetId: id }, { postId: id }]),
-        ])
-      );
-
-    const actionRes = await actionQuery.get();
-
-    if (actionRes.data.length > 1) {
-      const dupIds = actionRes.data.slice(1).map((item) => item._id);
-      if (dupIds.length > 0) {
-        await Promise.all(
-          dupIds.map((dupId) => db.collection("actions").doc(dupId).remove())
+    const transaction = await db.startTransaction();
+    try {
+      const actionQuery = transaction
+        .collection("actions")
+        .where(
+          _.and([
+            { _openid: openid },
+            { type: _.in(actionTypesForQuery) },
+            _.or([{ targetId: id }, { postId: id }]),
+          ])
         );
+
+      const actionRes = await actionQuery.get();
+
+      if (actionRes.data.length > 1) {
+        const dupIds = actionRes.data.slice(1).map((item) => item._id);
+        if (dupIds.length > 0) {
+          await Promise.all(
+            dupIds.map((dupId) =>
+              transaction.collection("actions").doc(dupId).remove()
+            )
+          );
+        }
       }
-    }
 
-    const existingAction = actionRes.data[0];
+      const existingAction = actionRes.data[0];
+      const targetRes = await transaction.collection(collection).doc(id).get();
+      const targetData = targetRes.data;
 
-    // 获取当前帖子的统计信息
-    const targetRes = await db.collection(collection).doc(id).get();
-    const targetData = targetRes.data;
+      if (!targetData) {
+        await transaction.rollback();
+        return { success: false, error: "目标数据不存在" };
+      }
 
-    if (!targetData) {
-      return {
-        success: false,
-        error: "目标数据不存在",
-      };
-    }
-
-    let newCount;
-    let actionResult;
-
-    const currentCount =
-      collection === "comments"
-        ? typeof targetData.likeCount === "number"
-          ? targetData.likeCount
-          : targetData.likes || 0
-        : type === "like"
-          ? (targetData.stats && targetData.stats.like) || 0
-          : typeof targetData.collectCount === "number"
-            ? targetData.collectCount
-            : (targetData.stats && targetData.stats.collect) || 0;
-
-    if (existingAction) {
-      // ============================================
-      // 取消点赞/收藏
-      // ============================================
-      console.log(`取消${type}: ${id}`);
-
-      // 删除 action 记录
-      await db.collection("actions").doc(existingAction._id).remove();
-
-      // 更新主表计数
-      newCount = Math.max(0, currentCount - 1);
-
-      const updateData = {
-        updateTime: db.serverDate(),
-      };
-
+      const updateData = { updateTime: db.serverDate() };
       if (collection === "comments") {
         if (typeof targetData.likeCount === "number") {
-          updateData.likeCount = newCount;
+          updateData.likeCount = _.inc(existingAction ? -1 : 1);
         } else {
-          updateData.likes = newCount;
+          updateData.likes = _.inc(existingAction ? -1 : 1);
         }
       } else if (type === "like") {
-        updateData["stats.like"] = newCount;
+        updateData["stats.like"] = _.inc(existingAction ? -1 : 1);
       } else {
-        updateData.collectCount = newCount;
-        updateData["stats.collect"] = newCount;
+        updateData.collectCount = _.inc(existingAction ? -1 : 1);
+        updateData["stats.collect"] = _.inc(existingAction ? -1 : 1);
       }
 
-      await db.collection(collection).doc(id).update({
-        data: updateData,
-      });
+      if (existingAction) {
+        await transaction.collection("actions").doc(existingAction._id).remove();
+        await transaction.collection(collection).doc(id).update({ data: updateData });
+        await transaction.commit();
 
-      actionResult = {
-        status: false,
-        count: newCount,
-      };
-    } else {
-      // ============================================
-      // 新增点赞/收藏
-      // ============================================
-      console.log(`执行${type}: ${id}`);
+        const latest = await db.collection(collection).doc(id).get();
+        const latestCount = Math.max(0, getCurrentCount(collection, type, latest.data));
+        return { success: true, status: false, count: latestCount };
+      }
 
       const titleSource =
         targetData.title || targetData.description || targetData.content || "";
-      const title = titleSource
-        ? String(titleSource).slice(0, 30)
-        : "未命名项目";
+      const title = titleSource ? String(titleSource).slice(0, 30) : "未命名项目";
 
       const image =
         targetData.image ||
@@ -182,7 +162,6 @@ exports.main = async (event, context) => {
             ? ""
             : "/pages/post-detail/index";
 
-      // 添加 action 记录
       const actionData = {
         type: actionType,
         targetId: id,
@@ -199,45 +178,19 @@ exports.main = async (event, context) => {
         actionData.targetRoute = targetRoute;
       }
 
-      const addRes = await db.collection("actions").add({
-        data: actionData,
-      });
+      const addRes = await transaction.collection("actions").add({ data: actionData });
+      await transaction.collection(collection).doc(id).update({ data: updateData });
+      await transaction.commit();
 
-      // 更新主表计数
-      newCount = currentCount + 1;
-
-      const updateData = {
-        updateTime: db.serverDate(),
-      };
-
-      if (collection === "comments") {
-        if (typeof targetData.likeCount === "number") {
-          updateData.likeCount = newCount;
-        } else {
-          updateData.likes = newCount;
-        }
-      } else if (type === "like") {
-        updateData["stats.like"] = newCount;
-      } else {
-        updateData.collectCount = newCount;
-        updateData["stats.collect"] = newCount;
-      }
-
-      await db.collection(collection).doc(id).update({
-        data: updateData,
-      });
-
-      actionResult = {
-        status: true,
-        count: newCount,
-        actionId: addRes._id,
-      };
+      const latest = await db.collection(collection).doc(id).get();
+      const latestCount = Math.max(0, getCurrentCount(collection, type, latest.data));
+      return { success: true, status: true, count: latestCount, actionId: addRes._id };
+    } catch (e) {
+      try {
+        await transaction.rollback();
+      } catch (_) {}
+      throw e;
     }
-
-    return {
-      success: true,
-      ...actionResult,
-    };
   } catch (err) {
     console.error("toggleInteraction 错误:", err);
     return {

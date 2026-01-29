@@ -8,6 +8,15 @@ Page({
     description: "",
     userSuggestion: "",
     images: [],
+    categoryOptions: [
+      "无障碍停车位",
+      "无障碍卫生间",
+      "无障碍坡道",
+      "无障碍电梯",
+      "无障碍升降台",
+    ],
+    selectedCategory: "",
+    contactPhone: "",
     aiSolution: "",
     location: null,
     address: "",
@@ -134,6 +143,8 @@ Page({
           address: location ? location.address : "",
           formattedAddress: location ? location.formattedAddress : "",
           syncToCommunity: true,
+          selectedCategory: tempDraft.selectedCategory || "",
+          contactPhone: tempDraft.contactPhone || "",
         });
 
         this.draftDirty = true;
@@ -196,6 +207,8 @@ Page({
         typeof draft.syncToCommunity === "boolean"
           ? draft.syncToCommunity
           : true,
+      selectedCategory: draft.selectedCategory || "",
+      contactPhone: draft.contactPhone || "",
     });
 
     this.draftDirty = false;
@@ -223,6 +236,26 @@ Page({
       userSuggestion: e.detail.value,
     });
     this.draftDirty = true;
+  },
+
+  onCategorySelect: function (e) {
+    const category = e.currentTarget.dataset.category;
+    if (!category) return;
+    this.setData({ selectedCategory: category });
+    this.draftDirty = true;
+  },
+
+  onContactPhoneInput: function (e) {
+    this.setData({ contactPhone: e.detail.value });
+    this.draftDirty = true;
+  },
+
+  onContactPhoneBlur: function (e) {
+    const value = (e.detail.value || "").trim();
+    if (!value) return;
+    if (!/^\+?[0-9\-\s]{7,20}$/.test(value)) {
+      wx.showToast({ title: "联系电话格式不正确", icon: "none" });
+    }
   },
 
   onAiSolutionInput: function (e) {
@@ -262,7 +295,7 @@ Page({
             savedPaths.map((path) => ({
               path,
               isSaved: true,
-            }))
+            })),
           );
           this.setData({ images });
           this.draftDirty = true;
@@ -385,8 +418,14 @@ Page({
   },
 
   submitIssue: async function () {
-    const { description, images, aiSolution, location, syncToCommunity } =
-      this.data;
+    const {
+      description,
+      images,
+      aiSolution,
+      location,
+      syncToCommunity,
+      selectedCategory,
+    } = this.data;
 
     if (this.data.submitting) return;
 
@@ -398,9 +437,17 @@ Page({
       return;
     }
 
+    if (!selectedCategory) {
+      wx.showToast({
+        title: "请选择分类",
+        icon: "none",
+      });
+      return;
+    }
+
     if (!aiSolution.trim()) {
       wx.showToast({
-        title: "请先生成AI方案",
+        title: "请先生成材料报告",
         icon: "none",
       });
       return;
@@ -489,7 +536,7 @@ Page({
 
       // 上传图片到云存储
       const fileIDs = await this.uploadImagesToCloud(
-        images.map((item) => item.path)
+        images.map((item) => item.path),
       );
 
       // 保存问题和解决方案到数据库
@@ -498,7 +545,7 @@ Page({
         description.trim(),
         aiSolution.trim(),
         location,
-        syncToCommunity
+        syncToCommunity,
       );
 
       this.clearDraft();
@@ -537,24 +584,32 @@ Page({
     description,
     aiSolution,
     location,
-    syncToCommunity
+    syncToCommunity,
   ) {
-    const { userSuggestion } = this.data;
+    const { userSuggestion, selectedCategory, contactPhone } = this.data;
     const coverImage = fileIDs[0];
+    const rawUserInfo =
+      app.globalData.userInfo || wx.getStorageSync("userInfo") || {};
+    const normalizedUserInfo = {
+      nickName: rawUserInfo.nickName || "匿名用户",
+      avatarUrl: rawUserInfo.avatarUrl || "/images/zhi.png",
+    };
+
     const issueData = {
       imageUrl: coverImage,
       images: fileIDs,
       description,
       userSuggestion,
+      category: selectedCategory || "",
+      contactPhone: contactPhone || "",
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
       formattedAddress: location.formattedAddress,
       aiSolution,
       status: "pending",
       createTime: db.serverDate(),
+      userInfo: normalizedUserInfo,
     };
-
-    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     return db
       .collection("issues")
@@ -567,12 +622,12 @@ Page({
 
         const locationPoint = new db.Geo.Point(
           location.longitude,
-          location.latitude
+          location.latitude,
         );
 
         const solutionData = {
           title,
-          category: "轮椅通行",
+          category: selectedCategory || "",
           status: "跟进中",
           beforeImg: coverImage,
           aiAnalysis: aiSolution,
@@ -584,6 +639,7 @@ Page({
           address: location.address,
           formattedAddress: location.formattedAddress,
           location: locationPoint,
+          userInfo: normalizedUserInfo,
         };
 
         const tasks = [db.collection("solutions").add({ data: solutionData })];
@@ -596,9 +652,10 @@ Page({
               location,
               aiSolution,
               description,
-              userInfo,
-              userSuggestion
-            )
+              selectedCategory || "",
+              normalizedUserInfo,
+              userSuggestion,
+            ),
           );
         }
 
@@ -612,14 +669,21 @@ Page({
     location,
     aiSolution,
     description,
+    category,
     userInfo,
-    userSuggestion
+    userSuggestion,
   ) {
+    const safeUserInfo = userInfo || {};
+    const normalizedUserInfo = {
+      nickName: safeUserInfo.nickName || "匿名用户",
+      avatarUrl: safeUserInfo.avatarUrl || "/images/zhi.png",
+    };
     const postData = {
       issueId,
       content: `${description}\nAI诊断：${aiSolution}`,
       images,
       type: "issue",
+      category: category || "",
       userSuggestion,
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
@@ -627,10 +691,7 @@ Page({
       stats: { view: 0, like: 0, comment: 0 },
       createTime: db.serverDate(),
       updateTime: db.serverDate(),
-      userInfo: userInfo || {
-        nickName: "匿名用户",
-        avatarUrl: "/images/default-avatar.png",
-      },
+      userInfo: normalizedUserInfo,
     };
 
     return db.collection("posts").add({ data: postData });
@@ -678,7 +739,7 @@ Page({
             fail: () => resolve(path),
           });
         });
-      })
+      }),
     );
   },
 
@@ -704,6 +765,8 @@ Page({
       address: this.data.address,
       formattedAddress: this.data.formattedAddress,
       syncToCommunity: this.data.syncToCommunity,
+      selectedCategory: this.data.selectedCategory,
+      contactPhone: this.data.contactPhone,
       updatedAt: Date.now(),
     };
 

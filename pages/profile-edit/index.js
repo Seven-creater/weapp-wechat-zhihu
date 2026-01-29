@@ -71,10 +71,9 @@ Page({
     wx.showLoading({ title: "保存中..." });
 
     // 判断是否需要上传新头像
+    const isTemp = /^wxfile:|^https?:\/\/tmp\//.test(avatarUrl || "");
     const needsUpload =
-      avatarUrl &&
-      avatarUrl.startsWith("http://tmp") &&
-      !avatarUrl.startsWith("cloud://");
+      avatarUrl && isTemp && !avatarUrl.startsWith("cloud://");
 
     this.uploadAvatarIfNeeded(avatarUrl, needsUpload)
       .then((finalAvatarUrl) => {
@@ -174,5 +173,7 @@ Page({
           });
         }
       });
+      .ensureOpenid()
+      .then((openid) => app.upsertUserProfile(openid, userInfo));
   },
 });

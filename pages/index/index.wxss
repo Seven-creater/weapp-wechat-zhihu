@@ -1,373 +1,469 @@
-/* ============================================
-   首页样式 - 现代无障碍设计
-   Material Design + Apple Style 混合风格
-   ============================================ */
-
-/* 基础重置 */
-view,
-text,
-image {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* 页面主容器 */
-.accessibility-home {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-/* ============================================
-   顶部渐变背景区 (Hero Section)
-   ============================================ */
-.hero-section {
+.map-home-container {
+  height: 100vh;
+  background: #f7f8fa;
   position: relative;
-  height: 48vh;
-  min-height: 680rpx;
-  overflow: visible;
-}
-
-/* 渐变背景 + 底部弧形 */
-.hero-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(180deg, #0044cc 0%, #002fa7 50%, #003d99 100%);
-  border-bottom-left-radius: 120rpx;
-  border-bottom-right-radius: 120rpx;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 背景光效 */
-.hero-bg::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-      circle at 15% 75%,
-      rgba(255, 215, 0, 0.2) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 85% 30%,
-      rgba(255, 215, 0, 0.15) 0%,
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 50% 60%,
-      rgba(255, 255, 255, 0.08) 0%,
-      transparent 50%
-    );
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ============================================
-   磨砂玻璃定位胶囊
-   ============================================ */
-.location-capsule {
+.map-area {
+  flex: 1;
+  width: 100%;
+}
+
+.map-view {
+  width: 100%;
+  height: 100%;
+}
+
+.top-bar {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 40rpx);
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
+  right: 12px;
+  height: 44px;
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 16rpx 28rpx 16rpx 20rpx;
-  border-radius: 100rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  max-width: 86%;
+  gap: 10px;
+  z-index: 20;
 }
 
-.location-icon-wrap {
+.location-selector {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #111827;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.location-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.arrow-down {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.search-box {
+  flex: 1;
+  height: 36px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.search-placeholder {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.top-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.location-icon-small {
-  width: 32rpx;
-  height: 32rpx;
-  filter: brightness(0) invert(1);
+.top-icon {
+  width: 18px;
+  height: 18px;
 }
 
-.location-address {
+.map-controls {
+  position: absolute;
+  right: 14px;
+  top: 120px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.control-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.control-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.control-text {
+  font-size: 10px;
+  color: #111827;
+}
+
+.bottom-sheet {
+  background: #ffffff;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: height;
+}
+
+.bottom-sheet.dragging {
+  transition: none;
+}
+
+.sheet-handle {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sheet-handle-bar {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.category-scroll {
+  white-space: nowrap;
+  padding: 8px 12px 4px;
+}
+
+.category-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 130rpx;
+  margin-right: 4px;
+}
+
+.cat-icon {
+  width: 110rpx;
+  height: 110rpx;
+  border-radius: 20px;
+}
+
+.category-item.active .cat-icon {
+  border: 2px solid #2b6ef2;
+}
+
+.cat-name {
+  margin-top: 6px;
+  font-size: 24rpx;
+  color: #333;
+  text-align: center;
+  width: 140rpx;
+  line-height: 1.1;
+}
+
+.filter-scroll {
+  white-space: nowrap;
+  padding: 6px 12px 10px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.filter-item {
+  display: inline-flex;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #f1f3f6;
+  color: #374151;
   font-size: 26rpx;
-  font-weight: 500;
+  margin-right: 10px;
+}
+
+.filter-item.active {
+  background: #2b6ef2;
   color: #ffffff;
+}
+
+.sheet-content {
+  flex: 1;
+  min-height: 0;
+  background: #f7f8fa;
+}
+
+.facility-list {
+  height: 100%;
+  padding: 12px;
+}
+
+.facility-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.tag {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.distance {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.place-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.card-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.btn-detail {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  background: #f5f7fa;
+  color: #333;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.btn-go {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  background: #2b6ef2;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.btn-icon-small {
+  width: 16px;
+  height: 16px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 8px;
+}
+
+.detail-title-wrap {
+  flex: 1;
+  padding-right: 10px;
+}
+
+.detail-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.detail-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.detail-go {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #2b6ef2;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.section-title {
+  padding: 6px 14px 10px;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.nearby-scroll {
+  white-space: nowrap;
+  padding: 0 14px 16px;
+}
+
+.nearby-card {
+  width: 220rpx;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  display: inline-flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-right: 12px;
+}
+
+.nearby-image {
+  width: 100%;
+  height: 140rpx;
+}
+
+.nearby-name {
+  padding: 10px 10px 0;
+  font-size: 24rpx;
+  color: #111827;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 360rpx;
-  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 }
 
-.refresh-btn {
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 8rpx 20rpx;
-  border-radius: 100rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.3);
+.nearby-rating {
+  padding: 8px 10px 12px;
 }
 
-.refresh-text {
-  font-size: 22rpx;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-/* 地图入口 */
-.map-entry {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 110rpx);
-  right: 32rpx;
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(255, 215, 0, 0.95);
-  box-shadow: 0 8rpx 24rpx rgba(255, 215, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  transition: transform 0.2s ease;
-}
-
-.map-entry:active {
-  transform: scale(0.92);
-}
-
-.map-entry-text {
-  font-size: 36rpx;
-}
-
-/* ============================================
-   核心拍照按钮 (Camera Hero)
-   ============================================ */
-.hero-content {
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 50;
-}
-
-/* 按钮容器 */
-.camera-button-wrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* 呼吸光晕 */
-.camera-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 420rpx;
-  height: 420rpx;
-  background: radial-gradient(
-    circle,
-    rgba(255, 215, 0, 0.25) 0%,
-    rgba(255, 200, 0, 0.1) 40%,
-    transparent 70%
-  );
-  border-radius: 50%;
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-/* 主按钮 */
-.camera-button {
-  position: relative;
-  width: 280rpx;
-  height: 280rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease;
-}
-
-.camera-button:active {
-  transform: scale(0.95);
-}
-
-/* 外圈描边 */
-.camera-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 260rpx;
-  height: 260rpx;
-  border-radius: 50%;
-  border: 12rpx solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 0 0 4rpx rgba(255, 255, 255, 0.1),
-    inset 0 0 20rpx rgba(255, 215, 0, 0.2);
-}
-
-/* 核心圆形 */
-.camera-core {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ffd700 0%, #ffc107 50%, #ffb300 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 20rpx 50rpx rgba(255, 215, 0, 0.4),
-    0 10rpx 20rpx rgba(255, 180, 0, 0.3), inset 0 -4rpx 12rpx rgba(0, 0, 0, 0.1),
-    inset 0 4rpx 8rpx rgba(255, 255, 255, 0.4);
-}
-
-/* 相机图标 */
-.camera-icon {
-  font-size: 88rpx;
-  line-height: 1;
-  filter: drop-shadow(0 2rpx 4rpx rgba(0, 0, 0, 0.1));
-}
-
-/* 按钮文字 */
-.camera-text {
-  margin-top: 28rpx;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 4rpx;
-  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
-}
-
-/* 呼吸动画 */
-@keyframes pulse-glow {
-  0%,
-  100% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.08);
-  }
-}
-
-/* ============================================
-   悬浮功能卡片区 (Features Section)
-   ============================================ */
-.features-section {
-  padding: 0 32rpx;
-  margin-top: -60rpx;
-  position: relative;
-  z-index: 10;
-}
-
-/* 功能网格 - 双列布局 */
-.features-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24rpx;
-}
-
-/* 历史卡片居中显示 */
-.features-grid .feature-card:last-child {
-  grid-column: 1 / -1;
-  justify-self: center;
-  width: calc(50% - 12rpx);
-}
-
-/* 悬浮卡片 */
-.feature-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 20rpx;
-  background: #ffffff;
-  padding: 28rpx 24rpx;
-  border-radius: 28rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.06), 0 1rpx 4rpx rgba(0, 0, 0, 0.04);
-  transition: all 0.25s ease;
-  border: 1rpx solid rgba(0, 0, 0, 0.02);
-}
-
-.feature-card:active {
-  transform: translateY(-4rpx) scale(1.02);
-  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.1), 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
-}
-
-/* 彩色图标圆圈 */
-.feature-icon-circle {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-}
-
-.feature-icon {
-  font-size: 40rpx;
-}
-
-/* 渐变背景 */
-.bg-solution {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-}
-
-.bg-community {
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-}
-
-.bg-history {
-  background: linear-gradient(135deg, #fce4ec 0%, #f8bbd9 100%);
-}
-
-/* 文字信息 */
-.feature-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.feature-card-title {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1a1a2e;
-  margin-bottom: 6rpx;
-  letter-spacing: 1rpx;
-}
-
-.feature-card-desc {
-  font-size: 22rpx;
-  color: #8e8e93;
-  line-height: 1.4;
-}
-
-/* ============================================
-   底部标语区
-   ============================================ */
-.footer-note {
-  padding: 56rpx 32rpx 40rpx;
+.empty,
+.loading {
+  padding: 14px;
   text-align: center;
+  font-size: 26rpx;
+  color: #6b7280;
 }
 
-.footer-slogan {
+.search-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+}
+
+.search-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.search-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 8px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.search-cancel {
+  font-size: 26rpx;
+  color: #2b6ef2;
+  padding: 6px 8px;
+}
+
+.search-result-list {
+  max-height: 70vh;
+}
+
+.search-result {
+  padding: 12px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.search-title {
+  display: block;
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.search-sub {
+  display: block;
+  margin-top: 6px;
   font-size: 24rpx;
-  color: #8e8e93;
-  letter-spacing: 2rpx;
-  font-weight: 500;
+  color: #6b7280;
 }

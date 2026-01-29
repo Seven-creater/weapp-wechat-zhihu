@@ -1,483 +1,55 @@
-/* 发布页样式 - 无障碍设计规范 */
-
-.create-post-container {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  padding-bottom: 40rpx;
-}
-
-/* 头部操作栏 */
-.header-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #002fa7;
-  color: #ffffff;
-  padding: 30rpx 40rpx;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.cancel-btn,
-.submit-btn {
-  padding: 20rpx 40rpx;
-  border-radius: 25rpx;
-  font-size: 32rpx;
-  font-weight: bold;
-  transition: background-color 0.3s;
-  min-width: 100rpx;
-  text-align: center;
-}
-
-.cancel-btn {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.cancel-btn:active {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.submit-btn {
-  background-color: rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.submit-btn.active {
-  background-color: #ffd700;
-  color: #002fa7;
-}
-
-.submit-btn.active:active {
-  background-color: #e6c200;
-}
-
-.title {
-  font-size: 36rpx;
-  font-weight: bold;
-}
-
-/* 内容编辑区域 */
-.editor-section {
-  background-color: #ffffff;
-  margin: 20rpx;
-  border-radius: 20rpx;
-  padding: 40rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 47, 167, 0.1);
-}
-
-/* 类型选择器 */
-.type-selector {
-  margin-bottom: 40rpx;
-  padding-bottom: 30rpx;
-  border-bottom: 2rpx solid #e0e0e0;
-}
-
-.selector-label {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #002fa7;
-  display: block;
-  margin-bottom: 20rpx;
-}
-
-.type-options {
-  display: flex;
-  gap: 20rpx;
-}
-
-.type-option {
-  flex: 1;
-  padding: 20rpx 30rpx;
-  border-radius: 15rpx;
-  background-color: #f8f8f8;
-  text-align: center;
-  font-size: 28rpx;
-  font-weight: bold;
-  color: #666666;
-  transition: all 0.3s;
-  border: 2rpx solid transparent;
-}
-
-.type-option:active {
-  background-color: #e0e0e0;
-}
-
-.type-option.active {
-  background-color: #002fa7;
-  color: #ffffff;
-  border-color: #002fa7;
-}
-
-.type-option.active:active {
-  background-color: #001f7a;
-}
-
-.location-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  padding: 18rpx 24rpx;
-  margin-bottom: 20rpx;
-  background-color: #f8f8f8;
-  border-radius: 12rpx;
-  border: 2rpx dashed #cccccc;
-}
-
-.location-text {
-  font-size: 28rpx;
-  color: #666666;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.location-action {
-  font-size: 26rpx;
-  color: #002fa7;
-  font-weight: bold;
-}
-
-.content-editor {
-  margin-bottom: 40rpx;
-  position: relative;
-}
-
-.content-input {
-  width: 100%;
-  min-height: 300rpx;
-  background-color: #f8f8f8;
-  border-radius: 15rpx;
-  padding: 30rpx;
-  font-size: 32rpx;
-  line-height: 1.5;
-  color: #333333;
-  border: 2rpx solid #e0e0e0;
-  transition: border-color 0.3s;
-}
-
-.content-input:focus {
-  border-color: #002fa7;
-}
-
-.word-count {
-  text-align: right;
-  margin-top: 15rpx;
-}
-
-.count-text {
-  font-size: 24rpx;
-  color: #999999;
-}
-
-.editor-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-top: 15rpx;
-}
-
-.mic-float {
-  position: absolute;
-  right: 20rpx;
-  bottom: 20rpx;
-  z-index: 5;
-}
-
-.mic-btn {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background-color: #ffd700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.2);
-}
-
-.mic-btn:active {
-  background-color: #e6c200;
-}
-
-.mic-btn.recording {
-  background-color: #ff4444;
-  color: #ffffff;
-  animation: pulse 1s infinite;
-}
-
-.mic-icon {
-  font-size: 36rpx;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-/* 我的建议输入框 */
-.suggestion-editor {
-  margin-bottom: 40rpx;
-}
-
-.suggestion-label {
-  font-size: 30rpx;
-  font-weight: bold;
-  color: #002fa7;
-  display: block;
-  margin-bottom: 15rpx;
-}
-
-.suggestion-input {
-  width: 100%;
-  min-height: 150rpx;
-  background-color: #f8f8f8;
-  border-radius: 15rpx;
-  padding: 25rpx;
-  font-size: 28rpx;
-  line-height: 1.5;
-  color: #333333;
-  border: 2rpx dashed #cccccc;
-  transition: border-color 0.3s;
-}
-
-.suggestion-input:focus {
-  border-color: #002fa7;
-  border-style: solid;
-}
-
-/* 图片上传区域 */
-.image-upload-section {
-  margin-top: 40rpx;
-}
-
-.upload-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30rpx;
-}
-
-.upload-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #002fa7;
-}
-
-.upload-tip {
-  font-size: 24rpx;
-  color: #999999;
-}
-
-.image-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20rpx;
-}
-
-.image-item {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1/1;
-  border-radius: 10rpx;
-  overflow: hidden;
-}
-
-.uploaded-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 10rpx;
-  right: 10rpx;
-  width: 40rpx;
-  height: 40rpx;
-  background-color: rgba(0, 0, 0, 0.6);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s;
-}
-
-.remove-btn:active {
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
-.remove-icon {
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: bold;
-}
-
-.add-image-btn {
-  width: 100%;
-  aspect-ratio: 1/1;
-  background-color: #f8f8f8;
-  border: 2rpx dashed #cccccc;
-  border-radius: 10rpx;
+/* pages/post/create.wxss */
+.publish-selection-container {
   display: flex;
   flex-direction: column;
+  padding: 20px;
+  background-color: #f8f8f8;
+  height: 100vh;
+  gap: 20px;
+  padding-top: 40px;
+}
+
+.selection-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
   align-items: center;
-  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
 }
 
-.add-image-btn:active {
-  background-color: #e0e0e0;
-  border-color: #999999;
+.selection-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
-.add-icon {
-  width: 60rpx;
-  height: 60rpx;
-  margin-bottom: 15rpx;
+.card-icon {
+  width: 48px;
+  height: 48px;
+  margin-right: 16px;
 }
 
-.add-text {
-  font-size: 24rpx;
-  color: #666666;
-}
-
-/* 底部提示 */
-.footer-tips {
-  margin: 0 40rpx;
-  padding: 30rpx;
-  background-color: #ffffff;
-  border-radius: 15rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 47, 167, 0.1);
-}
-
-.tip-text {
-  display: block;
-  font-size: 24rpx;
-  color: #666666;
-  margin-bottom: 10rpx;
-  line-height: 1.4;
-}
-
-.tip-text:last-child {
-  margin-bottom: 0;
-}
-
-/* 清空内容按钮 */
-.clear-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15rpx;
-  margin: 30rpx 40rpx 0;
-  padding: 25rpx 40rpx;
-  background-color: #f8f8f8;
-  border-radius: 25rpx;
-  font-size: 28rpx;
-  color: #666666;
-  transition: background-color 0.3s;
-}
-
-.clear-btn:active {
-  background-color: #e0e0e0;
-}
-
-.clear-icon {
-  width: 32rpx;
-  height: 32rpx;
-}
-
-.clear-text {
-  font-weight: bold;
-}
-
-/* 提交状态遮罩 */
-.submit-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.loading-content {
-  background-color: #ffffff;
-  padding: 60rpx 80rpx;
-  border-radius: 20rpx;
+.card-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 30rpx;
 }
 
-.loading-icon {
-  width: 80rpx;
-  height: 80rpx;
-}
-
-.loading-text {
-  font-size: 28rpx;
-  color: #333333;
+.card-title {
+  font-size: 18px;
   font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-/* 无障碍优化 */
-.cancel-btn,
-.submit-btn,
-.type-option,
-.add-image-btn,
-.clear-btn {
-  min-height: 80rpx;
-  min-width: 120rpx;
+.card-desc {
+  font-size: 14px;
+  color: #999;
 }
 
-.remove-btn {
-  min-height: 40rpx;
-  min-width: 40rpx;
-}
-
-/* 高对比度模式支持 */
-@media (prefers-contrast: high) {
-  .editor-section,
-  .footer-tips {
-    border: 3rpx solid #002fa7;
-  }
-
-  .type-option {
-    border: 2rpx solid #002fa7;
-  }
-
-  .content-input {
-    border: 3rpx solid #002fa7;
-  }
-}
-
-/* 大字体模式支持 */
-@media (prefers-font-size: large) {
-  .content-input {
-    font-size: 36rpx;
-    line-height: 1.8;
-  }
-
-  .selector-label,
-  .upload-title {
-    font-size: 36rpx;
-  }
-
-  .type-option,
-  .add-text,
-  .tip-text {
-    font-size: 30rpx;
-  }
+.arrow-icon {
+  font-size: 18px;
+  color: #ccc;
+  font-weight: bold;
 }

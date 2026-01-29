@@ -17,6 +17,12 @@ exports.main = async (event, context) => {
     order = "desc",
     docId,
     keyword,
+    category,
+    status,
+    type,
+    sourceIssueId,
+    authorOpenids,
+    near,
   } = event;
 
   // 验证参数
@@ -105,7 +111,7 @@ exports.main = async (event, context) => {
             data.images = data.images.map((imgUrl) => {
               if (imgUrl && imgUrl.startsWith("cloud://")) {
                 const tempUrl = urlRes.fileList.find(
-                  (f) => f.fileID === imgUrl
+                  (f) => f.fileID === imgUrl,
                 )?.tempFileURL;
                 return tempUrl || imgUrl;
               }
@@ -118,7 +124,7 @@ exports.main = async (event, context) => {
             data.userInfo.avatarUrl.startsWith("cloud://")
           ) {
             const tempUrl = urlRes.fileList.find(
-              (f) => f.fileID === data.userInfo.avatarUrl
+              (f) => f.fileID === data.userInfo.avatarUrl,
             )?.tempFileURL;
             if (tempUrl) {
               data.userInfo.avatarUrl = tempUrl;
@@ -134,7 +140,7 @@ exports.main = async (event, context) => {
           solutionImageFields.forEach((field) => {
             if (data[field] && data[field].startsWith("cloud://")) {
               const tempUrl = urlRes.fileList.find(
-                (f) => f.fileID === data[field]
+                (f) => f.fileID === data[field],
               )?.tempFileURL;
               if (tempUrl) {
                 data[field] = tempUrl;
@@ -146,7 +152,7 @@ exports.main = async (event, context) => {
           issueImageFields.forEach((field) => {
             if (data[field] && data[field].startsWith("cloud://")) {
               const tempUrl = urlRes.fileList.find(
-                (f) => f.fileID === data[field]
+                (f) => f.fileID === data[field],
               )?.tempFileURL;
               if (tempUrl) {
                 data[field] = tempUrl;
@@ -159,7 +165,7 @@ exports.main = async (event, context) => {
       if (!data.userInfo) {
         data.userInfo = {
           nickName: "匿名用户",
-          avatarUrl: "/images/default-avatar.png",
+          avatarUrl: "/images/zhi.png",
         };
       } else if (!data.userInfo.nickName) {
         data.userInfo.nickName = "匿名用户";
@@ -178,10 +184,12 @@ exports.main = async (event, context) => {
     console.log(
       `开始查询集合: ${collection}, 页码: ${page}, 每页: ${pageSize}, 关键词: ${
         keyword || "无"
-      }`
+      }`,
     );
 
     let query = db.collection(collection);
+    let baseConditions = [];
+    let nearApplied = false;
 
     // ============================================
     // B1. 如果是 actions 集合，查询当前用户的收藏
@@ -196,25 +204,82 @@ exports.main = async (event, context) => {
     // ============================================
     // B2. 如果有关键词，添加模糊查询条件
     // ============================================
-    else if (keyword && keyword.trim()) {
-      const reg = db.RegExp({ regexp: keyword.trim(), options: "i" });
-
+    else {
       if (collection === "solutions") {
-        // 方案库：匹配 title, description, aiAnalysis
-        query = query.where(
-          _.or([{ title: reg }, { description: reg }, { aiAnalysis: reg }])
-        );
+        if (category && String(category).trim())
+          baseConditions.push({ category });
+        if (status && String(status).trim()) baseConditions.push({ status });
+        if (sourceIssueId && String(sourceIssueId).trim())
+          baseConditions.push({ sourceIssueId });
+        if (near && typeof near === "object") {
+          const lat = Number(near.latitude);
+          const lng = Number(near.longitude);
+          const maxDistance = Number(near.maxDistance);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            nearApplied = true;
+            baseConditions.push({
+              location: _.geoNear({
+                geometry: new db.Geo.Point(lng, lat),
+                maxDistance: Number.isFinite(maxDistance) ? maxDistance : 5000,
+                minDistance: 0,
+              }),
+            });
+          }
+        }
       } else if (collection === "posts") {
-        // 社区帖子：匹配 content, aiDiagnosis, aiSolution
-        query = query.where(
-          _.or([{ content: reg }, { aiDiagnosis: reg }, { aiSolution: reg }])
-        );
+        if (type && String(type).trim()) baseConditions.push({ type });
+        if (Array.isArray(authorOpenids)) {
+          const ids = authorOpenids.filter(Boolean).slice(0, 100);
+          if (ids.length > 0) baseConditions.push({ _openid: _.in(ids) });
+        }
       } else if (collection === "issues") {
-        // 随手拍：匹配 description, content
-        query = query.where(_.or([{ description: reg }, { content: reg }]));
+        if (status && String(status).trim()) baseConditions.push({ status });
+        if (near && typeof near === "object") {
+          const lat = Number(near.latitude);
+          const lng = Number(near.longitude);
+          const maxDistance = Number(near.maxDistance);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            nearApplied = true;
+            baseConditions.push({
+              location: _.geoNear({
+                geometry: new db.Geo.Point(lng, lat),
+                maxDistance: Number.isFinite(maxDistance) ? maxDistance : 5000,
+                minDistance: 0,
+              }),
+            });
+          }
+        }
       }
 
-      console.log(`关键词搜索: ${keyword}`);
+      if (keyword && keyword.trim()) {
+        const reg = db.RegExp({ regexp: keyword.trim(), options: "i" });
+        let keywordCondition = null;
+
+        if (collection === "solutions") {
+          keywordCondition = _.or([
+            { title: reg },
+            { description: reg },
+            { aiAnalysis: reg },
+          ]);
+        } else if (collection === "posts") {
+          keywordCondition = _.or([
+            { content: reg },
+            { aiDiagnosis: reg },
+            { aiSolution: reg },
+          ]);
+        } else if (collection === "issues") {
+          keywordCondition = _.or([{ description: reg }, { content: reg }]);
+        }
+
+        if (keywordCondition) baseConditions.push(keywordCondition);
+        console.log(`关键词搜索: ${keyword}`);
+      }
+
+      if (baseConditions.length === 1) {
+        query = query.where(baseConditions[0]);
+      } else if (baseConditions.length > 1) {
+        query = query.where(_.and(baseConditions));
+      }
     }
 
     // 添加排序
@@ -223,7 +288,43 @@ exports.main = async (event, context) => {
     // 添加分页
     query = query.skip((page - 1) * pageSize).limit(pageSize);
 
-    const res = await query.get();
+    const runQuery = async (conditions) => {
+      let q = db.collection(collection);
+      if (conditions.length === 1) {
+        q = q.where(conditions[0]);
+      } else if (conditions.length > 1) {
+        q = q.where(_.and(conditions));
+      }
+      q = q.orderBy(orderBy, order);
+      q = q.skip((page - 1) * pageSize).limit(pageSize);
+      return q.get();
+    };
+
+    let res;
+    try {
+      res = await query.get();
+    } catch (err) {
+      const msg = String((err && (err.message || err.errMsg)) || "");
+      const isGeoNearIndexError =
+        msg.includes("unable to find index for $geoNear") ||
+        (msg.includes("$geoNear") && msg.includes("index"));
+
+      if (nearApplied && isGeoNearIndexError) {
+        console.log("geoNear 缺少索引，自动回退为非附近查询");
+        const withoutNear = baseConditions.filter((c) => {
+          if (!c || typeof c !== "object") return true;
+          const loc = c.location;
+          if (!loc || typeof loc !== "object") return true;
+          return !(
+            Object.prototype.hasOwnProperty.call(loc, "$geoNear") ||
+            String(JSON.stringify(loc)).includes("$geoNear")
+          );
+        });
+        res = await runQuery(withoutNear);
+      } else {
+        throw err;
+      }
+    }
     let list = res.data || [];
 
     if (collection === "actions") {
@@ -295,7 +396,7 @@ exports.main = async (event, context) => {
           }
 
           return normalized;
-        })
+        }),
       );
     }
 
@@ -327,7 +428,7 @@ exports.main = async (event, context) => {
             usersRes.data.forEach((user) => {
               authorMap.set(user._openid, {
                 nickName: user.nickName || user.nickName || "匿名用户",
-                avatarUrl: user.avatarUrl || "/images/default-avatar.png",
+                avatarUrl: user.avatarUrl || "/images/zhi.png",
                 _openid: user._openid,
               });
             });
@@ -439,14 +540,14 @@ exports.main = async (event, context) => {
         // 使用 users 集合中的最新资料
         processedDoc.userInfo = {
           nickName: authorInfo.nickName || "匿名用户",
-          avatarUrl: authorInfo.avatarUrl || "/images/default-avatar.png",
+          avatarUrl: authorInfo.avatarUrl || "/images/zhi.png",
           _openid: doc._openid,
         };
       } else if (!processedDoc.userInfo) {
         // 没有用户信息时使用默认值
         processedDoc.userInfo = {
           nickName: "匿名用户",
-          avatarUrl: "/images/default-avatar.png",
+          avatarUrl: "/images/zhi.png",
         };
       }
 
@@ -496,10 +597,10 @@ exports.main = async (event, context) => {
       if (collection === "actions" && processedDoc.createTime) {
         // 调试日志
         console.log(
-          `[调试] 处理 actions 记录: _id=${processedDoc._id}, type=${processedDoc.type}`
+          `[调试] 处理 actions 记录: _id=${processedDoc._id}, type=${processedDoc.type}`,
         );
         console.log(
-          `[调试] 原始图片字段: image=${processedDoc.image}, coverImg=${processedDoc.coverImg}`
+          `[调试] 原始图片字段: image=${processedDoc.image}, coverImg=${processedDoc.coverImg}`,
         );
 
         // 确保图片字段有值
@@ -513,8 +614,7 @@ exports.main = async (event, context) => {
 
         // 确保 image 字段是有效的 https URL 或默认图片
         if (!finalImage || !finalImage.startsWith("http")) {
-          finalImage =
-            urlMap.get(processedDoc.coverImg) || "/images/default-avatar.png";
+          finalImage = urlMap.get(processedDoc.coverImg) || "/images/zhi.png";
         }
 
         processedDoc.image = finalImage;
@@ -556,38 +656,27 @@ exports.main = async (event, context) => {
     let total = 0;
     let hasMore = false;
 
-    if (keyword && keyword.trim()) {
-      // 关键词搜索时，需要统计符合条件的总数
-      try {
-        let countQuery = db.collection(collection);
-        const reg = db.RegExp({ regexp: keyword.trim(), options: "i" });
+    try {
+      let countQuery = db.collection(collection);
 
-        if (collection === "solutions") {
-          countQuery = countQuery.where(
-            _.or([{ title: reg }, { description: reg }, { aiAnalysis: reg }])
-          );
-        } else if (collection === "posts") {
-          countQuery = countQuery.where(
-            _.or([{ content: reg }, { aiDiagnosis: reg }, { aiSolution: reg }])
-          );
-        } else if (collection === "issues") {
-          countQuery = countQuery.where(
-            _.or([{ description: reg }, { content: reg }])
-          );
-        }
-
-        const countRes = await countQuery.count();
-        total = countRes.total;
-        hasMore = page * pageSize < total;
-      } catch (countErr) {
-        console.error("获取总数失败:", countErr);
-        total = data.length;
-        hasMore = data.length >= pageSize;
+      if (collection === "actions") {
+        countQuery = countQuery.where({
+          _openid: openid,
+          type: _.in(["collect_solution", "collect_post", "collect"]),
+        });
+      } else if (baseConditions.length === 1) {
+        countQuery = countQuery.where(baseConditions[0]);
+      } else if (baseConditions.length > 1) {
+        countQuery = countQuery.where(_.and(baseConditions));
       }
-    } else {
-      // 普通列表查询
-      hasMore =
-        page * pageSize < (await db.collection(collection).count()).total;
+
+      const countRes = await countQuery.count();
+      total = countRes.total;
+      hasMore = page * pageSize < total;
+    } catch (countErr) {
+      console.error("获取总数失败:", countErr);
+      total = processedData.length;
+      hasMore = processedData.length >= pageSize;
     }
 
     // 返回数据
@@ -599,7 +688,7 @@ exports.main = async (event, context) => {
         pageSize,
         total,
         totalPages: Math.ceil(total / pageSize),
-        hasMore: hasMore && keyword,
+        hasMore,
       },
       meta: {
         urlConverted: allUrls.length,
