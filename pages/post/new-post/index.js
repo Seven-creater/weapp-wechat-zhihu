@@ -1,5 +1,14 @@
 const app = getApp();
-const db = wx.cloud.database();
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
 
 const getFileExt = (filePath) => {
   const parts = String(filePath || "").split(".");
@@ -145,6 +154,7 @@ Page({
 
       const fileIDs = await this.uploadImagesToCloud(images);
 
+      const db = getDB();
       const userInfo = app.globalData.userInfo || {};
       const data = {
         title: title || undefined,

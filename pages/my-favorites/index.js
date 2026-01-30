@@ -1,7 +1,17 @@
 // 我的收藏列表页
 const app = getApp();
-const db = wx.cloud.database();
-const _ = db.command;
+
+// 延迟初始化数据库
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
 
 Page({
   data: {

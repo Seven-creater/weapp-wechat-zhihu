@@ -91,6 +91,12 @@
   border: 1rpx solid #ddd;
 }
 
+.follow-btn.mutual {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+}
+
 .chat-btn {
   background-color: #fff;
   color: #333;

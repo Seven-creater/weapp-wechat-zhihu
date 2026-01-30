@@ -1,6 +1,17 @@
 // 通用收藏功能工具函数
-const db = wx.cloud.database();
-const _ = db.command;
+
+// 延迟初始化数据库
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
+
 const toggleCollectLocks = new Set();
 
 /**
@@ -65,6 +76,7 @@ const checkIsCollected = function (type, targetId) {
       return;
     }
 
+    const { db } = getDB();
     const normalizedType = type === "collect" ? "collect_post" : type;
 
     db.collection("actions")
@@ -112,6 +124,7 @@ const getCollectCount = function (type, targetId) {
       return;
     }
 
+    const { db } = getDB();
     const normalizedType = type === "collect" ? "collect_post" : type;
 
     db.collection("actions")
@@ -240,8 +253,9 @@ const toggleCollect = function (context, type, targetId, targetData) {
  */
 const addToCollection = function (openid, type, targetId, targetData) {
   return new Promise((resolve, reject) => {
+    const { db } = getDB();
+    
     // 构建收藏数据
-
     const collectData = {
       type: type === "collect" ? "collect_post" : type,
       targetId: targetId,
@@ -271,6 +285,7 @@ const addToCollection = function (openid, type, targetId, targetData) {
  */
 const removeFromCollection = function (openid, type, targetId) {
   return new Promise((resolve, reject) => {
+    const { db } = getDB();
     const normalizedType = type === "collect" ? "collect_post" : type;
 
     db.collection("actions")
@@ -309,6 +324,8 @@ const removeFromCollection = function (openid, type, targetId) {
  */
 const updateTargetCollectionCount = function (type, targetId, increment) {
   return new Promise((resolve, reject) => {
+    const { db } = getDB();
+    
     let collectionName = "";
     if (type === "collect_solution") {
       collectionName = "solutions";

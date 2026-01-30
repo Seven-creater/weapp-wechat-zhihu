@@ -1,0 +1,43 @@
+<!--pages/test-diagnosis/index.wxml-->
+<view class="container">
+  <view class="header">
+    <text class="title">🔧 系统诊断工具</text>
+    <text class="subtitle">检查用户信息和云函数状态</text>
+  </view>
+
+  <view class="actions">
+    <button 
+      class="btn-primary" 
+      bindtap="startDiagnosis"
+      disabled="{{isRunning}}"
+    >
+      {{isRunning ? '诊断中...' : '开始诊断'}}
+    </button>
+  </view>
+
+  <view class="result-container" wx:if="{{diagnosisResult}}">
+    <view class="result-header">
+      <text class="result-title">诊断结果</text>
+      <button class="btn-copy" bindtap="copyResult" size="mini">复制</button>
+    </view>
+    <view class="result-content">
+      <text class="result-text">{{diagnosisResult}}</text>
+    </view>
+  </view>
+
+  <view class="tips">
+    <view class="tip-item">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">如果发现问题，请按照提示进行修复</text>
+    </view>
+    <view class="tip-item">
+      <text class="tip-icon">📖</text>
+      <text class="tip-text">详细文档请查看 docs/TROUBLESHOOTING.md</text>
+    </view>
+  </view>
+
+  <view class="quick-actions">
+    <button class="btn-secondary" bindtap="goToLogin">前往登录页</button>
+  </view>
+</view>
+

@@ -2,24 +2,20 @@ const app = getApp();
 
 Page({
   data: {
-    diagnosis: "",
+    diagnosis: '',
     issueId: "",
     solutionId: "",
     schemes: [
-      { id: "ramp", name: "加装坡道", desc: "适用于有高差的入口，施工周期短" },
-      {
-        id: "lift",
-        name: "安装升降机",
-        desc: "适用于高差较大且空间有限的场景",
-      },
-      { id: "handrail", name: "加装扶手", desc: "辅助行走，成本低" },
+      { id: 'ramp', name: '加装坡道', desc: '适用于有高差的入口，施工周期短' },
+      { id: 'lift', name: '安装升降机', desc: '适用于高差较大且空间有限的场景' },
+      { id: 'handrail', name: '加装扶手', desc: '辅助行走，成本低' }
     ],
-    selectedScheme: "ramp",
-    area: "",
-    materials: ["不锈钢", "防腐木", "混凝土", "防滑地砖"],
+    selectedScheme: 'ramp',
+    area: '',
+    materials: ['不锈钢', '防腐木', '混凝土', '防滑地砖'],
     materialIndex: 0,
     loading: false,
-    result: null,
+    result: null
   },
 
   onLoad: function (options) {
@@ -31,16 +27,20 @@ Page({
     }
   },
 
-  goBack: function () {
+  goBack: function() {
     wx.navigateBack();
   },
 
-  onSchemeChange: function (e) {
+  onSchemeChange: function(e) {
     this.setData({ selectedScheme: e.detail.value });
   },
 
-  onAreaInput: function (e) {
+  onAreaInput: function(e) {
     this.setData({ area: e.detail.value });
+  },
+
+  onMaterialChange: function(e) {
+    this.setData({ materialIndex: e.detail.value });
   },
 
   ensureLogin: function () {
@@ -66,19 +66,13 @@ Page({
     });
   },
 
-  onMaterialChange: function (e) {
-    this.setData({ materialIndex: e.detail.value });
-  },
-
-  generatePlan: function () {
+  generatePlan: function() {
     if (!this.data.area) {
-      wx.showToast({ title: "请输入用地尺寸", icon: "none" });
+      wx.showToast({ title: '请输入用地尺寸', icon: 'none' });
       return;
     }
 
-    const scheme = this.data.schemes.find(
-      (s) => s.id === this.data.selectedScheme,
-    );
+    const scheme = this.data.schemes.find((s) => s.id === this.data.selectedScheme);
     if (!scheme) {
       wx.showToast({ title: "请选择改造方案", icon: "none" });
       return;
@@ -87,6 +81,12 @@ Page({
     const material = this.data.materials[this.data.materialIndex];
     const area = Number(this.data.area);
     if (!Number.isFinite(area) || area <= 0) {
+      wx.showToast({ title: "请输入正确的面积", icon: "none" });
+      return;
+    }
+
+    this.setData({ loading: true });
+
     this.ensureLogin()
       .then(() => {
         return wx.cloud.callFunction({
@@ -100,7 +100,7 @@ Page({
             diagnosis: this.data.diagnosis || "",
           },
         });
-        issueId: this.data.issueId,
+      })
       .then((res) => {
         if (!res.result || !res.result.success) {
           throw new Error(res.result?.error || "生成失败");
@@ -108,12 +108,6 @@ Page({
 
         const plan = res.result.plan || null;
         const solutionId = res.result.solutionId || "";
-        area,
-        diagnosis: this.data.diagnosis || "",
-      })
-      .then((result) => {
-        const plan = result.plan || null;
-        const solutionId = result.solutionId || "";
 
         this.setData({
           result: plan,
@@ -134,13 +128,13 @@ Page({
       });
   },
 
-  goToConstruction: function () {
+  goToConstruction: function() {
     if (!this.data.solutionId) {
       wx.showToast({ title: "请先生成方案", icon: "none" });
       return;
     }
     wx.navigateTo({
-      url: `/pages/construction/construction?solutionId=${this.data.solutionId}`,
+      url: `/pages/construction/construction?solutionId=${this.data.solutionId}`
     });
-  },
+  }
 });

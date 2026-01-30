@@ -1,116 +1,94 @@
-const cloud = require("wx-server-sdk");
-
-cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
+// cloudfunctions/updateConversation/index.js
+const cloud = require('wx-server-sdk');
+cloud.init({
+  env: cloud.DYNAMIC_CURRENT_ENV
+});
 
 const db = cloud.database();
 const _ = db.command;
 
-const getUserInfoByOpenid = async (openid) => {
-  const res = await db.collection("users").where({ _openid: openid }).limit(1).get();
-  return res.data?.[0]?.userInfo || null;
-};
-
-const upsertConversation = async ({
-  ownerId,
-  targetId,
-  targetUserInfo,
-  lastMessage,
-  updateTime,
-  unreadOnUpdate,
-  unreadOnCreate,
-}) => {
-  const existed = await db
-    .collection("conversations")
-    .where({ ownerId, targetId })
-    .limit(1)
-    .get();
-
-  if (existed.data && existed.data.length > 0) {
-    const docId = existed.data[0]._id;
-    const updateData = {
-      targetUserInfo: targetUserInfo || {},
-      lastMessage,
-      updateTime,
-    };
-    if (unreadOnUpdate) {
-      Object.assign(updateData, unreadOnUpdate);
-    }
-    await db.collection("conversations").doc(docId).update({ data: updateData });
-    return { created: false };
-  }
-
-  await db.collection("conversations").add({
-    data: {
-      ownerId,
-      targetId,
-      targetUserInfo: targetUserInfo || {},
-      lastMessage,
-      updateTime,
-      unread: unreadOnCreate || 0,
-    },
-  });
-  return { created: true };
-};
-
-exports.main = async (event) => {
+exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
-  const ownerOpenid = wxContext.OPENID;
-
-  const action = event?.action || "send";
-  const targetId = event?.targetId;
-
-  if (!targetId) {
-    return { success: false, error: "缺少必要参数: targetId" };
-  }
-
-  if (action === "read") {
-    await db
-      .collection("conversations")
-      .where({ ownerId: ownerOpenid, targetId })
-      .update({
+  const openid = wxContext.OPENID;
+  const { action, targetId, lastMessage, targetUserInfo } = event;
+  
+  try {
+    if (action === 'send') {
+      // 发送消息时更新双方的会话记录
+      await updateOrCreateConversation(openid, targetId, lastMessage, targetUserInfo, false);
+      await updateOrCreateConversation(targetId, openid, lastMessage, null, true);
+      
+      return { success: true };
+      
+    } else if (action === 'read') {
+      // 标记消息已读
+      await db.collection('conversations').where({
+        ownerId: openid,
+        targetId: targetId
+      }).update({
         data: {
-          unread: 0,
-          updateTime: db.serverDate(),
-        },
+          unread: 0
+        }
       });
-    return { success: true };
+      
+      return { success: true };
+    }
+    
+    return { success: false, error: '未知操作' };
+    
+  } catch (err) {
+    console.error('更新会话失败:', err);
+    return { success: false, error: err.message };
   }
-
-  const lastMessage = String(event?.lastMessage || "").trim();
-  if (!lastMessage) {
-    return { success: false, error: "缺少必要参数: lastMessage" };
-  }
-
-  const [senderUserInfoFromDb, targetUserInfoFromDb] = await Promise.all([
-    getUserInfoByOpenid(ownerOpenid).catch(() => null),
-    getUserInfoByOpenid(targetId).catch(() => null),
-  ]);
-
-  const senderUserInfo = senderUserInfoFromDb || event?.userInfo || {};
-  const targetUserInfo = targetUserInfoFromDb || {};
-  const updateTime = db.serverDate();
-
-  await Promise.all([
-    upsertConversation({
-      ownerId: ownerOpenid,
-      targetId,
-      targetUserInfo,
-      lastMessage,
-      updateTime,
-      unreadOnUpdate: { unread: 0 },
-      unreadOnCreate: 0,
-    }),
-    upsertConversation({
-      ownerId: targetId,
-      targetId: ownerOpenid,
-      targetUserInfo: senderUserInfo,
-      lastMessage,
-      updateTime,
-      unreadOnUpdate: { unread: _.inc(1) },
-      unreadOnCreate: 1,
-    }),
-  ]);
-
-  return { success: true };
 };
 
+// 更新或创建会话记录
+async function updateOrCreateConversation(userId, targetId, lastMessage, targetUserInfo, isReceiver) {
+  const conversation = await db.collection('conversations').where({
+    ownerId: userId,
+    targetId: targetId
+  }).get();
+  
+  // 如果没有提供targetUserInfo，尝试查询
+  let userInfo = targetUserInfo;
+  if (!userInfo) {
+    const userRes = await db.collection('users').where({
+      _openid: targetId
+    }).field({
+      userInfo: true
+    }).limit(1).get();
+    
+    userInfo = userRes.data[0]?.userInfo || {
+      nickName: '未知用户',
+      avatarUrl: '/images/zhi.png'
+    };
+  }
+  
+  if (conversation.data.length > 0) {
+    // 更新已有会话
+    const updateData = {
+      lastMessage: lastMessage,
+      updateTime: db.serverDate()
+    };
+    
+    if (isReceiver) {
+      updateData.unread = _.inc(1);
+    }
+    
+    await db.collection('conversations').doc(conversation.data[0]._id).update({
+      data: updateData
+    });
+  } else {
+    // 创建新会话
+    await db.collection('conversations').add({
+      data: {
+        ownerId: userId,
+        targetId: targetId,
+        targetUserInfo: userInfo,
+        lastMessage: lastMessage,
+        unread: isReceiver ? 1 : 0,
+        updateTime: db.serverDate()
+      }
+    });
+  }
+}

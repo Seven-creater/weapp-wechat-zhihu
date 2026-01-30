@@ -1,6 +1,15 @@
 // pages/solution-detail/index.js
-const db = wx.cloud.database();
 const collectUtil = require("../../utils/collect.js");
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
 
 Page({
   data: {
@@ -264,6 +273,8 @@ Page({
 
   // 更新浏览量
   updateViewCount: function (solutionId) {
+    const db = getDB();
+    
     db.collection("solutions")
       .doc(solutionId)
       .update({

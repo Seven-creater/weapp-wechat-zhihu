@@ -1,17 +1,24 @@
 const collectUtil = require("../../utils/collect.js");
 const app = getApp();
-const db = wx.cloud.database();
-const _ = db.command;
+
+// 延迟初始化数据库
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
 
 const isCollectionNotExistError = (err) => {
   if (!err) return false;
   const msg = String(err.errMsg || err.message || "");
   const code = err.errCode || err.code;
   if (code === 502005) return true;
-  return (
-    msg.includes("collection not exist") ||
-    msg.includes("DATABASE_COLLECTION_NOT_EXIST")
-  );
+  return msg.includes("collection not exist") || msg.includes("DATABASE_COLLECTION_NOT_EXIST");
 };
 
 Page({
@@ -50,6 +57,9 @@ Page({
 
   // 加载帖子详情
   loadPostDetail: function (postId) {
+    this.setData({ loading: true });
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+
     // 调用云函数获取详情（云函数会自动转换图片URL）
     wx.cloud.callFunction({
       name: "getPublicData",
@@ -73,7 +83,7 @@ Page({
             } else if (!post.userInfo.nickName) {
               post.userInfo.nickName = "匿名用户";
             }
-            nickName: "匿名用户",
+
             // 🟢 关键修复：分离用户内容和AI诊断
             if (post.content && typeof post.content === "string") {
               const aiDiagnosisRegex = /AI诊断：|AI诊断：/;
@@ -85,7 +95,7 @@ Page({
                 post.aiDiagnosis = parts[1].trim();
               }
             }
-          const parts = post.content.split(/AI诊断：/);
+
             this.updatePostData(post, openid);
             this.initLikeStatus(postId, openid);
           } else {
@@ -98,20 +108,14 @@ Page({
       },
       fail: (err) => {
         wx.hideLoading();
-        }
-
-        this.updatePostData(post, openid);
-          title: "加载失败",
-      })
-      .catch((err) => {
-      },
-    });
+        console.error("加载帖子详情失败:", err);
         this.setData({ loading: false });
         wx.showToast({
-          title: (err && err.message) || "加载失败",
+          title: "加载失败",
           icon: "none",
         });
-      });
+      },
+    });
   },
 
   // 更新帖子数据
@@ -145,13 +149,15 @@ Page({
   initFollowStatus: function (targetId, openid) {
     if (!openid || !targetId || openid === targetId) return;
 
+    const { db } = getDB();
+
     db.collection("follows")
       .where({
         followerId: openid,
-        targetId: targetId,
+        targetId: targetId
       })
       .get()
-      .then((res) => {
+      .then(res => {
         this.setData({ isFollowing: res.data.length > 0 });
       })
       .catch((err) => {
@@ -162,7 +168,14 @@ Page({
         this.setData({ isFollowing: false });
       });
   },
+
+  // 关注/取消关注
+  toggleFollow: function () {
+    const targetId = this.data.post?._openid;
+    if (!targetId) return;
+
     app.checkLogin().then(() => {
+      const { db } = getDB();
       const openid = app.globalData.openid;
       if (openid === targetId) {
         wx.showToast({ title: '不能关注自己', icon: 'none' });
@@ -197,23 +210,13 @@ Page({
     }).catch(() => {
       wx.showToast({ title: '请先登录', icon: 'none' });
     });
-        wx.showToast({
-          title: status ? "关注成功" : "已取消关注",
-          icon: "none",
-        });
-      })
-      .catch((err) => {
-        if (err && err.message === "未登录") return;
-        wx.showToast({
-          title: (err && err.message) || "操作失败",
-          icon: "none",
-        });
-      });
   },
 
   // 初始化点赞状态
   initLikeStatus: function (postId, openid) {
     if (!openid) return;
+
+    const { db } = getDB();
 
     db.collection("actions")
       .where({
@@ -235,6 +238,8 @@ Page({
 
   // 加载评论列表
   loadComments: function (postId) {
+    const { db } = getDB();
+    
     db.collection("comments")
       .where({ postId })
       .orderBy("createTime", "desc")
@@ -288,17 +293,19 @@ Page({
     const openid = app.globalData.openid || wx.getStorageSync("openid");
     if (!openid || commentIds.length === 0) return;
 
+    const { db, _ } = getDB();
+
     db.collection("actions")
       .where(
         _.or([
           { type: "like_comment", targetId: _.in(commentIds), _openid: openid },
           { type: "like_comment", postId: _.in(commentIds), _openid: openid },
-        ]),
+        ])
       )
       .get()
       .then((res) => {
         const likedIds = new Set(
-          res.data.map((item) => item.targetId || item.postId),
+          res.data.map((item) => item.targetId || item.postId)
         );
 
         const comments = this.data.comments.map((comment) => {
@@ -314,6 +321,18 @@ Page({
             liked: likedIds.has(comment._id),
             replies,
           };
+        });
+
+        this.setData({ comments });
+      })
+      .catch(() => {});
+  },
+
+  // 点赞帖子
+  likePost: function () {
+    const post = this.data.post;
+    if (!post) return;
+
     app
       .checkLogin()
       .catch(() => {
@@ -342,7 +361,7 @@ Page({
         const newLikeCount = isLiked
           ? Math.max(0, currentLike - 1)
           : currentLike + 1;
-      })
+
         const updatedPost = {
           ...post,
           liked: !isLiked,
@@ -353,7 +372,7 @@ Page({
         };
 
         this.setData({ post: updatedPost });
-    const currentLike = post.stats?.like || 0;
+
         // 调用云函数执行原子操作
         wx.cloud
           .callFunction({
@@ -391,22 +410,6 @@ Page({
           });
       })
       .catch(() => {});
-              : this.data.post.liked,
-          stats: {
-            ...this.data.post.stats,
-            like:
-              typeof serverCount === "number"
-                ? serverCount
-                : this.data.post.stats?.like || 0,
-          },
-        };
-        this.setData({ post: nextPost });
-      })
-      .catch((err) => {
-        if (err && err.message === "未登录") return;
-        this.setData({ post });
-        wx.showToast({ title: err.message || "操作失败", icon: "none" });
-      });
   },
 
   // 显示评论输入框
@@ -534,7 +537,7 @@ Page({
         postTitle: post.content ? post.content.substring(0, 30) : "",
         userInfo: userInfo || {
           nickName: "匿名用户",
-          avatarUrl: "/images/zhi.png",
+            avatarUrl: "/images/zhi.png",
         },
         createTime: db.serverDate(),
         likes: 0,
@@ -609,6 +612,22 @@ Page({
 
       // 弹出红色警告，且**不清空输入框**（方便用户修改）
       wx.showModal({
+        title: "发布失败",
+        content: err.message || "内容包含敏感信息",
+        showCancel: false,
+        confirmText: "我知道了",
+      });
+    }
+  },
+
+  // 点赞评论
+  likeComment: function (e) {
+    const commentId = e.currentTarget.dataset.commentid;
+    const isReply = e.currentTarget.dataset.isreply;
+    const parentId = e.currentTarget.dataset.parentid;
+
+    if (!commentId) return;
+
     app
       .checkLogin()
       .catch(() => {
@@ -634,7 +653,7 @@ Page({
       .then(() => {
         const comments = [...this.data.comments];
         let comment = null;
-        showCancel: false,
+
         if (isReply && parentId) {
           const parentComment = comments.find((c) => c._id === parentId);
           if (parentComment && parentComment.replies) {
@@ -643,7 +662,7 @@ Page({
         } else {
           comment = comments.find((c) => c._id === commentId);
         }
-    const isReply = e.currentTarget.dataset.isreply;
+
         if (!comment) return;
 
         const isLiked = !!comment.liked;
@@ -651,11 +670,11 @@ Page({
         const newLikes = isLiked
           ? Math.max(0, currentLikes - 1)
           : currentLikes + 1;
-    let comment = null;
+
         comment.likes = newLikes;
         comment.liked = !isLiked;
 
-    const isLiked = !!comment.liked;
+        this.setData({ comments });
 
         wx.cloud
           .callFunction({
@@ -687,27 +706,6 @@ Page({
           });
       })
       .catch(() => {});
-        id: commentId,
-        collection: "comments",
-        type: "like",
-      })
-      .then((result) => {
-        const serverCount = result && result.count;
-        comment.likes =
-          typeof serverCount === "number" ? serverCount : comment.likes;
-        if (typeof result.status === "boolean") {
-          comment.liked = result.status;
-        }
-        this.setData({ comments });
-      })
-      .catch((err) => {
-        if (err && err.message === "未登录") return;
-        console.error("评论点赞失败:", err);
-        comment.likes = currentLikes;
-        comment.liked = isLiked;
-        this.setData({ comments });
-        wx.showToast({ title: err.message || "操作失败", icon: "none" });
-      });
   },
 
   // 删除帖子
@@ -734,7 +732,7 @@ Page({
             const success = result && result.result && result.result.success;
             if (!success) {
               throw new Error(
-                (result && result.result && result.result.error) || "删除失败",
+                (result && result.result && result.result.error) || "删除失败"
               );
             }
 
@@ -777,7 +775,7 @@ Page({
             const success = result && result.result && result.result.success;
             if (!success) {
               throw new Error(
-                (result && result.result && result.result.error) || "删除失败",
+                (result && result.result && result.result.error) || "删除失败"
               );
             }
 
@@ -792,7 +790,7 @@ Page({
                   ...this.data.post.stats,
                   comment: Math.max(
                     0,
-                    (this.data.post.stats?.comment || 0) - removedCount,
+                    (this.data.post.stats?.comment || 0) - removedCount
                   ),
                 },
               },
@@ -840,7 +838,7 @@ Page({
     const id = e.currentTarget.dataset.id;
     if (id) {
       wx.navigateTo({
-        url: `/pages/user-profile/index?id=${id}`,
+        url: `/pages/user-profile/index?id=${id}`
       });
     }
   },

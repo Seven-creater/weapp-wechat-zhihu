@@ -1,0 +1,51 @@
+<view class="edit-profile-container">
+  <!-- 顶部导航栏 -->
+  <view class="nav-bar">
+    <view class="nav-left" bindtap="handleCancel">
+      <text class="nav-btn">取消</text>
+    </view>
+    <view class="nav-title">编辑资料</view>
+    <view class="nav-right" bindtap="handleSave">
+      <text class="nav-btn save-btn">保存</text>
+    </view>
+  </view>
+
+  <!-- 头像编辑 -->
+  <view class="edit-section">
+    <view class="section-label">头像</view>
+    <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <image class="avatar-preview" src="{{avatarUrl}}" mode="aspectFill"></image>
+      <view class="avatar-tip">点击更换头像</view>
+    </button>
+  </view>
+
+  <!-- 昵称编辑 -->
+  <view class="edit-section">
+    <view class="section-label">昵称</view>
+    <input 
+      class="nickname-input" 
+      type="nickname" 
+      value="{{nickName}}"
+      placeholder="请输入昵称"
+      bindinput="onNicknameInput"
+      maxlength="20"
+    />
+    <view class="input-tip">可以使用微信昵称或自定义</view>
+  </view>
+
+  <!-- 提示信息 -->
+  <view class="tips-section">
+    <view class="tip-item">• 点击头像可以选择微信头像或相册照片</view>
+    <view class="tip-item">• 点击昵称输入框可以使用微信昵称</view>
+    <view class="tip-item">• 昵称长度不超过20个字符</view>
+  </view>
+</view>
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,309 @@
+<!--pages/construction-progress/index.wxml-->
+<view class="container">
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 项目详情 -->
+  <view wx:if="{{!loading && project}}" class="content">
+    <!-- 项目头部 -->
+    <view class="project-header">
+      <view class="project-title">{{project.costEstimate.projectName || '施工项目'}}</view>
+      <view class="project-status status-{{project.status}}">
+        {{project.status === 'pending' ? '待确认' : 
+          project.status === 'confirmed' ? '已确认' :
+          project.status === 'in_progress' ? '施工中' :
+          project.status === 'completed' ? '已完成' : '已取消'}}
+      </view>
+    </view>
+
+    <!-- 进度条 -->
+    <view class="progress-section">
+      <view class="progress-header">
+        <text class="progress-label">施工进度</text>
+        <text class="progress-value">{{project.progress}}%</text>
+      </view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{project.progress}}%"></view>
+      </view>
+      <view class="progress-info">
+        <text class="info-item">开工日期：{{project.scheduledDate || '待定'}}</text>
+        <text class="info-item">预计工期：{{project.estimatedDuration || 0}}天</text>
+      </view>
+    </view>
+
+    <!-- 造价信息 -->
+    <view class="cost-section">
+      <view class="section-title">造价信息</view>
+      <view class="cost-item">
+        <text class="cost-label">材料费</text>
+        <text class="cost-value">¥{{project.costEstimate.costBreakdown.materialCost.toFixed(2)}}</text>
+      </view>
+      <view class="cost-item">
+        <text class="cost-label">人工费</text>
+        <text class="cost-value">¥{{project.costEstimate.costBreakdown.laborCost.toFixed(2)}}</text>
+      </view>
+      <view class="cost-item">
+        <text class="cost-label">管理费</text>
+        <text class="cost-value">¥{{project.costEstimate.costBreakdown.managementFee.toFixed(2)}}</text>
+      </view>
+      <view class="cost-item total">
+        <text class="cost-label">总计</text>
+        <text class="cost-value">¥{{project.costEstimate.costBreakdown.total.toFixed(2)}}</text>
+      </view>
+    </view>
+
+    <!-- 施工团队信息 -->
+    <view wx:if="{{team}}" class="team-section">
+      <view class="section-title">施工团队</view>
+      <view class="team-card">
+        <view class="team-info">
+          <text class="team-name">{{team.name}}</text>
+          <view class="team-rating">
+            <text class="rating-score">{{team.rating}}</text>
+            <text class="rating-text">分</text>
+            <text class="rating-count">({{team.reviewCount || 0}}条评价)</text>
+          </view>
+          <text class="team-contact">联系人：{{team.contact}} {{team.phone}}</text>
+        </view>
+        <view class="team-actions">
+          <button class="btn-contact" bindtap="contactTeam">联系</button>
+          <button class="btn-detail" bindtap="viewTeamDetails">详情</button>
+        </view>
+      </view>
+    </view>
+
+    <!-- 里程碑时间线 -->
+    <view class="milestone-section">
+      <view class="section-title">施工进度</view>
+      <view wx:if="{{project.milestones && project.milestones.length > 0}}" class="timeline">
+        <view wx:for="{{project.milestones}}" wx:key="index" class="timeline-item">
+          <view class="timeline-dot"></view>
+          <view class="timeline-content">
+            <view class="milestone-header">
+              <text class="milestone-title">{{item.description}}</text>
+              <text class="milestone-progress">{{item.progress}}%</text>
+            </view>
+            <text class="milestone-time">{{item.createdAt}}</text>
+            <text wx:if="{{item.notes}}" class="milestone-notes">{{item.notes}}</text>
+            <view wx:if="{{item.photos && item.photos.length > 0}}" class="milestone-photos">
+              <image 
+                wx:for="{{item.photos}}" 
+                wx:for-item="photo" 
+                wx:key="index"
+                src="{{photo}}" 
+                class="milestone-photo"
+                mode="aspectFill"
+                bindtap="previewPhoto"
+                data-url="{{photo}}"
+                data-urls="{{item.photos}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty-state">
+        <text class="empty-text">暂无施工记录</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="action-section">
+      <button wx:if="{{canUpdate}}" class="btn-primary" bindtap="showUpdateProgressForm">
+        更新进度
+      </button>
+      <button wx:if="{{canReview}}" class="btn-primary" bindtap="showReviewFormModal">
+        评价施工
+      </button>
+    </view>
+  </view>
+
+  <!-- 进度更新表单弹窗 -->
+  <view wx:if="{{showUpdateForm}}" class="modal-overlay" bindtap="hideUpdateForm">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">更新施工进度</text>
+        <text class="modal-close" bindtap="hideUpdateForm">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="form-item">
+          <text class="form-label">进度百分比</text>
+          <slider 
+            value="{{updateForm.progress}}" 
+            min="0" 
+            max="100" 
+            show-value 
+            bindchange="onProgressChange"
+            activeColor="#10b981"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">里程碑描述 *</text>
+          <textarea 
+            class="form-textarea" 
+            placeholder="请描述本次进度更新的内容"
+            value="{{updateForm.milestone}}"
+            bindinput="onMilestoneInput"
+            maxlength="200"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">备注</text>
+          <textarea 
+            class="form-textarea" 
+            placeholder="其他说明（选填）"
+            value="{{updateForm.notes}}"
+            bindinput="onNotesInput"
+            maxlength="200"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">施工照片</text>
+          <view class="photo-grid">
+            <view 
+              wx:for="{{updateForm.photos}}" 
+              wx:key="index" 
+              class="photo-item"
+            >
+              <image src="{{item}}" class="photo-preview" mode="aspectFill"/>
+              <view class="photo-remove" bindtap="removeProgressPhoto" data-index="{{index}}">✕</view>
+            </view>
+            <view 
+              wx:if="{{updateForm.photos.length < 9}}" 
+              class="photo-add" 
+              bindtap="chooseProgressPhotos"
+            >
+              <text class="add-icon">+</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="hideUpdateForm">取消</button>
+        <button class="btn-submit" bindtap="submitProgressUpdate">提交</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 评价表单弹窗 -->
+  <view wx:if="{{showReviewForm}}" class="modal-overlay" bindtap="hideReviewForm">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">评价施工团队</text>
+        <text class="modal-close" bindtap="hideReviewForm">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="form-item">
+          <text class="form-label">总体评分</text>
+          <slider 
+            value="{{reviewForm.rating}}" 
+            min="1" 
+            max="5" 
+            step="1"
+            show-value 
+            bindchange="onRatingChange"
+            data-field="rating"
+            activeColor="#f59e0b"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">施工质量</text>
+          <slider 
+            value="{{reviewForm.quality}}" 
+            min="1" 
+            max="5" 
+            step="1"
+            show-value 
+            bindchange="onRatingChange"
+            data-field="quality"
+            activeColor="#f59e0b"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">时效性</text>
+          <slider 
+            value="{{reviewForm.timeliness}}" 
+            min="1" 
+            max="5" 
+            step="1"
+            show-value 
+            bindchange="onRatingChange"
+            data-field="timeliness"
+            activeColor="#f59e0b"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">沟通能力</text>
+          <slider 
+            value="{{reviewForm.communication}}" 
+            min="1" 
+            max="5" 
+            step="1"
+            show-value 
+            bindchange="onRatingChange"
+            data-field="communication"
+            activeColor="#f59e0b"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">专业度</text>
+          <slider 
+            value="{{reviewForm.professionalism}}" 
+            min="1" 
+            max="5" 
+            step="1"
+            show-value 
+            bindchange="onRatingChange"
+            data-field="professionalism"
+            activeColor="#f59e0b"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">评价内容 *</text>
+          <textarea 
+            class="form-textarea" 
+            placeholder="请分享您的使用体验"
+            value="{{reviewForm.comment}}"
+            bindinput="onCommentInput"
+            maxlength="500"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">完工照片</text>
+          <view class="photo-grid">
+            <view 
+              wx:for="{{reviewForm.photos}}" 
+              wx:key="index" 
+              class="photo-item"
+            >
+              <image src="{{item}}" class="photo-preview" mode="aspectFill"/>
+              <view class="photo-remove" bindtap="removeReviewPhoto" data-index="{{index}}">✕</view>
+            </view>
+            <view 
+              wx:if="{{reviewForm.photos.length < 9}}" 
+              class="photo-add" 
+              bindtap="chooseReviewPhotos"
+            >
+              <text class="add-icon">+</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="hideReviewForm">取消</button>
+        <button class="btn-submit" bindtap="submitReview">提交评价</button>
+      </view>
+    </view>
+  </view>
+</view>
+
+
+
+
+
+
+
+
+

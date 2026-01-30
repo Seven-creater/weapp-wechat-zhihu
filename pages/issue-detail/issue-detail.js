@@ -1,5 +1,14 @@
 // pages/issue-detail/issue-detail.js
-const db = wx.cloud.database();
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
 
 Page({
   data: {
@@ -16,6 +25,8 @@ Page({
 
   loadIssue: function (issueId) {
     this.setData({ loading: true });
+
+    const db = getDB();
 
     db.collection("issues")
       .doc(issueId)

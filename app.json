@@ -1,6 +1,10 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/login/index",
+    "pages/test-diagnosis/index",
+    "pages/debug-stats/index",
+    "pages/edit-profile/index",
     "pages/community/community",
     "pages/post/create",
     "pages/post/new-post/index",
@@ -34,9 +38,9 @@
   },
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#FFFFFF",
-    "navigationBarTitleText": "无障碍地图",
-    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#002fa7",
+    "navigationBarTitleText": "無界营造",
+    "navigationBarTextStyle": "white",
     "enablePullDownRefresh": true
   },
   "permission": {
@@ -50,7 +54,7 @@
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#333333",
+    "selectedColor": "#002fa7",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [

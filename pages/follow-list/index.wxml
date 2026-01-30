@@ -1,18 +1,30 @@
 <view class="container">
   <view class="user-list">
     <block wx:for="{{users}}" wx:key="_id">
-      <view class="user-item" bindtap="navigateToProfile" data-id="{{item.userInfo._openid || item.targetId || item.followerId}}">
+      <view class="user-item" bindtap="navigateToProfile" data-id="{{item.userId}}">
         <image class="avatar" src="{{item.userInfo.avatarUrl}}" mode="aspectFill"></image>
         <view class="info">
           <text class="nickname">{{item.userInfo.nickName}}</text>
+          <!-- 显示互相关注标识 -->
+          <text class="mutual-tag" wx:if="{{item.isMutual}}">互相关注</text>
         </view>
-        <view class="action-btn" catchtap="toggleFollow" data-index="{{index}}" wx:if="{{!item.isSelf}}">
-          {{item.isFollowing ? '已关注' : '关注'}}
+        <!-- 关注按钮 -->
+        <view class="action-btn mutual" wx:if="{{item.isMutual && !item.isSelf}}" catchtap="toggleFollow" data-index="{{index}}">
+          互相关注
+        </view>
+        <view class="action-btn followed" wx:elif="{{item.isFollowing && !item.isSelf}}" catchtap="toggleFollow" data-index="{{index}}">
+          已关注
+        </view>
+        <view class="action-btn" wx:elif="{{!item.isSelf}}" catchtap="toggleFollow" data-index="{{index}}">
+          关注
         </view>
       </view>
     </block>
-    <view wx:if="{{users.length === 0}}" class="empty-state">
+    <view wx:if="{{users.length === 0 && !loading}}" class="empty-state">
       <text>暂无数据</text>
+    </view>
+    <view wx:if="{{loading}}" class="loading-state">
+      <text>加载中...</text>
     </view>
   </view>
 </view>

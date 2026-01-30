@@ -87,8 +87,7 @@ Page({
       return null;
     }
 
-    const title =
-      issue.description || issue.content || issue.address || "路障反馈";
+    const title = issue.description || issue.content || issue.address || "路障反馈";
 
     return {
       id: issue._id,
@@ -112,8 +111,8 @@ Page({
   handleMarkerTap: function (e) {
     const markerId = e.markerId;
     if (!markerId) return;
+    wx.navigateTo({
       url: `/pages/solution-detail/index?id=${markerId}&collection=issues`,
-      url: `/pages/issue-detail/issue-detail?id=${markerId}`,
     });
   },
 });

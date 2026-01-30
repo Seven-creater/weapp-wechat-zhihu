@@ -1,10 +1,25 @@
 // pages/mine/index.js
 const app = getApp();
-const db = wx.cloud.database();
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    try {
+      db = wx.cloud.database();
+    } catch (err) {
+      console.error('数据库初始化失败:', err);
+      return null;
+    }
+  }
+  return db;
+};
 
 Page({
   data: {
     userInfo: {},
+    isLoggedIn: false,
     currentTab: 0,
     posts: [],
     stats: {
@@ -27,62 +42,102 @@ Page({
     if (!Number.isNaN(tabIndex)) {
       this.setData({ currentTab: tabIndex });
     }
-    this.checkLoginAndLoad();
   },
 
   onShow: function () {
-    const storedUser = wx.getStorageSync("userInfo");
-    if (storedUser) {
-      this.setData({ userInfo: storedUser });
-    }
-    if (app.globalData.userInfo || storedUser) {
+    this.checkLoginStatus();
+  },
+
+  /**
+   * 检查登录状态
+   */
+  checkLoginStatus: function () {
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+
+    if (openid && userInfo) {
+      // 已登录
+      this.setData({
+        isLoggedIn: true,
+        userInfo: userInfo,
+      });
       this.loadStats();
       this.loadPosts(true);
+    } else {
+      // 未登录
+      this.setData({
+        isLoggedIn: false,
+        userInfo: {},
+        posts: [],
+        stats: {
+          following: 0,
+          followers: 0,
+          likes: 0,
+        },
+      });
     }
   },
 
-  checkLoginAndLoad: function () {
-    app
-      .checkLogin()
-      .then(() => {
-        this.setData({ userInfo: app.globalData.userInfo });
-        this.loadStats();
-        this.loadPosts(true);
-      })
-      .catch(() => {
-        this.setData({
-          userInfo: {},
-          posts: [],
-          hasMore: false,
-          loading: false,
-          stats: {
-            following: 0,
-            followers: 0,
-            likes: 0,
-          },
-          emptyText: "登录后查看内容",
-        });
-      });
+  /**
+   * 跳转到编辑资料页面
+   */
+  navigateToEditProfile: function () {
+    wx.navigateTo({
+      url: '/pages/edit-profile/index',
+    });
   },
 
+  /**
+   * 处理登录
+   */
   handleLogin: function () {
-    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
-    if (userInfo) {
-      wx.navigateTo({
-        url: "/pages/mine/profile-edit/index",
-      });
-      return;
-    }
-    app
-      .login()
-      .then(({ userInfo }) => {
-        this.setData({ userInfo });
-        this.loadStats();
-        this.loadPosts(true);
-      })
-      .catch((err) => {
-        console.error("登录失败", err);
-      });
+    wx.navigateTo({
+      url: '/pages/login/index',
+    });
+  },
+
+  /**
+   * 退出登录
+   */
+  handleLogout: function () {
+    wx.showModal({
+      title: '提示',
+      content: '确定要退出登录吗？',
+      confirmText: '退出',
+      confirmColor: '#ef4444',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除登录状态（openid）
+          wx.removeStorageSync('openid');
+          app.globalData.openid = null;
+          app.globalData.hasLogin = false;
+
+          // 注意：保留 userInfo（头像和昵称），这样重新登录时可以恢复
+          // 如果要完全清除，取消下面两行的注释：
+          // wx.removeStorageSync('userInfo');
+          // app.globalData.userInfo = null;
+
+          wx.showToast({
+            title: '已退出登录',
+            icon: 'success',
+          });
+
+          // 清空页面显示
+          this.setData({
+            isLoggedIn: false,
+            userInfo: {},
+            posts: [],
+            stats: {
+              following: 0,
+              followers: 0,
+              likes: 0,
+            },
+            hasMore: true,
+            page: 1,
+          });
+        }
+      },
+    });
   },
 
   loadStats: function () {
@@ -98,6 +153,68 @@ Page({
       return;
     }
 
+    console.log('========================================');
+    console.log('🔍 我的页面：开始加载统计数据');
+    console.log('当前用户 openid:', openid);
+    console.log('========================================');
+
+    // 🔥 优先从 users 集合的 stats 字段读取（最准确）
+    wx.cloud.callFunction({
+      name: 'getUserInfo',
+      data: { targetId: openid }
+    }).then(res => {
+      console.log('========================================');
+      console.log('📊 getUserInfo 云函数返回结果:');
+      console.log('完整结果:', JSON.stringify(res.result, null, 2));
+      console.log('========================================');
+      
+      if (res.result && res.result.success && res.result.data && res.result.data.stats) {
+        const stats = res.result.data.stats;
+        console.log('✅ 找到 stats 数据:', stats);
+        console.log('followingCount:', stats.followingCount);
+        console.log('followersCount:', stats.followersCount);
+        console.log('likesCount:', stats.likesCount);
+        
+        this.setData({
+          'stats.following': stats.followingCount || 0,
+          'stats.followers': stats.followersCount || 0,
+          'stats.likes': stats.likesCount || 0,
+        }, () => {
+          console.log('========================================');
+          console.log('✅ setData 完成，当前页面 stats:', this.data.stats);
+          console.log('========================================');
+        });
+      } else {
+        console.log('❌ 未找到 stats 数据，使用降级方案');
+        console.log('res.result:', res.result);
+        // 降级方案：实时查询
+        this.loadStatsFromCollections(openid);
+      }
+    }).catch(err => {
+      console.error('========================================');
+      console.error('❌ 加载统计数据失败，使用降级方案');
+      console.error('错误:', err);
+      console.error('========================================');
+      this.loadStatsFromCollections(openid);
+    });
+  },
+
+  // 🔥 降级方案：从各个集合实时查询统计数据
+  loadStatsFromCollections: function(openid) {
+    const db = getDB();
+    if (!db) {
+      console.error('数据库未初始化');
+      this.setData({
+        stats: {
+          following: 0,
+          followers: 0,
+          likes: 0,
+        },
+      });
+      return;
+    }
+
+    // 加载关注数
     db.collection("follows")
       .where({
         followerId: openid,
@@ -106,10 +223,12 @@ Page({
       .then((res) => {
         this.setData({ "stats.following": res.total || 0 });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('加载关注数失败:', err);
         this.setData({ "stats.following": 0 });
       });
 
+    // 加载粉丝数
     db.collection("follows")
       .where({
         targetId: openid,
@@ -118,42 +237,27 @@ Page({
       .then((res) => {
         this.setData({ "stats.followers": res.total || 0 });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('加载粉丝数失败:', err);
         this.setData({ "stats.followers": 0 });
       });
 
-    this.sumMyPostStats(openid)
-      .then((total) => {
-        this.setData({ "stats.likes": total });
+    // 🔥 加载获赞数（我的帖子被点赞的总数）
+    db.collection("posts")
+      .where({ _openid: openid })
+      .field({ stats: true })
+      .get()
+      .then((res) => {
+        const posts = res.data || [];
+        const totalLikes = posts.reduce((sum, post) => {
+          return sum + ((post.stats && post.stats.like) || 0);
+        }, 0);
+        this.setData({ "stats.likes": totalLikes });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('加载获赞数失败:', err);
         this.setData({ "stats.likes": 0 });
       });
-  },
-
-  sumMyPostStats: async function (openid) {
-    let total = 0;
-    let page = 0;
-    const pageSize = 100;
-    while (page < 5) {
-      const res = await db
-        .collection("posts")
-        .where({ _openid: openid })
-        .skip(page * pageSize)
-        .limit(pageSize)
-        .get();
-      const list = res.data || [];
-      list.forEach((item) => {
-        const stats = item.stats || {};
-        const likeCount = typeof stats.like === "number" ? stats.like : 0;
-        const collectCount =
-          typeof stats.collect === "number" ? stats.collect : 0;
-        total += likeCount + collectCount;
-      });
-      if (list.length < pageSize) break;
-      page += 1;
-    }
-    return total;
   },
 
   loadPosts: function (refresh) {
@@ -220,6 +324,7 @@ Page({
         });
       })
       .catch((err) => {
+        console.error('加载笔记失败:', err);
         this.setData({ loading: false });
         wx.showToast({ title: err.message || "加载失败", icon: "none" });
       });
@@ -261,12 +366,20 @@ Page({
         });
       })
       .catch((err) => {
+        console.error('加载收藏失败:', err);
         this.setData({ loading: false });
         wx.showToast({ title: err.message || "加载失败", icon: "none" });
       });
   },
 
   loadLikedPosts: function (page, refresh) {
+    const db = getDB();
+    if (!db) {
+      console.error('数据库未初始化');
+      this.setData({ loading: false });
+      return Promise.reject(new Error('数据库未初始化'));
+    }
+
     const openid = app.globalData.openid || wx.getStorageSync("openid");
     const types = ["like_post", "like_solution", "like"];
     return db
@@ -292,12 +405,19 @@ Page({
         });
       })
       .catch((err) => {
+        console.error('加载赞过失败:', err);
         this.setData({ loading: false });
         wx.showToast({ title: err.message || "加载失败", icon: "none" });
       });
   },
 
   hydrateActionItems: async function (list) {
+    const db = getDB();
+    if (!db) {
+      console.error('数据库未初始化');
+      return [];
+    }
+
     const actions = list || [];
     if (actions.length === 0) return [];
     const byCollection = { posts: [], solutions: [] };
@@ -487,6 +607,8 @@ Page({
   },
 
   onReachBottom: function () {
-    this.loadPosts(false);
+    if (this.data.isLoggedIn) {
+      this.loadPosts(false);
+    }
   },
 });

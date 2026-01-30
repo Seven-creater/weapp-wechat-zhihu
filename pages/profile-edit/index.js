@@ -1,6 +1,15 @@
 // pages/profile-edit/index.js
 const app = getApp();
-const db = wx.cloud.database();
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
 
 Page({
   data: {
@@ -173,7 +182,5 @@ Page({
           });
         }
       });
-      .ensureOpenid()
-      .then((openid) => app.upsertUserProfile(openid, userInfo));
   },
 });

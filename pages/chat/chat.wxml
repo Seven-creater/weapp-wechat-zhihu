@@ -12,7 +12,12 @@
 
     <block wx:for="{{messages}}" wx:key="_id">
       <view class="message-item {{item.isMy ? 'my-message' : 'other-message'}}" id="msg-{{item._id}}">
-        <image class="avatar" src="{{item.isMy ? userInfo.avatarUrl : targetUserInfo.avatarUrl}}" mode="aspectFill" />
+        <image 
+          class="avatar" 
+          src="{{item.isMy ? userInfo.avatarUrl : targetUserInfo.avatarUrl}}" 
+          mode="aspectFill" 
+          bindtap="{{item.isMy ? 'onMyAvatarTap' : 'onTargetAvatarTap'}}"
+        />
         <view class="content-wrapper">
           <view class="content-bubble">
             <text>{{item.content}}</text>

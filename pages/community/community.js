@@ -135,6 +135,7 @@ Page({
     app
       .checkLogin()
       .then(() => {
+        // 🔥 修复：直接使用 db 变量，不需要 getDB()
         const openid = app.globalData.openid;
         return db.collection("follows").where({ followerId: openid }).get();
       })

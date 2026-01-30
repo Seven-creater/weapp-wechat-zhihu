@@ -1,7 +1,17 @@
 // pages/notify/notify.js
 const app = getApp();
-const db = wx.cloud.database();
-const _ = db.command;
+
+// 延迟初始化数据库
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
 
 Page({
   data: {
@@ -22,21 +32,46 @@ Page({
   },
 
   checkLoginAndLoad: function () {
-    app
-      .checkLogin()
-      .then(() => {
-        this.loadConversations(true);
-        this.loadNotifications(true);
-      })
-      .catch(() => {
-        this.setData({
-          messages: [],
-          noticeItems: this.buildDefaultNoticeItems("登录后查看最新通知"),
-          messageHasMore: false,
-          messageLoading: false,
-          noticeLoading: false,
-        });
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
+
+    if (!openid || !userInfo) {
+      // 未登录，显示登录提示
+      this.setData({
+        messages: [],
+        noticeItems: this.buildDefaultNoticeItems("登录后查看最新通知"),
+        messageHasMore: false,
+        messageLoading: false,
+        noticeLoading: false,
       });
+      
+      // 显示登录提示
+      this.showLoginPrompt();
+      return;
+    }
+
+    // 已登录，加载数据
+    this.loadConversations(true);
+    this.loadNotifications(true);
+  },
+
+  /**
+   * 显示登录提示
+   */
+  showLoginPrompt: function () {
+    wx.showModal({
+      title: '需要登录',
+      content: '查看消息前需要先登录，是否前往登录？',
+      confirmText: '去登录',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: '/pages/login/index'
+          });
+        }
+      }
+    });
   },
 
   onTabTap: function (e) {
@@ -58,6 +93,7 @@ Page({
       return;
     }
 
+    const { db } = getDB();
     const nextPage = refresh ? 1 : this.data.messagePage + 1;
     this.setData({ messageLoading: true });
 
@@ -69,18 +105,51 @@ Page({
       .skip((nextPage - 1) * this.data.messagePageSize)
       .limit(this.data.messagePageSize)
       .get()
-      .then((res) => {
-        const mapped = (res.data || []).map((item) => ({
-          id: item.targetId,
-          name:
-            (item.targetUserInfo && item.targetUserInfo.nickName) || "未知用户",
-          avatar:
-            (item.targetUserInfo && item.targetUserInfo.avatarUrl) ||
-            "/images/zhi.png",
-          time: this.formatTime(item.updateTime),
-          preview: item.lastMessage || "暂无消息",
-          unread: item.unread || 0,
-        }));
+      .then(async (res) => {
+        // 🔥 使用云函数获取用户信息（自动转换头像URL）
+        const conversations = res.data || [];
+        const targetIds = conversations.map(item => item.targetId).filter(Boolean);
+        
+        // 批量查询用户信息
+        const userInfoPromises = targetIds.map(targetId => {
+          return wx.cloud.callFunction({
+            name: 'getUserInfo',
+            data: { targetId }
+          }).then(res => {
+            if (res.result && res.result.success) {
+              return {
+                id: targetId,
+                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+              };
+            }
+            return {
+              id: targetId,
+              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+            };
+          }).catch(() => ({
+            id: targetId,
+            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+          }));
+        });
+        
+        const usersData = await Promise.all(userInfoPromises);
+        const userMap = {};
+        usersData.forEach(u => {
+          userMap[u.id] = u.userInfo;
+        });
+        
+        const mapped = conversations.map((item) => {
+          const userInfo = userMap[item.targetId] || { nickName: '未知用户', avatarUrl: '/images/zhi.png' };
+          return {
+            id: item.targetId,
+            name: userInfo.nickName || "未知用户",
+            avatar: userInfo.avatarUrl || "/images/zhi.png",
+            time: this.formatTime(item.updateTime),
+            preview: item.lastMessage || "暂无消息",
+            unread: item.unread || 0,
+          };
+        });
+        
         const messages = refresh
           ? mapped
           : (this.data.messages || []).concat(mapped);
@@ -128,6 +197,8 @@ Page({
   },
 
   fetchMyPostIds: function (openid) {
+    const { db } = getDB();
+    
     return db
       .collection("posts")
       .where({ _openid: openid })
@@ -210,6 +281,7 @@ Page({
   },
 
   buildNoticeItems: function (openid, postIds) {
+    const { db, _ } = getDB();
     const ids = postIds.slice(0, 100);
     const likeTypes = ["like_post", "collect_post", "like", "collect"];
 
@@ -374,9 +446,19 @@ Page({
 
   getUserInfoByOpenid: function (openid) {
     if (!openid) return Promise.resolve(null);
+    
+    const { db } = getDB();
+    
     return db
       .collection("users")
       .where({ _openid: openid })
+      .field({ 
+        nickName: true, 
+        avatarUrl: true, 
+        _openid: true,
+        userInfo: true
+        // 注意：不查询 phoneNumber 字段，保护隐私
+      })
       .limit(1)
       .get()
       .then((res) => {
@@ -392,6 +474,7 @@ Page({
             (doc.userInfo && doc.userInfo.avatarUrl) ||
             "/images/zhi.png",
           _openid: doc._openid,
+          // 不返回 phoneNumber
         };
       })
       .catch(() => null);

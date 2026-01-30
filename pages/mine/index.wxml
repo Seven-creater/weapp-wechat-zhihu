@@ -1,17 +1,36 @@
 <view class="mine-container">
-  <!-- Header Section -->
-  <view class="header-section">
-    <view class="user-info" bindtap="handleLogin">
-      <image class="avatar" src="{{userInfo.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" />
-      <view class="user-details">
-        <text class="user-name">{{userInfo.nickName || '点击登录'}}</text>
-        <text class="user-id" wx:if="{{userInfo.nickName}}">小红书号：{{userInfo.id || '123456789'}}</text>
+  <!-- 未登录状态 -->
+  <view class="header-section" wx:if="{{!isLoggedIn}}">
+    <view class="login-prompt" bindtap="handleLogin">
+      <image class="avatar" src="/images/zhi.png" mode="aspectFill" />
+      <view class="login-text">
+        <text class="login-title">点击登录</text>
+        <text class="login-subtitle">登录后查看更多内容</text>
       </view>
     </view>
   </view>
 
+  <!-- 已登录状态 -->
+  <view class="header-section" wx:else>
+    <!-- 头像 - 点击跳转到编辑页面 -->
+    <view class="avatar-button" bindtap="navigateToEditProfile">
+      <image class="avatar" src="{{userInfo.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" />
+      <view class="avatar-edit-tip">点击编辑</view>
+    </view>
+
+    <!-- 用户信息 -->
+    <view class="user-details">
+      <!-- 昵称和退出登录按钮同行 -->
+      <view class="nickname-row">
+        <text class="nickname-text">{{userInfo.nickName || '無界用户'}}</text>
+        <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+      </view>
+      <text class="user-id">無界营造号：{{userInfo.id || '123456789'}}</text>
+    </view>
+  </view>
+
   <!-- Stats Section -->
-  <view class="stats-section">
+  <view class="stats-section" wx:if="{{isLoggedIn}}">
     <view class="stat-item" bindtap="navigateToFollowList" data-type="following">
       <text class="stat-num">{{stats.following}}</text>
       <text class="stat-label">关注</text>
@@ -20,21 +39,17 @@
       <text class="stat-num">{{stats.followers}}</text>
       <text class="stat-label">粉丝</text>
     </view>
-    <view class="stat-item">
-      <text class="stat-num">{{stats.likes}}</text>
-      <text class="stat-label">获赞与收藏</text>
-    </view>
   </view>
 
   <!-- Tabs Section -->
-  <view class="tabs-section">
+  <view class="tabs-section" wx:if="{{isLoggedIn}}">
     <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">笔记</view>
     <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{1}}">收藏</view>
     <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{2}}">赞过</view>
   </view>
 
   <!-- Content Grid -->
-  <view class="content-grid">
+  <view class="content-grid" wx:if="{{isLoggedIn}}">
     <block wx:for="{{posts}}" wx:key="id">
       <view class="grid-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
         <image class="post-img" src="{{item.image}}" mode="aspectFill" />
@@ -44,14 +59,16 @@
     </block>
     
     <view class="empty-state" wx:if="{{posts.length === 0}}">
-      <image class="empty-img" src="/images/empty.png" />
+      <image class="empty-img" src="/images/empty.png" mode="aspectFit" />
       <text class="empty-text">{{emptyText}}</text>
     </view>
   </view>
-  <view class="list-footer" wx:if="{{loading}}">
+
+  <!-- Loading Footer -->
+  <view class="list-footer" wx:if="{{loading && isLoggedIn}}">
     <text class="footer-text">加载中...</text>
   </view>
-  <view class="list-footer" wx:if="{{!loading && !hasMore && posts.length > 0}}">
+  <view class="list-footer" wx:if="{{!loading && !hasMore && posts.length > 0 && isLoggedIn}}">
     <text class="footer-text">没有更多了</text>
   </view>
 </view>

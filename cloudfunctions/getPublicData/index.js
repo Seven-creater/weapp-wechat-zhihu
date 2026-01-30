@@ -426,9 +426,11 @@ exports.main = async (event, context) => {
           // 构建用户 Map：_openid -> 最新用户资料
           if (usersRes.data && usersRes.data.length > 0) {
             usersRes.data.forEach((user) => {
+              // 🔥 修复：正确访问 userInfo 字段
+              const userInfo = user.userInfo || {};
               authorMap.set(user._openid, {
-                nickName: user.nickName || user.nickName || "匿名用户",
-                avatarUrl: user.avatarUrl || "/images/zhi.png",
+                nickName: userInfo.nickName || "匿名用户",
+                avatarUrl: userInfo.avatarUrl || "/images/zhi.png",
                 _openid: user._openid,
               });
             });

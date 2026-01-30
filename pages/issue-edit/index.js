@@ -1,5 +1,16 @@
 const app = getApp();
-const db = wx.cloud.database();
+const costEstimate = require("../../utils/cost-estimate.js");
+
+// 延迟初始化数据库，避免在云开发初始化前调用
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
+
 const ISSUE_DRAFT_KEY = "issueDraft";
 const ISSUE_DRAFT_TEMP_KEY = "issueDraftTemp";
 
@@ -25,6 +36,15 @@ Page({
     generatingAI: false,
     submitting: false,
     isRecording: false,
+    // 新增：造价估算相关
+    showCostEstimate: false,
+    costEstimateData: null,
+    projectParams: {
+      area: 0,      // 面积（平方米）
+      length: 0,    // 长度（米）
+      width: 0,     // 宽度（米）
+      height: 0,    // 高度（米）
+    },
   },
 
   onLoad: function (options) {
@@ -373,10 +393,11 @@ Page({
 
     const imagePath = this.data.images[0].path;
     const location = this.data.location || null;
+    const category = this.data.selectedCategory;
 
     this.setData({ generatingAI: true });
     wx.showLoading({
-      title: "AI生成中...",
+      title: "AI诊断中...",
       mask: true,
     });
 
@@ -389,6 +410,7 @@ Page({
           data: {
             fileID,
             location,
+            category,
           },
         });
       })
@@ -400,9 +422,15 @@ Page({
         if (!aiSolution) {
           throw new Error("AI未返回方案");
         }
+        
         this.setData({ aiSolution });
         this.draftDirty = true;
         this.saveDraft(true);
+
+        // 自动生成造价估算
+        if (category) {
+          this.generateCostEstimate();
+        }
       })
       .catch((err) => {
         console.error("生成AI方案失败:", err);
@@ -415,6 +443,68 @@ Page({
         wx.hideLoading();
         this.setData({ generatingAI: false });
       });
+  },
+
+  // 新增：生成造价估算
+  generateCostEstimate: function () {
+    const { selectedCategory, projectParams } = this.data;
+    
+    if (!selectedCategory) {
+      wx.showToast({
+        title: "请先选择分类",
+        icon: "none",
+      });
+      return;
+    }
+
+    try {
+      // 生成造价估算
+      const estimate = costEstimate.generateCostEstimate(
+        selectedCategory,
+        projectParams,
+        { description: this.data.description }
+      );
+
+      this.setData({
+        costEstimateData: estimate,
+        showCostEstimate: true,
+      });
+
+      wx.showToast({
+        title: "造价估算已生成",
+        icon: "success",
+      });
+    } catch (error) {
+      console.error("生成造价估算失败:", error);
+      wx.showToast({
+        title: "估算生成失败",
+        icon: "none",
+      });
+    }
+  },
+
+  // 新增：更新项目参数
+  onProjectParamInput: function (e) {
+    const { field } = e.currentTarget.dataset;
+    const value = parseFloat(e.detail.value) || 0;
+    
+    this.setData({
+      [`projectParams.${field}`]: value,
+    });
+  },
+
+  // 新增：查看造价详情
+  viewCostDetails: function () {
+    if (!this.data.costEstimateData) {
+      this.generateCostEstimate();
+    } else {
+      this.setData({ showCostEstimate: true });
+    }
+  },
+
+  // 新增：关闭造价估算
+  closeCostEstimate: function () {
+    this.setData({ showCostEstimate: false });
   },
 
   submitIssue: async function () {
@@ -595,6 +685,8 @@ Page({
       avatarUrl: rawUserInfo.avatarUrl || "/images/zhi.png",
     };
 
+    const db = getDB();
+
     const issueData = {
       imageUrl: coverImage,
       images: fileIDs,
@@ -678,6 +770,9 @@ Page({
       nickName: safeUserInfo.nickName || "匿名用户",
       avatarUrl: safeUserInfo.avatarUrl || "/images/zhi.png",
     };
+    
+    const db = getDB();
+    
     const postData = {
       issueId,
       content: `${description}\nAI诊断：${aiSolution}`,

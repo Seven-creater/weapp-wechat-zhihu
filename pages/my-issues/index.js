@@ -1,6 +1,15 @@
 // pages/my-issues/index.js
 const app = getApp();
-const db = wx.cloud.database();
+
+// 延迟初始化数据库
+let db = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+  }
+  return db;
+};
 
 Page({
   data: {
@@ -106,9 +115,6 @@ Page({
         reject(false);
       }
     });
-          })
-          .catch(() => {});
-      });
   },
 
   onTabChange: function (e) {
@@ -156,12 +162,11 @@ Page({
       .get()
       .then((res) => {
         console.log("查询结果数量:", res.data.length);
-          // 兼容 aiAnalysis 和 aiSolution 字段
-          const aiText = issue.aiAnalysis || issue.aiSolution || "";
+        console.log("查询结果数据:", JSON.stringify(res.data, null, 2));
 
         const newIssues = res.data.map((issue) => {
-          const aiText =
-            issue.diagnosis || issue.aiSolution || issue.aiAnalysis || "";
+          // 兼容 aiAnalysis 和 aiSolution 字段
+          const aiText = issue.aiAnalysis || issue.aiSolution || "";
           // 截取前30个字作为摘要
           const aiSummary =
             aiText.length > 30

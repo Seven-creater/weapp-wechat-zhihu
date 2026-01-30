@@ -25,9 +25,19 @@
     </view>
 
     <view class="action-row">
-      <view class="btn follow-btn {{isFollowing ? 'followed' : ''}}" bindtap="toggleFollow">
-        {{isFollowing ? '已关注' : '关注'}}
+      <!-- 互相关注 -->
+      <view class="btn follow-btn mutual" wx:if="{{isMutual}}" bindtap="toggleFollow">
+        <text>互相关注</text>
       </view>
+      <!-- 已关注 -->
+      <view class="btn follow-btn followed" wx:elif="{{isFollowing}}" bindtap="toggleFollow">
+        <text>已关注</text>
+      </view>
+      <!-- 未关注 -->
+      <view class="btn follow-btn" wx:else bindtap="toggleFollow">
+        <text>关注</text>
+      </view>
+      
       <view class="btn chat-btn" bindtap="navigateToChat">私信</view>
     </view>
   </view>
@@ -52,7 +62,7 @@
   <view class="content-list">
     <view class="post-grid">
       <block wx:for="{{posts}}" wx:key="id">
-        <view class="post-item" bindtap="navigateToDetail" data-id="{{item.id}}">
+        <view class="post-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
           <image class="post-cover" src="{{item.image}}" mode="aspectFill"></image>
           <view class="post-title">{{item.title}}</view>
           <view class="post-footer">

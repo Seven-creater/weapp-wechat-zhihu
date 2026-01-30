@@ -1,0 +1,75 @@
+<!--pages/login/index.wxml-->
+<view class="container">
+  <view class="content">
+    <!-- 标题 -->
+    <view class="title">完善个人信息</view>
+    <view class="subtitle">让大家更好地认识你</view>
+
+    <!-- 头像选择 -->
+    <view class="avatar-section">
+      <text class="label">头像</text>
+      <button 
+        class="avatar-wrapper" 
+        open-type="chooseAvatar" 
+        bindchooseavatar="onChooseAvatar"
+      >
+        <image class="avatar" src="{{avatarUrl}}" mode="aspectFill"></image>
+        <view class="avatar-mask">
+          <text class="avatar-text">点击更换</text>
+        </view>
+      </button>
+      <text class="hint">点击头像选择照片</text>
+    </view>
+
+    <!-- 昵称输入 -->
+    <view class="nickname-section">
+      <text class="label">昵称 <text class="required">*</text></text>
+      <input 
+        class="nickname-input" 
+        type="nickname" 
+        placeholder="请输入昵称"
+        value="{{nickName}}"
+        bindinput="onNicknameInput"
+        maxlength="20"
+      />
+      <text class="hint">2-20个字符</text>
+    </view>
+
+    <!-- 手机号输入 -->
+    <view class="phone-section">
+      <text class="label">手机号 <text class="required">*</text></text>
+      <input 
+        class="phone-input" 
+        type="number" 
+        placeholder="请输入11位手机号"
+        value="{{phoneNumber}}"
+        bindinput="onPhoneInput"
+        maxlength="11"
+      />
+      <text class="hint">用于后台联系，不会公开显示</text>
+    </view>
+
+    <!-- 提交按钮 -->
+    <button 
+      class="submit-btn {{canSubmit ? 'active' : ''}}" 
+      bindtap="submitUserInfo"
+      disabled="{{!canSubmit}}"
+    >
+      完成
+    </button>
+
+    <!-- 跳过按钮（已禁用） -->
+    <view class="skip-btn disabled" bindtap="skipLogin">
+      <text>手机号为必填项</text>
+    </view>
+  </view>
+
+  <!-- 说明 -->
+  <view class="tips">
+    <text class="tips-title">温馨提示</text>
+    <text class="tips-item">• 头像和昵称将展示给其他用户</text>
+    <text class="tips-item">• 手机号仅用于后台联系，不会公开</text>
+    <text class="tips-item">• 请使用真实、友好的昵称</text>
+    <text class="tips-item">• 后续可在个人中心修改</text>
+  </view>
+</view>

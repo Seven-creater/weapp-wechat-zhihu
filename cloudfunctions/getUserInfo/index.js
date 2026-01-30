@@ -1,0 +1,71 @@
+// cloudfunctions/getUserInfo/index.js
+const cloud = require('wx-server-sdk');
+
+cloud.init({
+  env: cloud.DYNAMIC_CURRENT_ENV
+});
+
+const db = cloud.database();
+
+exports.main = async (event, context) => {
+  const { targetId } = event;
+  
+  if (!targetId) {
+    return {
+      success: false,
+      error: '缺少 targetId 参数'
+    };
+  }
+
+  try {
+    // 在云函数中查询，不受客户端权限限制
+    const res = await db.collection('users').where({
+      _openid: targetId
+    }).field({
+      userInfo: true,
+      stats: true,
+      _openid: true
+    }).get();
+
+    if (res.data.length > 0) {
+      const userData = res.data[0];
+      
+      // 🔥 转换云存储 URL
+      if (userData.userInfo && userData.userInfo.avatarUrl && userData.userInfo.avatarUrl.startsWith('cloud://')) {
+        try {
+          const fileList = [userData.userInfo.avatarUrl];
+          const tempURLRes = await cloud.getTempFileURL({
+            fileList: fileList
+          });
+          
+          if (tempURLRes.fileList && tempURLRes.fileList.length > 0) {
+            userData.userInfo.avatarUrl = tempURLRes.fileList[0].tempFileURL;
+          }
+        } catch (err) {
+          console.error('转换云存储 URL 失败:', err);
+          // 转换失败时使用默认头像
+          userData.userInfo.avatarUrl = '/images/zhi.png';
+        }
+      }
+      
+      return {
+        success: true,
+        data: userData,  // 完整的用户数据
+        userInfo: userData.userInfo,  // 兼容旧代码
+        _openid: userData._openid,
+        stats: userData.stats
+      };
+    } else {
+      return {
+        success: false,
+        error: '用户不存在'
+      };
+    }
+  } catch (err) {
+    console.error('查询用户信息失败:', err);
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+};

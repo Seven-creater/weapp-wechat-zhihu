@@ -1,0 +1,119 @@
+/* pages/edit-profile/index.wxss */
+.edit-profile-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* 顶部导航栏 */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  background: white;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0 16px;
+}
+
+.nav-left,
+.nav-right {
+  width: 60px;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: #333;
+}
+
+.nav-btn {
+  font-size: 16px;
+  color: #666;
+}
+
+.save-btn {
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* 编辑区域 */
+.edit-section {
+  background: white;
+  margin-top: 12px;
+  padding: 20px;
+}
+
+.section-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+/* 头像编辑 */
+.avatar-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  background: none;
+  border: none;
+}
+
+.avatar-button::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid #10b981;
+  margin-bottom: 12px;
+}
+
+.avatar-tip {
+  font-size: 14px;
+  color: #10b981;
+}
+
+/* 昵称编辑 */
+.nickname-input {
+  width: 100%;
+  height: 44px;
+  line-height: 44px;
+  font-size: 16px;
+  color: #333;
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.input-tip {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+/* 提示信息 */
+.tips-section {
+  margin-top: 20px;
+  padding: 0 20px;
+}
+
+.tip-item {
+  font-size: 13px;
+  color: #999;
+  line-height: 24px;
+}
+
+
+
+
+
+
+
+
+

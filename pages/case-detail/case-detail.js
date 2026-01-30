@@ -2,9 +2,17 @@
 const app = getApp();
 const collectUtil = require("../../utils/collect.js");
 
-// 初始化云数据库
-const db = wx.cloud.database();
-const _ = db.command;
+// 延迟初始化数据库
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
 
 Page({
   data: {

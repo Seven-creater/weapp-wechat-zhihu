@@ -13,29 +13,114 @@
   align-items: center;
 }
 
-.user-info {
+/* 未登录提示 */
+.login-prompt {
   display: flex;
   align-items: center;
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.login-prompt .avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  margin-right: 16px;
+}
+
+.login-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 头像按钮 */
+.avatar-button {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin-right: 16px;
+  cursor: pointer;
 }
 
 .avatar {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  margin-right: 16px;
-  border: 1px solid #eee;
+  border: 2px solid #10b981;
+}
+
+.avatar-edit-tip {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #10b981;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 .user-details {
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.user-name {
+/* 昵称和退出登录按钮同行 */
+.nickname-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  height: 30px;
+}
+
+.nickname-text {
+  flex: 1;
   font-size: 20px;
   font-weight: bold;
   color: #333;
-  margin-bottom: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 退出登录按钮 */
+.logout-btn {
+  height: 30px;
+  line-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #ef4444;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 15px;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.logout-btn::after {
+  border: none;
 }
 
 .user-id {
@@ -65,6 +150,49 @@
 .stat-label {
   font-size: 12px;
   color: #999;
+}
+
+/* 诊断工具 */
+.diagnosis-section {
+  padding: 0 20px 20px;
+}
+
+.diagnosis-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.diagnosis-icon {
+  font-size: 32px;
+  margin-right: 12px;
+}
+
+.diagnosis-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.diagnosis-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.diagnosis-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.diagnosis-arrow {
+  font-size: 24px;
+  color: white;
+  font-weight: bold;
 }
 
 /* Tabs Section */

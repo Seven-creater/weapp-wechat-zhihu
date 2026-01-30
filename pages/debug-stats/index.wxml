@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="header">
+    <text class="title">统计数据调试</text>
+  </view>
+
+  <view class="content">
+    <text class="result">{{result || '加载中...'}}</text>
+  </view>
+
+  <view class="buttons">
+    <button class="btn" bindtap="checkStats">刷新数据</button>
+    <button class="btn primary" bindtap="runFix">运行修复</button>
+    <button class="btn" bindtap="copyResult">复制结果</button>
+  </view>
+</view>
+

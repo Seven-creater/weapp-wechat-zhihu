@@ -1,7 +1,16 @@
 const QQMapWX = require("../../utils/qqmap-wx-jssdk.js");
 
-const db = wx.cloud.database();
-const _ = db.command;
+// 延迟初始化数据库，避免在云开发初始化前调用
+let db = null;
+let _ = null;
+
+const getDB = () => {
+  if (!db) {
+    db = wx.cloud.database();
+    _ = db.command;
+  }
+  return { db, _ };
+};
 
 const TENCENT_MAP_KEY = "QTABZ-SI5CL-JMMPF-MJMVG-AND33-UHFCE";
 let qqmapsdk = null;
@@ -445,6 +454,7 @@ Page({
     const longitude = Number(this.data.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
 
+    const { db, _ } = getDB();
     const center = new db.Geo.Point(longitude, latitude);
 
     db.collection("issues")
@@ -491,6 +501,7 @@ Page({
         });
       })
       .catch(() => {
+        const { db } = getDB();
         db.collection("issues")
           .orderBy("createTime", "desc")
           .limit(50)
