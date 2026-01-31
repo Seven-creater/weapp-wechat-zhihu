@@ -1,0 +1,94 @@
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100rpx;
+  background: #ffffff;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+}
+
+.tab-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* 普通图标 */
+.tab-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-icon {
+  width: 48rpx;
+  height: 48rpx;
+  margin-bottom: 4rpx;
+}
+
+/* 🆕 未读消息角标 */
+.badge {
+  position: absolute;
+  top: -8rpx;
+  right: -16rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  background: #ff4444;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #ffffff;
+}
+
+.badge-text {
+  font-size: 20rpx;
+  color: #ffffff;
+  font-weight: bold;
+  line-height: 1;
+  transform: scale(0.9);
+}
+
+.tab-text {
+  font-size: 20rpx;
+  line-height: 1.2;
+}
+
+/* 特殊按钮（发布） */
+.tab-bar-item.special {
+  position: relative;
+  top: -20rpx;
+}
+
+.special-button {
+  width: 100rpx;
+  height: 100rpx;
+  background: linear-gradient(135deg, #7fa99b 0%, #5a8a7a 100%);
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 20rpx rgba(127, 169, 155, 0.4);
+  transition: all 0.3s ease;
+}
+
+.special-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 12rpx rgba(127, 169, 155, 0.3);
+}
+
+.special-icon {
+  width: 56rpx;
+  height: 56rpx;
+}
+

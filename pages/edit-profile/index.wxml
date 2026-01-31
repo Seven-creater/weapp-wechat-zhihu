@@ -33,19 +33,40 @@
     <view class="input-tip">可以使用微信昵称或自定义</view>
   </view>
 
+  <!-- 🆕 手机号编辑 -->
+  <view class="edit-section">
+    <view class="section-label">联系电话</view>
+    <input 
+      class="phone-input" 
+      type="number" 
+      value="{{phoneNumber}}"
+      placeholder="请输入11位手机号"
+      bindinput="onPhoneInput"
+      maxlength="11"
+    />
+    <view class="input-tip">用于政府部门联系，不会公开显示</view>
+  </view>
+
+  <!-- 🆕 简介编辑 -->
+  <view class="edit-section">
+    <view class="section-label">个人简介</view>
+    <textarea 
+      class="bio-textarea" 
+      value="{{bio}}"
+      placeholder="简单介绍一下自己..."
+      bindinput="onBioInput"
+      maxlength="200"
+      auto-height
+    />
+    <view class="char-count">{{bio.length}}/200</view>
+  </view>
+
   <!-- 提示信息 -->
   <view class="tips-section">
     <view class="tip-item">• 点击头像可以选择微信头像或相册照片</view>
     <view class="tip-item">• 点击昵称输入框可以使用微信昵称</view>
     <view class="tip-item">• 昵称长度不超过20个字符</view>
+    <view class="tip-item">• 联系电话用于政府部门联系用户</view>
+    <view class="tip-item">• 个人简介不超过200个字符</view>
   </view>
 </view>
-
-
-
-
-
-
-
-
-

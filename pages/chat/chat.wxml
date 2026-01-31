@@ -30,7 +30,7 @@
     <view id="bottom-anchor" style="height: 20rpx;"></view>
   </scroll-view>
 
-  <view class="input-area" style="bottom: {{inputBottom}}px">
+  <view class="input-area">
     <input 
       class="chat-input" 
       value="{{inputValue}}" 
@@ -40,7 +40,8 @@
       confirm-type="send" 
       bindconfirm="sendMessage"
       placeholder="发消息..." 
-      cursor-spacing="20"
+      adjust-position="{{true}}"
+      hold-keyboard="{{false}}"
     />
     <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="sendMessage">发送</view>
   </view>

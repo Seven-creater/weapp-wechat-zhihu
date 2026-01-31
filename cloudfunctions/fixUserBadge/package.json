@@ -1,0 +1,10 @@
+{
+  "name": "fixUserBadge",
+  "version": "1.0.0",
+  "description": "万能修复脚本：自动根据 userType 设置正确的徽章",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

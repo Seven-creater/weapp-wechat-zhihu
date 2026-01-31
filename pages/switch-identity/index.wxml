@@ -1,0 +1,106 @@
+<!--pages/switch-identity/index.wxml-->
+<view class="container">
+  <!-- 当前身份 -->
+  <view class="current-section">
+    <text class="section-title">当前身份</text>
+    <view class="current-identity">
+      <text class="badge-icon">{{currentTypeConfig.badge.icon}}</text>
+      <view class="identity-info">
+        <text class="identity-label">{{currentTypeConfig.label}}</text>
+        <text class="identity-desc">{{currentTypeConfig.description}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 选择新身份 -->
+  <view class="select-section">
+    <text class="section-title">切换身份</text>
+    <view class="identity-list">
+      <view 
+        wx:for="{{allTypes}}" 
+        wx:key="id"
+        class="identity-item {{selectedType === item.id ? 'selected' : ''}} {{item.needCertification ? 'disabled' : ''}}"
+        bindtap="selectType"
+        data-type="{{item.id}}"
+      >
+        <view class="identity-header">
+          <text class="badge-icon">{{item.badge.icon}}</text>
+          <text class="identity-label">{{item.label}}</text>
+          <text class="cert-tag" wx:if="{{item.needCertification}}">需认证</text>
+          <text class="check-icon" wx:if="{{selectedType === item.id}}">✓</text>
+        </view>
+        <text class="identity-desc">{{item.description}}</text>
+        
+        <!-- 功能列表 -->
+        <view class="features-list">
+          <text 
+            wx:for="{{item.features}}" 
+            wx:key="*this"
+            wx:for-item="feature"
+            class="feature-item"
+          >
+            {{feature}}
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 补充信息（专业用户） -->
+  <view class="profile-section" wx:if="{{showProfileFields}}">
+    <text class="section-title">补充信息{{selectedType === 'government' ? '（必填）' : '（可选）'}}</text>
+    
+    <view class="form-item">
+      <text class="label">个人简介</text>
+      <textarea 
+        class="textarea-input" 
+        placeholder="简单介绍一下自己..."
+        value="{{bio}}"
+        bindinput="onBioInput"
+        maxlength="200"
+      ></textarea>
+    </view>
+
+    <!-- 🔧 政府用户必须填写认证信息 -->
+    <view wx:if="{{selectedType === 'government'}}">
+      <view 
+        wx:for="{{selectedTypeConfig.profileFields}}" 
+        wx:key="key"
+        class="form-item"
+      >
+        <text class="label">{{item.label}} <text class="required" wx:if="{{item.required}}">*</text></text>
+        <input 
+          class="text-input" 
+          placeholder="{{item.placeholder}}"
+          bindinput="onCustomFieldInput"
+          data-key="{{item.key}}"
+          value="{{customFields[item.key]}}"
+        />
+      </view>
+    </view>
+  </view>
+
+  <!-- 提示信息 -->
+  <view class="tips-box">
+    <text class="tip-icon">💡</text>
+    <view class="tip-content">
+      <text class="tip-title">温馨提示</text>
+      <text class="tip-text">• 不同身份拥有不同的功能权限</text>
+      <text class="tip-text">• 身份可随时切换，无需审核</text>
+      <text class="tip-text">• 政府/监管部门需要填写认证信息</text>
+      <text class="tip-text">• 个人简介会显示在您的主页上</text>
+    </view>
+  </view>
+
+  <!-- 保存按钮 -->
+  <view class="action-section">
+    <button 
+      class="save-btn {{selectedType !== currentType ? 'active' : ''}}" 
+      bindtap="saveIdentity"
+      disabled="{{selectedType === currentType}}"
+    >
+      {{selectedType === currentType ? '当前身份' : '确认切换'}}
+    </button>
+  </view>
+</view>
+

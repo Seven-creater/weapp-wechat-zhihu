@@ -10,7 +10,53 @@
 .header-section {
   padding: 20px;
   display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* 右侧操作按钮组 */
+.action-buttons-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.action-btn-right {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 16px;
+  display: flex;
   align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  height: 28px;
+  line-height: 28px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.action-btn-right::after {
+  border: none;
+}
+
+.action-btn-right.admin-btn {
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.action-btn-right.logout-btn {
+  color: #ef4444;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.action-btn-right.switch-btn {
+  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  border: none;
 }
 
 /* 未登录提示 */
@@ -52,15 +98,15 @@
 /* 头像按钮 */
 .avatar-button {
   position: relative;
-  width: 80px;
-  height: 80px;
-  margin-right: 16px;
+  width: 70px;
+  height: 70px;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
 .avatar {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   border: 2px solid #10b981;
 }
@@ -83,50 +129,108 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
-/* 昵称和退出登录按钮同行 */
-.nickname-row {
+/* 昵称和徽章 */
+.name-badge-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  height: 30px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .nickname-text {
-  flex: 1;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: #333;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 退出登录按钮 */
-.logout-btn {
-  height: 30px;
-  line-height: 30px;
-  padding: 0 12px;
-  font-size: 12px;
-  color: #ef4444;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 15px;
-  margin-left: 10px;
+/* 身份徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1.5px solid;
   flex-shrink: 0;
 }
 
-.logout-btn::after {
-  border: none;
+.badge-icon {
+  font-size: 14px;
+  margin-right: 4px;
 }
 
-.user-id {
+.badge-text {
   font-size: 12px;
-  color: #999;
+  font-weight: 600;
 }
+
+/* 个人简介 */
+.user-bio {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* 补充信息 - 网格布局 */
+.user-extra-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.extra-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+  background: #f5f5f5;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.extra-icon {
+  font-size: 14px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.extra-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 认证状态提示 */
+.cert-status-tip {
+  display: flex;
+  align-items: center;
+  background: #fef3c7;
+  border-left: 3px solid #f59e0b;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.cert-status-icon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.cert-status-text {
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* 按钮组 - 已移除，按钮已移至右上角 */
 
 /* Stats Section */
 .stats-section {

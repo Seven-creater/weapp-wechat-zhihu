@@ -602,4 +602,14 @@ Page({
       imageUrl: this.data.projectDetail.heroImage,
     };
   },
+
+  // 跳转到评论用户的主页
+  navigateToUserProfile: function (e) {
+    const openid = e.currentTarget.dataset.openid;
+    if (openid) {
+      wx.navigateTo({
+        url: `/pages/user-profile/index?id=${openid}`
+      });
+    }
+  },
 });

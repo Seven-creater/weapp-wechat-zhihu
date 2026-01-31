@@ -4,8 +4,37 @@
     <view class="user-info">
       <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
       <view class="info-content">
-        <text class="nickname">{{userInfo.nickName}}</text>
-        <text class="bio">这个人很懒，什么都没写~</text>
+        <view class="name-row">
+          <text class="nickname">{{userInfo.nickName}}</text>
+          <!-- 🆕 身份徽章 -->
+          <view 
+            class="badge" 
+            style="background-color: {{badge.color}}20; border-color: {{badge.color}}"
+            wx:if="{{badge}}"
+          >
+            <text class="badge-icon">{{badge.icon}}</text>
+            <text class="badge-text" style="color: {{badge.color}}">{{badge.text}}</text>
+          </view>
+        </view>
+        <!-- 🆕 个人简介 -->
+        <text class="bio" wx:if="{{profile.bio}}">{{profile.bio}}</text>
+        <text class="bio" wx:else>这个人很懒，什么都没写~</text>
+        
+        <!-- 🔧 政府认证信息 -->
+        <view class="gov-cert-info" wx:if="{{userType === 'government' && profile.department}}">
+          <view class="cert-item">
+            <text class="cert-icon">🏛️</text>
+            <text class="cert-text">{{profile.department}}</text>
+          </view>
+          <view class="cert-item" wx:if="{{profile.position}}">
+            <text class="cert-icon">👔</text>
+            <text class="cert-text">{{profile.position}}</text>
+          </view>
+          <view class="cert-item" wx:if="{{profile.workId}}">
+            <text class="cert-icon">🆔</text>
+            <text class="cert-text">{{profile.workId}}</text>
+          </view>
+        </view>
       </view>
     </view>
     

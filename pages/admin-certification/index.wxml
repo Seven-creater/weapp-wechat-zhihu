@@ -1,0 +1,165 @@
+<!-- pages/admin-certification/index.wxml -->
+<view class="admin-container">
+  <!-- 顶部标题 -->
+  <view class="header">
+    <text class="header-title">🔐 政府用户认证审核</text>
+    <text class="header-subtitle">审核政府部门工作人员的身份认证申请</text>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-cards">
+    <view class="stat-card pending">
+      <text class="stat-number">{{stats.pending}}</text>
+      <text class="stat-label">待审核</text>
+    </view>
+    <view class="stat-card approved">
+      <text class="stat-number">{{stats.approved}}</text>
+      <text class="stat-label">已通过</text>
+    </view>
+    <view class="stat-card rejected">
+      <text class="stat-number">{{stats.rejected}}</text>
+      <text class="stat-label">已拒绝</text>
+    </view>
+  </view>
+
+  <!-- 筛选标签 -->
+  <view class="filter-tabs">
+    <view 
+      class="filter-tab {{currentFilter === 'pending' ? 'active' : ''}}"
+      bindtap="switchFilter"
+      data-filter="pending"
+    >
+      待审核 ({{stats.pending}})
+    </view>
+    <view 
+      class="filter-tab {{currentFilter === 'approved' ? 'active' : ''}}"
+      bindtap="switchFilter"
+      data-filter="approved"
+    >
+      已通过
+    </view>
+    <view 
+      class="filter-tab {{currentFilter === 'rejected' ? 'active' : ''}}"
+      bindtap="switchFilter"
+      data-filter="rejected"
+    >
+      已拒绝
+    </view>
+  </view>
+
+  <!-- 申请列表 -->
+  <view class="applications-list">
+    <block wx:for="{{applications}}" wx:key="_id">
+      <view class="application-card">
+        <!-- 用户信息 -->
+        <view class="user-info">
+          <image class="user-avatar" src="{{item.avatarUrl}}" mode="aspectFill" />
+          <view class="user-details">
+            <text class="user-name">{{item.nickName}}</text>
+            <text class="user-phone">{{item.phoneNumber}}</text>
+            <text class="apply-time">申请时间：{{item.applyTime}}</text>
+          </view>
+        </view>
+
+        <!-- 认证信息 -->
+        <view class="cert-info">
+          <view class="cert-item">
+            <text class="cert-label">🏛️ 所属部门：</text>
+            <text class="cert-value">{{item.department}}</text>
+          </view>
+          <view class="cert-item">
+            <text class="cert-label">👔 职位：</text>
+            <text class="cert-value">{{item.position}}</text>
+          </view>
+          <view class="cert-item">
+            <text class="cert-label">🆔 工作证号：</text>
+            <text class="cert-value">{{item.workId}}</text>
+          </view>
+        </view>
+
+        <!-- 状态标签 -->
+        <view class="status-badge {{item.status}}">
+          <text wx:if="{{item.status === 'pending'}}">⏳ 待审核</text>
+          <text wx:if="{{item.status === 'approved'}}">✅ 已通过</text>
+          <text wx:if="{{item.status === 'rejected'}}">❌ 已拒绝</text>
+        </view>
+
+        <!-- 拒绝原因 -->
+        <view class="reject-reason" wx:if="{{item.status === 'rejected' && item.rejectReason}}">
+          <text class="reason-label">拒绝原因：</text>
+          <text class="reason-text">{{item.rejectReason}}</text>
+        </view>
+
+        <!-- 审核时间 -->
+        <view class="review-time" wx:if="{{item.reviewTime}}">
+          <text>审核时间：{{item.reviewTime}}</text>
+        </view>
+
+        <!-- 操作按钮（待审核状态） -->
+        <view class="action-buttons" wx:if="{{item.status === 'pending'}}">
+          <button 
+            class="action-btn approve-btn" 
+            bindtap="handleApprove"
+            data-id="{{item._id}}"
+          >
+            ✅ 通过
+          </button>
+          <button 
+            class="action-btn reject-btn" 
+            bindtap="handleReject"
+            data-id="{{item._id}}"
+          >
+            ❌ 拒绝
+          </button>
+        </view>
+
+        <!-- 操作按钮（已通过状态 - 可移除） -->
+        <view class="action-buttons" wx:if="{{item.status === 'approved'}}">
+          <button 
+            class="action-btn remove-btn" 
+            bindtap="handleRemove"
+            data-openid="{{item.openid}}"
+            data-name="{{item.nickName}}"
+          >
+            🗑️ 移除政府身份
+          </button>
+        </view>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{applications.length === 0}}">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无{{filterText}}</text>
+    </view>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{hasMore}}">
+    <text class="load-text" bindtap="loadMore">加载更多</text>
+  </view>
+</view>
+
+<!-- 拒绝原因弹窗 -->
+<view class="modal-mask" wx:if="{{showRejectModal}}" bindtap="closeRejectModal">
+  <view class="modal-content" catchtap="stopPropagation">
+    <view class="modal-header">
+      <text class="modal-title">请输入拒绝原因</text>
+    </view>
+    <view class="modal-body">
+      <textarea 
+        class="reject-textarea"
+        placeholder="请说明拒绝原因，以便申请人了解情况"
+        value="{{rejectReason}}"
+        bindinput="onRejectReasonInput"
+        maxlength="200"
+      />
+      <text class="char-count">{{rejectReason.length}}/200</text>
+    </view>
+    <view class="modal-footer">
+      <button class="modal-btn cancel-btn" bindtap="closeRejectModal">取消</button>
+      <button class="modal-btn confirm-btn" bindtap="confirmReject">确认拒绝</button>
+    </view>
+  </view>
+</view>
+

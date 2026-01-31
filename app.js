@@ -66,11 +66,68 @@ App({
     const openid = wx.getStorageSync('openid');
     
     if (userInfo && openid) {
+      // 🔧 确保头像URL有效
+      if (!userInfo.avatarUrl || userInfo.avatarUrl.trim() === '') {
+        userInfo.avatarUrl = '/images/zhi.png';
+      }
+      
       this.globalData.userInfo = userInfo;
       this.globalData.openid = openid;
       this.globalData.hasLogin = true;
-      console.log('自动登录成功');
+      console.log('✅ 自动登录成功');
+      
+      // 🆕 从数据库重新加载用户信息（异步，不阻塞启动）
+      this.refreshUserInfo(openid);
     }
+  },
+
+  /**
+   * 🆕 从数据库刷新用户信息
+   */
+  refreshUserInfo: function (openid) {
+    if (!openid) return;
+    
+    wx.cloud.callFunction({
+      name: 'getUserInfo',
+      data: {
+        targetId: openid
+      }
+    }).then(res => {
+      if (res.result && res.result.success && res.result.data) {
+        const userData = res.result.data;
+        const userInfo = userData.userInfo || {};
+        
+        // 🔧 确保头像URL有效
+        let avatarUrl = userInfo.avatarUrl;
+        if (!avatarUrl || avatarUrl.trim() === '') {
+          avatarUrl = '/images/zhi.png';
+          console.warn('⚠️ 数据库中的头像URL为空，使用默认头像');
+        }
+        
+        const fullUserInfo = {
+          nickName: userInfo.nickName || '無界用户',
+          avatarUrl: avatarUrl,
+          userType: userData.userType || 'normal',
+          badge: userData.badge || null,
+          profile: userData.profile || {}
+        };
+        
+        // 更新全局和本地缓存
+        this.globalData.userInfo = fullUserInfo;
+        wx.setStorageSync('userInfo', fullUserInfo);
+        
+        console.log('✅ 用户信息已从数据库刷新');
+      }
+    }).catch(err => {
+      console.error('❌ 刷新用户信息失败:', err);
+      // 失败时确保使用默认头像
+      const currentUserInfo = this.globalData.userInfo;
+      if (currentUserInfo && (!currentUserInfo.avatarUrl || currentUserInfo.avatarUrl.trim() === '')) {
+        currentUserInfo.avatarUrl = '/images/zhi.png';
+        this.globalData.userInfo = currentUserInfo;
+        wx.setStorageSync('userInfo', currentUserInfo);
+      }
+    });
   },
 
   /**

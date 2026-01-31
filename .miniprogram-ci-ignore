@@ -1,0 +1,25 @@
+# 忽略大图片文件，减小代码包体积
+images/navigation.gif
+images/index_scroll.gif
+images/bottom_tab.gif
+images/top_tab.gif
+images/24280.jpg
+images/24213.jpg
+images/1444983318907-_DSC1826.jpg
+images/icon1.jpeg
+images/icon9.jpeg
+images/icon8.jpg
+images/category_slope.jpg
+
+# 忽略文档和配置文件
+docs/
+DEPLOYMENT_GUIDE.md
+README.md
+.git/
+.gitignore
+.miniprogram-ci-ignore
+
+# 忽略开发文件
+*.md
+.DS_Store
+

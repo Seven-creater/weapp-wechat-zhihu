@@ -28,6 +28,13 @@ Page({
   },
 
   onShow: function () {
+    // 更新 tabBar 选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({
+        selected: 3
+      });
+    }
+    
     this.checkLoginAndLoad();
   },
 
@@ -146,7 +153,7 @@ Page({
             avatar: userInfo.avatarUrl || "/images/zhi.png",
             time: this.formatTime(item.updateTime),
             preview: item.lastMessage || "暂无消息",
-            unread: item.unread || 0,
+            unread: item.unreadCount || 0,  // 🔧 使用 unreadCount 字段
           };
         });
         
@@ -160,6 +167,9 @@ Page({
           messageHasMore: hasMore,
           messageLoading: false,
         });
+        
+        // 🆕 计算总未读数量并更新角标
+        this.updateUnreadBadge();
       })
       .catch((err) => {
         console.error("加载私信失败", err);
@@ -252,7 +262,7 @@ Page({
       },
       {
         key: "comment",
-        title: "评论和@",
+        title: "评论",
         preview: placeholder,
         time: "",
         unread: 0,
@@ -415,7 +425,7 @@ Page({
         },
         {
           key: "comment",
-          title: "评论和@",
+          title: "评论",
           preview: commentPreview,
           time: commentLatest ? this.formatTime(commentLatest.createTime) : "",
           unread: commentUnreadRes.total || 0,
@@ -487,34 +497,16 @@ Page({
 
   onLikeMsgTap: function () {
     this.setLastRead("like");
-    wx.showActionSheet({
-      itemList: ["查看赞过", "查看我的收藏"],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          wx.navigateTo({
-            url: "/pages/mine/index?tab=2",
-          });
-          return;
-        }
-        if (res.tapIndex === 1) {
-          wx.navigateTo({
-            url: "/pages/my-favorites/index",
-          });
-        }
-      },
-      fail: () => {
-        // 默认跳转到收藏
-        wx.navigateTo({
-          url: "/pages/my-favorites/index",
-        });
-      },
+    // 跳转到点赞和收藏详情页面
+    wx.navigateTo({
+      url: "/pages/like-notifications/index",
     });
   },
 
   onCommentMsgTap: function () {
     this.setLastRead("comment");
     wx.navigateTo({
-      url: "/pages/my-comments/index",
+      url: "/pages/comment-notifications/index",
     });
   },
 
@@ -544,13 +536,33 @@ Page({
 
   onChatTap: function (e) {
     const id = e.currentTarget.dataset.id;
+    
+    // 🔧 点击会话时，标记为已读（清除该会话的未读数量）
     const messages = (this.data.messages || []).map((item) =>
       item.id === id ? { ...item, unread: 0 } : item,
     );
     this.setData({ messages });
+    
+    // 🆕 更新角标
+    this.updateUnreadBadge();
+    
+    // 🔧 跳转到聊天页面
     wx.navigateTo({
       url: `/pages/chat/chat?id=${id}`,
     });
+  },
+
+  /**
+   * 🆕 更新未读消息角标
+   */
+  updateUnreadBadge: function () {
+    const messages = this.data.messages || [];
+    const totalUnread = messages.reduce((sum, item) => sum + (item.unread || 0), 0);
+    
+    // 更新 TabBar 角标
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().updateUnreadCount(totalUnread);
+    }
   },
 
   onPullDownRefresh: function () {

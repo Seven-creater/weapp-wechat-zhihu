@@ -1,0 +1,50 @@
+<view class="container">
+  <view wx:if="{{notifications.length === 0 && !loading}}" class="empty-state">
+    <image class="empty-icon" src="/images/comment.png" mode="aspectFit" />
+    <text class="empty-text">暂无评论通知</text>
+  </view>
+
+  <view class="notification-list">
+    <block wx:for="{{notifications}}" wx:key="id">
+      <view class="notification-item">
+        <image 
+          class="user-avatar" 
+          src="{{item.userAvatar}}" 
+          mode="aspectFill"
+          bindtap="onUserTap"
+          data-userid="{{item.userId}}"
+        />
+        
+        <view class="notification-content">
+          <view class="notification-header">
+            <text class="user-name" bindtap="onUserTap" data-userid="{{item.userId}}">{{item.userName}}</text>
+            <text class="action-text">评论了你的帖子</text>
+          </view>
+          
+          <view class="comment-content">
+            <text class="comment-text">{{item.commentContent}}</text>
+          </view>
+          
+          <view class="post-preview" bindtap="onPostTap" data-postid="{{item.postId}}">
+            <view class="post-content">
+              <text class="post-label">原帖：</text>
+              <text class="post-title">{{item.postTitle}}</text>
+            </view>
+            <image class="post-image" src="{{item.postImage}}" mode="aspectFill" />
+          </view>
+          
+          <text class="notification-time">{{item.time}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-more">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:if="{{!loading && !hasMore && notifications.length > 0}}" class="no-more">
+    <text>没有更多了</text>
+  </view>
+</view>
+

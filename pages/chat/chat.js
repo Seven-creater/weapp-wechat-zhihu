@@ -185,14 +185,14 @@ Page({
   },
 
   onFocus: function (e) {
-    this.setData({ inputBottom: e.detail.height });
+    // 🔧 键盘弹出时滚动到底部
     setTimeout(() => {
       this.scrollToBottom();
-    }, 100);
+    }, 300);
   },
 
   onBlur: function () {
-    this.setData({ inputBottom: 0 });
+    // 🔧 键盘收起时不需要特殊处理
   },
 
   hideKeyboard: function () {

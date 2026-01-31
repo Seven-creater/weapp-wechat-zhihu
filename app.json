@@ -16,6 +16,8 @@
     "pages/more/more",
     "pages/my-favorites/index",
     "pages/my-comments/index",
+    "pages/like-notifications/index",
+    "pages/comment-notifications/index",
     "pages/solutions/index",
     "pages/solution-detail/index",
     "pages/my-issues/index",
@@ -28,7 +30,10 @@
     "pages/renovation/renovation",
     "pages/construction/construction",
     "pages/follow-list/index",
-    "pages/user-profile/index"
+    "pages/user-profile/index",
+    "pages/switch-identity/index",
+    "pages/admin-certification/index",
+    "pages/gov-certification/index"
   ],
   "plugins": {
     "WeChatSI": {
@@ -53,6 +58,7 @@
     "fetchMode": "simple"
   },
   "tabBar": {
+    "custom": true,
     "color": "#999999",
     "selectedColor": "#002fa7",
     "backgroundColor": "#FFFFFF",
@@ -60,33 +66,23 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页",
-        "iconPath": "images/index.png",
-        "selectedIconPath": "images/index_focus.png"
+        "text": "地图"
       },
       {
         "pagePath": "pages/community/community",
-        "text": "社区",
-        "iconPath": "images/discovery.png",
-        "selectedIconPath": "images/discovery_focus.png"
+        "text": "社区"
       },
       {
         "pagePath": "pages/post/create",
-        "text": "发布",
-        "iconPath": "images/write.png",
-        "selectedIconPath": "images/write.png"
+        "text": "发布"
       },
       {
         "pagePath": "pages/notify/notify",
-        "text": "消息",
-        "iconPath": "images/chat.png",
-        "selectedIconPath": "images/chat_focus.png"
+        "text": "消息"
       },
       {
         "pagePath": "pages/mine/index",
-        "text": "我的",
-        "iconPath": "images/ring.png",
-        "selectedIconPath": "images/ring_focus.png"
+        "text": "我"
       }
     ]
   },

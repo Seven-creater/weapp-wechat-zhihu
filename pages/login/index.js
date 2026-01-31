@@ -1,5 +1,6 @@
 // pages/login/index.js
 const app = getApp();
+const { getAllTypes, getUserTypeConfig } = require('../../utils/userTypes');
 
 Page({
   data: {
@@ -7,20 +8,192 @@ Page({
     nickName: '',
     phoneNumber: '', // 手机号（必填）
     canSubmit: false,
+    
+    // 🆕 用户身份相关
+    userTypes: [],           // 可选的用户类型列表
+    selectedType: 'normal',  // 当前选择的类型
+    selectedTypeConfig: {},  // 当前类型的配置
+    showProfileFields: false, // 是否显示补充信息
+    
+    // 🆕 补充信息（简化版）
+    bio: '',              // 个人简介
+    customFields: {}      // 自定义字段（仅政府用户）
   },
 
   onLoad: function (options) {
-    // 检查是否已有用户信息
-    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
-    if (userInfo && userInfo.nickName) {
-      this.setData({
-        avatarUrl: userInfo.avatarUrl || '/images/zhi.png',
-        nickName: userInfo.nickName,
-        phoneNumber: userInfo.phoneNumber || '',
-      }, () => {
-        this.checkCanSubmit();
+    // 🆕 加载所有用户类型列表（包含政府，允许用户申请认证）
+    const { getAllTypes } = require('../../utils/userTypes');
+    const userTypes = getAllTypes();
+    const selectedTypeConfig = getUserTypeConfig('normal');
+    
+    this.setData({
+      userTypes,
+      selectedTypeConfig
+    });
+    
+    // 🔧 尝试自动登录
+    this.tryAutoLogin();
+  },
+
+  /**
+   * 🆕 尝试自动登录
+   */
+  tryAutoLogin: function () {
+    console.log('========================================');
+    console.log('🔍 开始尝试自动登录');
+    console.log('========================================');
+    
+    wx.showLoading({ title: '登录中...', mask: true });
+    
+    // 1. 先获取 openid
+    this.getOpenid()
+      .then((openid) => {
+        console.log('========================================');
+        console.log('✅ 获取到 openid:', openid);
+        console.log('========================================');
+        
+        // 2. 从数据库查询用户信息
+        return wx.cloud.callFunction({
+          name: 'getUserInfo',
+          data: {
+            targetId: openid
+          }
+        });
+      })
+      .then((res) => {
+        console.log('========================================');
+        console.log('📊 云函数返回结果:');
+        console.log('res.result:', res.result);
+        console.log('========================================');
+        
+        if (res.result && res.result.success && res.result.data) {
+          const userData = res.result.data;
+          const userInfo = userData.userInfo;
+          
+          console.log('========================================');
+          console.log('📋 用户数据详情:');
+          console.log('nickName:', userInfo.nickName);
+          console.log('avatarUrl:', userInfo.avatarUrl);
+          console.log('phoneNumber:', userData.phoneNumber);
+          console.log('userType:', userData.userType);
+          console.log('profile:', userData.profile);
+          console.log('========================================');
+          
+          // 🔧 检查是否已经注册过（有昵称和手机号）
+          if (userInfo.nickName && userData.phoneNumber) {
+            console.log('========================================');
+            console.log('✅ 用户已注册，准备自动登录');
+            console.log('========================================');
+            
+            // 构建完整的用户信息
+            const fullUserInfo = {
+              nickName: userInfo.nickName,
+              avatarUrl: userInfo.avatarUrl || '/images/zhi.png',
+              userType: userData.userType || 'normal',
+              badge: userData.badge || null,
+              profile: userData.profile || {}
+            };
+            
+            // 保存到全局和本地
+            app.globalData.userInfo = fullUserInfo;
+            app.globalData.hasLogin = true;
+            wx.setStorageSync('userInfo', fullUserInfo);
+            
+            console.log('========================================');
+            console.log('✅ 用户信息已保存到全局和本地');
+            console.log('========================================');
+            
+            wx.hideLoading();
+            
+            console.log('========================================');
+            console.log('🔧 准备跳转到"我的"页面');
+            console.log('========================================');
+            
+            // 🔧 使用 reLaunch 强制跳转到"我的"页面
+            wx.reLaunch({
+              url: '/pages/mine/index',
+              success: () => {
+                console.log('========================================');
+                console.log('✅ 跳转成功');
+                console.log('========================================');
+              },
+              fail: (err) => {
+                console.log('========================================');
+                console.error('❌ 跳转失败:', err);
+                console.log('========================================');
+              }
+            });
+          } else {
+            // 🔧 用户未注册，显示注册表单
+            wx.hideLoading();
+            console.log('========================================');
+            console.log('⚠️ 用户未注册，需要填写资料');
+            console.log('nickName 是否存在:', !!userInfo.nickName);
+            console.log('phoneNumber 是否存在:', !!userData.phoneNumber);
+            console.log('========================================');
+            this.showRegistrationForm();
+          }
+        } else {
+          // 🔧 用户不存在，显示注册表单
+          wx.hideLoading();
+          console.log('========================================');
+          console.log('⚠️ 用户不存在，需要注册');
+          console.log('res.result.success:', res.result?.success);
+          console.log('res.result.data:', res.result?.data);
+          console.log('========================================');
+          this.showRegistrationForm();
+        }
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        console.log('========================================');
+        console.error('❌ 自动登录失败:', err);
+        console.log('========================================');
+        // 失败时显示注册表单
+        this.showRegistrationForm();
       });
-    }
+  },
+
+  /**
+   * 🆕 显示注册表单（填写资料）
+   */
+  showRegistrationForm: function () {
+    // 不需要特殊处理，表单已经在页面上了
+    console.log('📝 显示注册表单');
+  },
+
+  /**
+   * 🆕 选择用户类型
+   */
+  selectType: function (e) {
+    const typeId = e.currentTarget.dataset.type;
+    const typeConfig = getUserTypeConfig(typeId);
+    
+    this.setData({
+      selectedType: typeId,
+      selectedTypeConfig: typeConfig,
+      showProfileFields: typeId !== 'normal' // 非普通用户显示补充信息
+    });
+    
+    console.log('选择用户类型:', typeId, typeConfig.label);
+  },
+
+  /**
+   * 🆕 输入个人简介
+   */
+  onBioInput: function (e) {
+    this.setData({ bio: e.detail.value });
+  },
+
+  /**
+   * 🆕 输入自定义字段（政府认证信息）
+   */
+  onCustomFieldInput: function (e) {
+    const key = e.currentTarget.dataset.key;
+    const value = e.detail.value;
+    const customFields = { ...this.data.customFields };
+    customFields[key] = value;
+    this.setData({ customFields });
   },
 
   /**
@@ -86,7 +259,7 @@ Page({
    * 提交用户信息
    */
   submitUserInfo: function () {
-    const { avatarUrl, nickName, phoneNumber } = this.data;
+    const { avatarUrl, nickName, phoneNumber, selectedType, bio, customFields } = this.data;
 
     // 验证手机号
     if (!phoneNumber || phoneNumber.length !== 11) {
@@ -115,6 +288,12 @@ Page({
       return;
     }
 
+    // 🆕 如果是政府用户，提交认证申请
+    if (selectedType === 'government') {
+      this.submitGovCertification();
+      return;
+    }
+
     wx.showLoading({
       title: '登录中...',
       mask: true,
@@ -134,17 +313,29 @@ Page({
           nickName: nickName.trim(),
           avatarUrl: cloudAvatarUrl,
           phoneNumber: phoneNumber,
+          userType: selectedType,  // 🆕 用户类型
+          profile: {               // 🆕 补充信息（简化版）
+            bio,
+            ...customFields        // 政府认证信息
+          }
         });
       })
       .then((userInfo) => {
         wx.hideLoading();
         
+        console.log('✅ 用户信息保存成功:', userInfo);
+        
         // 4. 更新全局状态（注意：不在本地存储手机号，保护隐私）
         const publicUserInfo = {
           nickName: userInfo.nickName,
           avatarUrl: userInfo.avatarUrl,
+          userType: userInfo.userType,  // 🆕 用户类型
+          badge: userInfo.badge,        // 🆕 徽章信息
+          profile: userInfo.profile     // 🆕 补充信息
           // 不存储 phoneNumber 到本地
         };
+        
+        console.log('✅ 保存到本地缓存:', publicUserInfo);
         
         app.globalData.userInfo = publicUserInfo;
         app.globalData.hasLogin = true;
@@ -172,6 +363,108 @@ Page({
         console.error('登录失败:', err);
         wx.showToast({
           title: err.message || '登录失败',
+          icon: 'none',
+        });
+      });
+  },
+
+  /**
+   * 🆕 提交政府用户认证申请
+   */
+  submitGovCertification: function () {
+    const { avatarUrl, nickName, phoneNumber, bio, customFields } = this.data;
+    const { department, position, workId } = customFields;
+
+    // 验证政府认证信息
+    if (!department || !position || !workId) {
+      wx.showToast({
+        title: '请填写完整的认证信息',
+        icon: 'none',
+      });
+      return;
+    }
+
+    wx.showLoading({
+      title: '提交认证申请...',
+      mask: true,
+    });
+
+    // 1. 先获取 openid
+    this.getOpenid()
+      .then(() => {
+        wx.showLoading({ title: '上传头像...', mask: true });
+        // 2. 上传头像
+        return this.uploadAvatar(avatarUrl);
+      })
+      .then((cloudAvatarUrl) => {
+        wx.showLoading({ title: '提交申请...', mask: true });
+        // 3. 提交认证申请
+        return wx.cloud.callFunction({
+          name: 'applyGovCertification',
+          data: {
+            nickName: nickName.trim(),
+            avatarUrl: cloudAvatarUrl,
+            phoneNumber: phoneNumber,
+            department: department,
+            position: position,
+            workId: workId
+          }
+        });
+      })
+      .then((res) => {
+        wx.hideLoading();
+        
+        if (res.result && res.result.success) {
+          // 先保存为普通用户，等待审核通过后升级为政府用户
+          return this.saveUserInfo({
+            nickName: nickName.trim(),
+            avatarUrl: avatarUrl,
+            phoneNumber: phoneNumber,
+            userType: 'normal',  // 暂时保存为普通用户
+            profile: {
+              bio,
+              certificationStatus: 'pending' // 标记认证状态
+            }
+          });
+        } else {
+          throw new Error(res.result?.error || '提交失败');
+        }
+      })
+      .then((userInfo) => {
+        // 更新本地状态
+        const publicUserInfo = {
+          nickName: userInfo.nickName,
+          avatarUrl: userInfo.avatarUrl,
+          userType: userInfo.userType,
+          badge: userInfo.badge,
+          profile: userInfo.profile
+        };
+        
+        app.globalData.userInfo = publicUserInfo;
+        app.globalData.hasLogin = true;
+        wx.setStorageSync('userInfo', publicUserInfo);
+        
+        wx.showModal({
+          title: '认证申请已提交',
+          content: '您的政府用户认证申请已提交，请等待管理员审核。审核通过后将自动升级为政府用户。',
+          showCancel: false,
+          success: () => {
+            const pages = getCurrentPages();
+            if (pages.length > 1) {
+              wx.navigateBack();
+            } else {
+              wx.switchTab({
+                url: '/pages/mine/index',
+              });
+            }
+          }
+        });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        console.error('提交认证申请失败:', err);
+        wx.showToast({
+          title: err.message || '提交失败',
           icon: 'none',
         });
       });
@@ -246,23 +539,40 @@ Page({
    */
   saveUserInfo: function (userInfo) {
     return new Promise((resolve, reject) => {
+      console.log('🔍 准备保存用户信息:', userInfo);
+      
       wx.cloud.callFunction({
         name: 'updateUserInfo',
         data: {
           nickName: userInfo.nickName,
           avatarUrl: userInfo.avatarUrl,
           phoneNumber: userInfo.phoneNumber, // 手机号保存到数据库
+          userType: userInfo.userType,       // 🆕 用户类型
+          profile: userInfo.profile          // 🆕 补充信息
         },
       })
       .then((res) => {
+        console.log('✅ 云函数返回结果:', res.result);
+        
         if (res.result && res.result.success) {
-          resolve(userInfo);
+          // 🔧 使用云函数返回的完整信息
+          const savedUserInfo = {
+            nickName: userInfo.nickName,
+            avatarUrl: userInfo.avatarUrl,
+            userType: res.result.userType || userInfo.userType,  // 使用云函数返回的
+            badge: res.result.badge || null,                     // 使用云函数返回的
+            profile: userInfo.profile
+          };
+          
+          console.log('✅ 保存成功，完整信息:', savedUserInfo);
+          resolve(savedUserInfo);
         } else {
+          console.error('❌ 保存失败:', res.result?.error);
           reject(new Error(res.result?.error || '保存失败'));
         }
       })
       .catch((err) => {
-        console.error('调用云函数失败:', err);
+        console.error('❌ 调用云函数失败:', err);
         reject(err);
       });
     });

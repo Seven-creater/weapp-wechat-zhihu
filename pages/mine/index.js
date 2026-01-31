@@ -32,6 +32,7 @@ Page({
     hasMore: true,
     loading: false,
     emptyText: "这里空空如也~",
+    isAdmin: false, // 🔐 是否是管理员
   },
 
   onLoad: function (options) {
@@ -45,6 +46,14 @@ Page({
   },
 
   onShow: function () {
+    // 更新 tabBar 选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({
+        selected: 4
+      });
+    }
+    
+    // 🔧 每次显示时都重新检查登录状态（刷新用户信息）
     this.checkLoginStatus();
   },
 
@@ -56,11 +65,33 @@ Page({
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     if (openid && userInfo) {
-      // 已登录
+      // 🔧 强制检查头像URL有效性
+      let avatarUrl = userInfo.avatarUrl;
+      if (!avatarUrl || avatarUrl.trim() === '' || avatarUrl === 'undefined' || avatarUrl === 'null') {
+        console.warn('⚠️ 头像URL无效:', avatarUrl, '使用默认头像');
+        avatarUrl = '/images/zhi.png';
+        userInfo.avatarUrl = avatarUrl;
+        // 更新缓存
+        app.globalData.userInfo = userInfo;
+        wx.setStorageSync('userInfo', userInfo);
+      }
+      
+      console.log('📊 当前用户信息:', {
+        nickName: userInfo.nickName,
+        avatarUrl: avatarUrl,
+        userType: userInfo.userType
+      });
+      
+      // 已登录 - 先显示缓存数据
       this.setData({
         isLoggedIn: true,
         userInfo: userInfo,
+        isAdmin: this.checkIsAdmin(openid), // 🔐 检查是否是管理员
       });
+      
+      // 🔧 从数据库重新加载完整的用户信息（包含 badge 和 profile）
+      this.loadFullUserInfo(openid);
+      
       this.loadStats();
       this.loadPosts(true);
     } else {
@@ -74,8 +105,89 @@ Page({
           followers: 0,
           likes: 0,
         },
+        isAdmin: false,
       });
     }
+  },
+
+  /**
+   * 🔐 检查是否是管理员
+   */
+  checkIsAdmin: function(openid) {
+    const ADMIN_OPENIDS = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ'  // 你的管理员账号（正确的 openid）
+    ];
+    const isAdmin = ADMIN_OPENIDS.includes(openid);
+    console.log('🔐 检查管理员权限:', openid, '是否是管理员:', isAdmin);
+    return isAdmin;
+  },
+
+  /**
+   * 🔐 跳转到认证审核页面（仅管理员）
+   */
+  navigateToAdminCertification: function() {
+    if (!this.data.isAdmin) {
+      wx.showToast({
+        title: '权限不足',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    wx.navigateTo({
+      url: '/pages/admin-certification/index'
+    });
+  },
+
+  /**
+   * 🆕 从数据库加载完整的用户信息
+   */
+  loadFullUserInfo: function (openid) {
+    wx.cloud.callFunction({
+      name: 'getUserInfo',
+      data: {
+        targetId: openid
+      }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        const userData = res.result.data;
+        
+        // 🔧 确保头像URL有效，否则使用默认头像
+        let avatarUrl = userData.userInfo.avatarUrl;
+        if (!avatarUrl || avatarUrl.trim() === '') {
+          avatarUrl = '/images/zhi.png';
+          console.warn('⚠️ 头像URL为空，使用默认头像');
+        }
+        
+        const fullUserInfo = {
+          nickName: userData.userInfo.nickName || '無界用户',
+          avatarUrl: avatarUrl,
+          userType: userData.userType || 'normal',
+          badge: userData.badge || null,
+          profile: userData.profile || {}
+        };
+        
+        // 更新页面显示
+        this.setData({
+          userInfo: fullUserInfo
+        });
+        
+        // 更新全局缓存
+        app.globalData.userInfo = fullUserInfo;
+        wx.setStorageSync('userInfo', fullUserInfo);
+        
+        console.log('✅ 完整用户信息已加载:', fullUserInfo);
+      }
+    }).catch(err => {
+      console.error('❌ 加载用户信息失败:', err);
+      // 🔧 加载失败时，确保使用默认头像
+      const currentUserInfo = this.data.userInfo;
+      if (!currentUserInfo.avatarUrl || currentUserInfo.avatarUrl.trim() === '') {
+        this.setData({
+          'userInfo.avatarUrl': '/images/zhi.png'
+        });
+      }
+    });
   },
 
   /**
@@ -84,6 +196,36 @@ Page({
   navigateToEditProfile: function () {
     wx.navigateTo({
       url: '/pages/edit-profile/index',
+    });
+  },
+
+  /**
+   * 🔧 头像加载失败时使用默认头像
+   */
+  onAvatarError: function (e) {
+    console.error('⚠️ 头像加载失败:', e.detail);
+    console.error('⚠️ 当前头像URL:', this.data.userInfo.avatarUrl);
+    
+    // 立即设置默认头像
+    this.setData({
+      'userInfo.avatarUrl': '/images/zhi.png'
+    });
+    
+    // 同时更新缓存
+    const userInfo = this.data.userInfo;
+    userInfo.avatarUrl = '/images/zhi.png';
+    app.globalData.userInfo = userInfo;
+    wx.setStorageSync('userInfo', userInfo);
+    
+    console.log('✅ 已切换到默认头像');
+  },
+
+  /**
+   * 🆕 跳转到身份切换页面
+   */
+  navigateToSwitchIdentity: function () {
+    wx.navigateTo({
+      url: '/pages/switch-identity/index',
     });
   },
 
@@ -102,20 +244,18 @@ Page({
   handleLogout: function () {
     wx.showModal({
       title: '提示',
-      content: '确定要退出登录吗？',
+      content: '确定要退出登录吗？下次登录将自动恢复您的资料。',
       confirmText: '退出',
       confirmColor: '#ef4444',
       success: (res) => {
         if (res.confirm) {
-          // 清除登录状态（openid）
+          // 🔧 只清除登录状态（openid），保留用户信息
           wx.removeStorageSync('openid');
           app.globalData.openid = null;
           app.globalData.hasLogin = false;
 
-          // 注意：保留 userInfo（头像和昵称），这样重新登录时可以恢复
-          // 如果要完全清除，取消下面两行的注释：
-          // wx.removeStorageSync('userInfo');
-          // app.globalData.userInfo = null;
+          // ✅ 保留 userInfo（头像、昵称、身份、简介等），下次登录自动恢复
+          // 不删除 userInfo 和 openid 之外的数据
 
           wx.showToast({
             title: '已退出登录',
@@ -153,50 +293,8 @@ Page({
       return;
     }
 
-    console.log('========================================');
-    console.log('🔍 我的页面：开始加载统计数据');
-    console.log('当前用户 openid:', openid);
-    console.log('========================================');
-
-    // 🔥 优先从 users 集合的 stats 字段读取（最准确）
-    wx.cloud.callFunction({
-      name: 'getUserInfo',
-      data: { targetId: openid }
-    }).then(res => {
-      console.log('========================================');
-      console.log('📊 getUserInfo 云函数返回结果:');
-      console.log('完整结果:', JSON.stringify(res.result, null, 2));
-      console.log('========================================');
-      
-      if (res.result && res.result.success && res.result.data && res.result.data.stats) {
-        const stats = res.result.data.stats;
-        console.log('✅ 找到 stats 数据:', stats);
-        console.log('followingCount:', stats.followingCount);
-        console.log('followersCount:', stats.followersCount);
-        console.log('likesCount:', stats.likesCount);
-        
-        this.setData({
-          'stats.following': stats.followingCount || 0,
-          'stats.followers': stats.followersCount || 0,
-          'stats.likes': stats.likesCount || 0,
-        }, () => {
-          console.log('========================================');
-          console.log('✅ setData 完成，当前页面 stats:', this.data.stats);
-          console.log('========================================');
-        });
-      } else {
-        console.log('❌ 未找到 stats 数据，使用降级方案');
-        console.log('res.result:', res.result);
-        // 降级方案：实时查询
-        this.loadStatsFromCollections(openid);
-      }
-    }).catch(err => {
-      console.error('========================================');
-      console.error('❌ 加载统计数据失败，使用降级方案');
-      console.error('错误:', err);
-      console.error('========================================');
-      this.loadStatsFromCollections(openid);
-    });
+    // 🔥 直接使用实时计算，确保数据准确
+    this.loadStatsFromCollections(openid);
   },
 
   // 🔥 降级方案：从各个集合实时查询统计数据
@@ -221,6 +319,7 @@ Page({
       })
       .count()
       .then((res) => {
+        console.log('关注数:', res.total);
         this.setData({ "stats.following": res.total || 0 });
       })
       .catch((err) => {
@@ -235,6 +334,7 @@ Page({
       })
       .count()
       .then((res) => {
+        console.log('粉丝数:', res.total);
         this.setData({ "stats.followers": res.total || 0 });
       })
       .catch((err) => {
@@ -245,13 +345,20 @@ Page({
     // 🔥 加载获赞数（我的帖子被点赞的总数）
     db.collection("posts")
       .where({ _openid: openid })
-      .field({ stats: true })
+      .field({ stats: true, _id: true })
       .get()
       .then((res) => {
         const posts = res.data || [];
+        console.log('我的帖子数量:', posts.length);
+        console.log('帖子详情:', posts);
+        
         const totalLikes = posts.reduce((sum, post) => {
-          return sum + ((post.stats && post.stats.like) || 0);
+          const likes = (post.stats && post.stats.like) || 0;
+          console.log(`帖子 ${post._id} 的点赞数:`, likes);
+          return sum + likes;
         }, 0);
+        
+        console.log('总获赞数:', totalLikes);
         this.setData({ "stats.likes": totalLikes });
       })
       .catch((err) => {
@@ -454,31 +561,37 @@ Page({
       (solutionsRes.data || []).map((item) => [item._id, item]),
     );
 
-    const items = actions.map((action) => {
-      const type = String(action.type || "");
-      const collection =
-        action.targetCollection ||
-        (type.indexOf("solution") > -1 ? "solutions" : "posts");
-      const targetId = action.targetId || action.postId;
-      const doc =
-        collection === "solutions"
-          ? solutionMap.get(targetId)
-          : postMap.get(targetId);
-      const base = doc
-        ? this.buildPostItemFromDoc(doc, collection)
-        : this.buildPostItemFromAction(action);
-      return {
-        ...base,
-        id: targetId || base.id,
-        route:
-          base.route ||
-          action.targetRoute ||
-          (collection === "solutions"
-            ? "/pages/solution-detail/index"
-            : "/pages/post-detail/index"),
-        collection,
-      };
-    });
+    const items = actions
+      .map((action) => {
+        const type = String(action.type || "");
+        const collection =
+          action.targetCollection ||
+          (type.indexOf("solution") > -1 ? "solutions" : "posts");
+        const targetId = action.targetId || action.postId;
+        const doc =
+          collection === "solutions"
+            ? solutionMap.get(targetId)
+            : postMap.get(targetId);
+        
+        // 🔥 只返回能查到详情的帖子，过滤掉已删除的
+        if (!doc) {
+          return null;
+        }
+        
+        const base = this.buildPostItemFromDoc(doc, collection);
+        return {
+          ...base,
+          id: targetId || base.id,
+          route:
+            base.route ||
+            action.targetRoute ||
+            (collection === "solutions"
+              ? "/pages/solution-detail/index"
+              : "/pages/post-detail/index"),
+          collection,
+        };
+      })
+      .filter(Boolean); // 过滤掉 null 值
 
     return this.convertCloudImages(items);
   },

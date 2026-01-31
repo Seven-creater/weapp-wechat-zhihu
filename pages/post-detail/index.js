@@ -1,4 +1,5 @@
 const collectUtil = require("../../utils/collect.js");
+const { hasPermission, checkAndExecute } = require("../../utils/permission.js");
 const app = getApp();
 
 // 延迟初始化数据库
@@ -36,6 +37,14 @@ Page({
     placeholderText: "发表评论",
     isInputFocus: false,
     replyTarget: null,
+    
+    // 🆕 专业用户权限
+    showProfessionalActions: false,  // 是否显示专业操作区
+    canVerifyIssue: false,           // 可以核实问题
+    canDesignSolution: false,        // 可以设计方案
+    canCreateProject: false,         // 可以创建项目
+    canUpdateProgress: false,        // 可以更新进度（施工方）
+    canViewUserContact: false        // 可以查看联系方式（政府）
   },
 
   onLoad: function (options) {
@@ -46,6 +55,10 @@ Page({
     if (postId) {
       this.loadPostDetail(postId);
       this.loadComments(postId);
+      // 自动修复评论数统计
+      this.fixCommentCount(postId);
+      // 🆕 检查用户权限
+      this.checkUserPermissions();
     } else {
       console.error("帖子ID为空", options);
       wx.showToast({
@@ -53,6 +66,47 @@ Page({
         icon: "none",
       });
     }
+  },
+
+  /**
+   * 🆕 检查用户权限
+   */
+  checkUserPermissions: function () {
+    const canVerifyIssue = hasPermission('canVerifyIssue');
+    const canDesignSolution = hasPermission('canDesignSolution');
+    const canCreateProject = hasPermission('canCreateProject');
+    const canUpdateProgress = hasPermission('canUpdateProgress');
+    const canViewUserContact = hasPermission('canViewUserContact');
+    
+    // 如果有任何专业权限，显示专业操作区
+    const showProfessionalActions = canVerifyIssue || canDesignSolution || 
+                                    canCreateProject || canUpdateProgress || 
+                                    canViewUserContact;
+    
+    this.setData({
+      showProfessionalActions,
+      canVerifyIssue,
+      canDesignSolution,
+      canCreateProject,
+      canUpdateProgress,
+      canViewUserContact
+    });
+  },
+
+  // 修复评论数统计
+  fixCommentCount: function(postId) {
+    wx.cloud.callFunction({
+      name: 'fixPostCommentCount',
+      data: { postId: postId }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        console.log('评论数已修复:', res.result.commentCount);
+        // 重新加载帖子详情以更新显示
+        this.loadPostDetail(postId);
+      }
+    }).catch(err => {
+      console.error('修复评论数失败:', err);
+    });
   },
 
   // 加载帖子详情
@@ -244,19 +298,53 @@ Page({
       .where({ postId })
       .orderBy("createTime", "desc")
       .get()
-      .then((res) => {
+      .then(async (res) => {
         const rawComments = res.data || [];
         const openid = app.globalData.openid || wx.getStorageSync("openid");
+        
+        // 获取所有评论者的 openid
+        const userIds = [...new Set(rawComments.map(c => c._openid))];
+        
+        // 批量获取用户信息
+        const userInfoPromises = userIds.map(userId => {
+          return wx.cloud.callFunction({
+            name: 'getUserInfo',
+            data: { targetId: userId }
+          }).then(res => {
+            if (res.result && res.result.success) {
+              return {
+                _openid: userId,
+                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+              };
+            }
+            return {
+              _openid: userId,
+              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+            };
+          }).catch(() => ({
+            _openid: userId,
+            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+          }));
+        });
+        
+        const usersData = await Promise.all(userInfoPromises);
+        const userMap = {};
+        usersData.forEach(u => {
+          userMap[u._openid] = u.userInfo;
+        });
+        
         const commentMap = new Map();
         const rootComments = [];
 
         rawComments.forEach((comment) => {
+          const userInfo = userMap[comment._openid] || {
+            nickName: "匿名用户",
+            avatarUrl: "/images/zhi.png",
+          };
+          
           const mapped = {
             ...comment,
-            userInfo: comment.userInfo || {
-              nickName: "匿名用户",
-              avatarUrl: "/images/zhi.png",
-            },
+            userInfo: userInfo,
             createTime: this.formatTime(comment.createTime),
             likes: comment.likes || 0,
             liked: false,
@@ -529,6 +617,7 @@ Page({
       });
 
       // --- 第三关：写入数据库 ---
+      const { db } = getDB();
       const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
       const commentData = {
         postId: post._id,
@@ -544,14 +633,18 @@ Page({
       };
 
       const addRes = await db.collection("comments").add({ data: commentData });
-      const updateRes = await db
-        .collection("posts")
-        .doc(post._id)
-        .update({
-          data: {
-            "stats.comment": db.command.inc(1),
-          },
-        });
+      
+      // 只有主评论才增加评论数，回复不增加
+      if (!replyTo) {
+        await db
+          .collection("posts")
+          .doc(post._id)
+          .update({
+            data: {
+              "stats.comment": db.command.inc(1),
+            },
+          });
+      }
 
       // ==========================================
       // ✅ 只有到了这里，才是真正的成功！
@@ -601,7 +694,8 @@ Page({
           ...post,
           stats: {
             ...post.stats,
-            comment: (post.stats?.comment || 0) + 1,
+            // 只有主评论才增加评论数
+            comment: replyTo ? post.stats?.comment || 0 : (post.stats?.comment || 0) + 1,
           },
         },
       });
@@ -843,6 +937,16 @@ Page({
     }
   },
 
+  // 跳转到评论用户的主页
+  navigateToUserProfile: function (e) {
+    const openid = e.currentTarget.dataset.openid;
+    if (openid) {
+      wx.navigateTo({
+        url: `/pages/user-profile/index?id=${openid}`
+      });
+    }
+  },
+
   formatTime: function (timestamp) {
     if (!timestamp) return "";
 
@@ -910,4 +1014,155 @@ Page({
       });
     }
   },
+
+  // ========================================
+  // 🆕 专业用户操作方法
+  // ========================================
+
+  /**
+   * 核实问题（设计者、施工方、政府）
+   */
+  verifyIssue: function () {
+    checkAndExecute('canVerifyIssue', () => {
+      const postId = this.data.post?._id;
+      if (!postId) return;
+
+      wx.showModal({
+        title: '核实问题',
+        content: '确认该问题真实存在且描述准确？',
+        confirmText: '确认核实',
+        success: (res) => {
+          if (res.confirm) {
+            wx.showLoading({ title: '核实中...', mask: true });
+            
+            wx.cloud.callFunction({
+              name: 'verifyIssue',
+              data: { postId }
+            }).then(result => {
+              wx.hideLoading();
+              
+              if (result.result && result.result.success) {
+                // 更新帖子状态
+                this.setData({
+                  post: {
+                    ...this.data.post,
+                    verified: true
+                  }
+                });
+                
+                wx.showToast({
+                  title: '核实成功',
+                  icon: 'success'
+                });
+              } else {
+                throw new Error(result.result?.error || '核实失败');
+              }
+            }).catch(err => {
+              wx.hideLoading();
+              console.error('核实问题失败:', err);
+              wx.showToast({
+                title: '核实失败',
+                icon: 'none'
+              });
+            });
+          }
+        }
+      });
+    });
+  },
+
+  /**
+   * 设计方案（设计者）
+   */
+  createDesignSolution: function () {
+    checkAndExecute('canDesignSolution', () => {
+      wx.showToast({
+        title: '设计方案功能开发中',
+        icon: 'none'
+      });
+      // TODO: 跳转到设计方案创建页面
+      // wx.navigateTo({
+      //   url: `/pages/design-solution/create?postId=${this.data.post._id}`
+      // });
+    });
+  },
+
+  /**
+   * 提交报价（施工方）
+   */
+  submitQuote: function () {
+    checkAndExecute('canUpdateProgress', () => {
+      wx.showToast({
+        title: '报价功能开发中',
+        icon: 'none'
+      });
+      // TODO: 跳转到报价提交页面
+      // wx.navigateTo({
+      //   url: `/pages/quote/submit?postId=${this.data.post._id}`
+      // });
+    });
+  },
+
+  /**
+   * 创建项目（政府、施工方）
+   */
+  createProject: function () {
+    checkAndExecute('canCreateProject', () => {
+      wx.showToast({
+        title: '项目创建功能开发中',
+        icon: 'none'
+      });
+      // TODO: 跳转到项目创建页面
+      // wx.navigateTo({
+      //   url: `/pages/project/create?postId=${this.data.post._id}`
+      // });
+    });
+  },
+
+  /**
+   * 查看用户联系方式（政府）
+   */
+  viewUserContact: function () {
+    checkAndExecute('canViewUserContact', () => {
+      const postOwnerId = this.data.post?._openid;
+      if (!postOwnerId) return;
+
+      wx.showLoading({ title: '加载中...', mask: true });
+
+      wx.cloud.callFunction({
+        name: 'getUserContact',
+        data: { targetId: postOwnerId }
+      }).then(result => {
+        wx.hideLoading();
+
+        if (result.result && result.result.success) {
+          const contact = result.result.data;
+          
+          wx.showModal({
+            title: '用户联系方式',
+            content: `手机号：${contact.phoneNumber || '未填写'}\n微信号：${contact.wechat || '未填写'}\n邮箱：${contact.email || '未填写'}`,
+            showCancel: true,
+            confirmText: '拨打电话',
+            cancelText: '关闭',
+            success: (res) => {
+              if (res.confirm && contact.phoneNumber) {
+                wx.makePhoneCall({
+                  phoneNumber: contact.phoneNumber
+                });
+              }
+            }
+          });
+        } else {
+          throw new Error(result.result?.error || '获取失败');
+        }
+      }).catch(err => {
+        wx.hideLoading();
+        console.error('获取联系方式失败:', err);
+        wx.showToast({
+          title: '获取失败',
+          icon: 'none'
+        });
+      });
+    });
+  }
 });

@@ -118,6 +118,14 @@
       </view>
     </view>
     <text class="location-text">{{formattedAddress || address || '暂未选择位置'}}</text>
+    <input
+      class="detail-address-input"
+      placeholder="请输入详细地址与门牌号（如：3号楼2单元101室）"
+      value="{{detailAddress}}"
+      bindinput="onDetailAddressInput"
+      type="text"
+      aria-label="详细地址与门牌号"
+    />
   </view>
 
   <view class="section">

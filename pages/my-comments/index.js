@@ -41,6 +41,8 @@ Page({
     const that = this;
     that.setData({ loading: true });
 
+    const db = getDB();
+
     // 从comments集合获取评论记录
     db.collection("comments")
       .where({

@@ -7,6 +7,13 @@ Page({
   onLoad: function (options) {},
 
   onShow: function () {
+    // 更新 tabBar 选中状态
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({
+        selected: 2
+      });
+    }
+    
     // 每次显示页面时检查登录状态
     this.checkLoginStatus();
   },

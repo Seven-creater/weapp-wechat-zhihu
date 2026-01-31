@@ -28,6 +28,7 @@ Page({
     ],
     selectedCategory: "",
     contactPhone: "",
+    detailAddress: "",
     aiSolution: "",
     location: null,
     address: "",
@@ -229,6 +230,7 @@ Page({
           : true,
       selectedCategory: draft.selectedCategory || "",
       contactPhone: draft.contactPhone || "",
+      detailAddress: draft.detailAddress || "",
     });
 
     this.draftDirty = false;
@@ -276,6 +278,11 @@ Page({
     if (!/^\+?[0-9\-\s]{7,20}$/.test(value)) {
       wx.showToast({ title: "联系电话格式不正确", icon: "none" });
     }
+  },
+
+  onDetailAddressInput: function (e) {
+    this.setData({ detailAddress: e.detail.value });
+    this.draftDirty = true;
   },
 
   onAiSolutionInput: function (e) {
@@ -676,7 +683,7 @@ Page({
     location,
     syncToCommunity,
   ) {
-    const { userSuggestion, selectedCategory, contactPhone } = this.data;
+    const { userSuggestion, selectedCategory, contactPhone, detailAddress } = this.data;
     const coverImage = fileIDs[0];
     const rawUserInfo =
       app.globalData.userInfo || wx.getStorageSync("userInfo") || {};
@@ -694,6 +701,7 @@ Page({
       userSuggestion,
       category: selectedCategory || "",
       contactPhone: contactPhone || "",
+      detailAddress: detailAddress || "",
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
       formattedAddress: location.formattedAddress,
@@ -730,6 +738,7 @@ Page({
           sourceIssueId: issueId,
           address: location.address,
           formattedAddress: location.formattedAddress,
+          detailAddress: detailAddress || "",
           location: locationPoint,
           userInfo: normalizedUserInfo,
         };
@@ -747,6 +756,7 @@ Page({
               selectedCategory || "",
               normalizedUserInfo,
               userSuggestion,
+              detailAddress,
             ),
           );
         }
@@ -764,6 +774,7 @@ Page({
     category,
     userInfo,
     userSuggestion,
+    detailAddress,
   ) {
     const safeUserInfo = userInfo || {};
     const normalizedUserInfo = {
@@ -780,6 +791,7 @@ Page({
       type: "issue",
       category: category || "",
       userSuggestion,
+      detailAddress: detailAddress || "",
       location: new db.Geo.Point(location.longitude, location.latitude),
       address: location.address,
       formattedAddress: location.formattedAddress,
@@ -862,6 +874,7 @@ Page({
       syncToCommunity: this.data.syncToCommunity,
       selectedCategory: this.data.selectedCategory,
       contactPhone: this.data.contactPhone,
+      detailAddress: this.data.detailAddress,
       updatedAt: Date.now(),
     };
 

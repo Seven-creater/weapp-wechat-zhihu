@@ -30,9 +30,7 @@ Page({
     this.loadData();
   },
 
-  // 🔥 新增：每次显示页面时刷新数据
   onShow: function () {
-    console.log('关注列表 onShow - 刷新数据');
     this.loadData();
   },
 
@@ -68,21 +66,16 @@ Page({
       query = { targetId: openid };
     }
 
-    console.log('查询关注/粉丝列表，查询条件:', query);
-
     db.collection(collection).where(query).get().then(async res => {
       const follows = res.data;
-      console.log('查询到的关注/粉丝记录:', follows);
-      
       const userIds = follows.map(f => this.data.type === 'following' ? f.targetId : f.followerId);
-      console.log('提取的用户ID列表:', userIds);
       
       if (userIds.length === 0) {
         this.setData({ users: [], loading: false });
         return;
       }
 
-      // 🔥 使用云函数批量查询用户信息（自动转换头像URL）
+      // 使用云函数批量查询用户信息
       const userInfoPromises = userIds.map(userId => {
         return wx.cloud.callFunction({
           name: 'getUserInfo',
@@ -111,7 +104,6 @@ Page({
       });
 
       const usersData = await Promise.all(userInfoPromises);
-      console.log('查询到的用户信息:', usersData);
 
       const userMap = {};
       usersData.forEach(u => {
@@ -119,7 +111,6 @@ Page({
           userInfo: u.userInfo,
           stats: u.stats
         };
-        console.log('用户映射:', u._openid, '->', userMap[u._openid].userInfo);
       });
 
       // Check which users I'm following (for the follow button state)
@@ -137,20 +128,17 @@ Page({
         const myFollow = followingMap[uid];
         const userData = userMap[uid];
         
-        console.log('处理用户:', uid, '用户信息:', userData?.userInfo);
-        
         return {
           ...f,
           userId: uid,
           userInfo: userData?.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
           stats: userData?.stats || {},
           isFollowing: !!myFollow,
-          isMutual: f.isMutual || myFollow?.isMutual || false, // 互相关注标识
+          isMutual: f.isMutual || myFollow?.isMutual || false,
           isSelf: uid === openid
         };
       });
 
-      console.log('最终的用户列表:', users);
       this.setData({ users, loading: false });
     }).catch(err => {
       console.error('加载列表失败:', err);
@@ -163,21 +151,16 @@ Page({
     const id = e.currentTarget.dataset.id;
     const openid = app.globalData.openid || wx.getStorageSync('openid');
     
-    console.log('点击用户，目标ID:', id, '当前用户ID:', openid);
-    
     if (id === openid) {
-      // 如果是自己，跳转到"我的"页面
       wx.switchTab({ url: '/pages/mine/index' });
       return;
     }
     
     if (id) {
-      console.log('跳转到用户主页:', id);
       wx.navigateTo({
         url: `/pages/user-profile/index?id=${id}`
       });
     } else {
-      console.error('用户ID为空');
       wx.showToast({ title: '用户ID错误', icon: 'none' });
     }
   },
@@ -220,7 +203,7 @@ Page({
         this.setData({ users });
         wx.showToast({ title: '已取消关注', icon: 'success' });
         
-        // 🔥 调用云函数更新统计
+        // 调用云函数更新统计
         wx.cloud.callFunction({
           name: 'updateUserStats',
           data: {
@@ -228,8 +211,6 @@ Page({
             followerId: openid,
             targetId: targetId
           }
-        }).then(() => {
-          console.log('✅ 统计数据已更新');
         }).catch(err => {
           console.error('更新统计失败:', err);
         });
@@ -249,7 +230,7 @@ Page({
       }).then(() => {
         wx.showToast({ title: '关注成功', icon: 'success' });
         
-        // 🔥 调用云函数更新统计和检查互关
+        // 调用云函数更新统计
         wx.cloud.callFunction({
           name: 'updateUserStats',
           data: {
@@ -258,12 +239,9 @@ Page({
             targetId: targetId
           }
         }).then(() => {
-          // 🔥 重新加载数据以获取最新的互关状态和统计
-          console.log('✅ 统计数据已更新，重新加载列表');
           this.loadData();
         }).catch(err => {
           console.error('更新统计失败:', err);
-          // 即使失败也重新加载
           this.loadData();
         });
       }).catch(err => {

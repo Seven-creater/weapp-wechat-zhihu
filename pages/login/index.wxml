@@ -2,8 +2,29 @@
 <view class="container">
   <view class="content">
     <!-- 标题 -->
-    <view class="title">完善个人信息</view>
-    <view class="subtitle">让大家更好地认识你</view>
+    <view class="title">欢迎来到無界营造</view>
+    <view class="subtitle">让无障碍环境更美好</view>
+
+    <!-- 🆕 身份选择 -->
+    <view class="identity-section">
+      <text class="section-label">请选择您的身份</text>
+      <view class="identity-list">
+        <view 
+          wx:for="{{userTypes}}" 
+          wx:key="id"
+          class="identity-item {{selectedType === item.id ? 'selected' : ''}}"
+          bindtap="selectType"
+          data-type="{{item.id}}"
+        >
+          <view class="identity-header">
+            <text class="badge-icon">{{item.badge.icon}}</text>
+            <text class="identity-label">{{item.label}}</text>
+            <text class="check-icon" wx:if="{{selectedType === item.id}}">✓</text>
+          </view>
+          <text class="identity-desc">{{item.description}}</text>
+        </view>
+      </view>
+    </view>
 
     <!-- 头像选择 -->
     <view class="avatar-section">
@@ -49,6 +70,46 @@
       <text class="hint">用于后台联系，不会公开显示</text>
     </view>
 
+    <!-- 🆕 补充信息（可选） -->
+    <view class="optional-section" wx:if="{{showProfileFields}}">
+      <text class="section-label">补充信息</text>
+      
+      <view class="form-item">
+        <text class="label">个人简介 {{selectedType === 'government' ? '' : '（可选）'}}</text>
+        <textarea 
+          class="textarea-input" 
+          placeholder="简单介绍一下自己..."
+          value="{{bio}}"
+          bindinput="onBioInput"
+          maxlength="200"
+        ></textarea>
+      </view>
+
+      <!-- 🔧 政府用户必须填写认证信息 -->
+      <view wx:if="{{selectedType === 'government'}}">
+        <view 
+          wx:for="{{selectedTypeConfig.profileFields}}" 
+          wx:key="key"
+          class="form-item"
+        >
+          <text class="label">{{item.label}} <text class="required" wx:if="{{item.required}}">*</text></text>
+          <input 
+            class="text-input" 
+            placeholder="{{item.placeholder}}"
+            bindinput="onCustomFieldInput"
+            data-key="{{item.key}}"
+            value="{{customFields[item.key]}}"
+          />
+        </view>
+      </view>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="tips-inline" wx:if="{{selectedType === 'government'}}">
+      <text class="tip-icon">⚠️</text>
+      <text class="tip-text">政府用户需要填写认证信息以验证身份</text>
+    </view>
+
     <!-- 提交按钮 -->
     <button 
       class="submit-btn {{canSubmit ? 'active' : ''}}" 
@@ -67,9 +128,9 @@
   <!-- 说明 -->
   <view class="tips">
     <text class="tips-title">温馨提示</text>
+    <text class="tips-item">• 身份可随时在"我的-设置"中修改</text>
     <text class="tips-item">• 头像和昵称将展示给其他用户</text>
     <text class="tips-item">• 手机号仅用于后台联系，不会公开</text>
-    <text class="tips-item">• 请使用真实、友好的昵称</text>
-    <text class="tips-item">• 后续可在个人中心修改</text>
+    <text class="tips-item">• 不同身份拥有不同的功能权限</text>
   </view>
 </view>

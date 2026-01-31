@@ -1,0 +1,10 @@
+{
+  "name": "getUserContact",
+  "version": "1.0.0",
+  "description": "获取用户联系方式云函数（政府专用）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

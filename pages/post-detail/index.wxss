@@ -236,6 +236,16 @@
   word-break: break-word;
 }
 
+.detail-address-text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.4;
+  word-break: break-word;
+  margin-top: 4rpx;
+  padding-left: 20rpx;
+  border-left: 3rpx solid #002fa7;
+}
+
 /* 图片展示 */
 .post-images {
   margin-bottom: 30rpx;
@@ -368,6 +378,13 @@
   margin-right: 20rpx;
   border: 2rpx solid var(--color-accent);
   flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.comment-avatar:active {
+  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 .comment-content {
@@ -466,6 +483,13 @@
   margin-right: 15rpx;
   border: 2rpx solid var(--color-accent);
   flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reply-avatar:active {
+  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 .reply-content {
@@ -664,4 +688,136 @@
   .action-text {
     font-size: 32rpx;
   }
+}
+
+/* ========================================
+   🆕 专业用户操作区样式
+   ======================================== */
+
+.professional-actions {
+  margin-top: 40rpx;
+}
+
+.section-divider {
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, #e5e7eb 20%, #e5e7eb 80%, transparent);
+  margin-bottom: 30rpx;
+}
+
+.professional-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.title-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.title-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #374151;
+}
+
+.professional-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.pro-btn {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  transition: all 0.3s;
+  border: 2rpx solid;
+}
+
+.pro-btn:active {
+  transform: scale(0.95);
+}
+
+.pro-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
+}
+
+.pro-text {
+  font-size: 26rpx;
+}
+
+/* 核实问题按钮 */
+.verify-btn {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  border-color: #10b981;
+  color: white;
+  box-shadow: 0 4rpx 12rpx rgba(16, 185, 129, 0.2);
+}
+
+.verified-badge {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #10b981;
+  cursor: default;
+}
+
+.verified-badge:active {
+  transform: none;
+}
+
+/* 设计方案按钮 */
+.design-btn {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  border-color: #3b82f6;
+  color: white;
+  box-shadow: 0 4rpx 12rpx rgba(59, 130, 246, 0.2);
+}
+
+/* 提交报价按钮 */
+.quote-btn {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  border-color: #f59e0b;
+  color: white;
+  box-shadow: 0 4rpx 12rpx rgba(245, 158, 11, 0.2);
+}
+
+/* 创建项目按钮 */
+.project-btn {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+  border-color: #8b5cf6;
+  color: white;
+  box-shadow: 0 4rpx 12rpx rgba(139, 92, 246, 0.2);
+}
+
+/* 联系用户按钮 */
+.contact-btn {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  border-color: #ef4444;
+  color: white;
+  box-shadow: 0 4rpx 12rpx rgba(239, 68, 68, 0.2);
+}
+
+/* 关注按钮样式 */
+.follow-btn {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: white;
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+  margin-left: 12rpx;
+  transition: all 0.3s;
+}
+
+.follow-btn.followed {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.follow-btn:active {
+  transform: scale(0.95);
 }

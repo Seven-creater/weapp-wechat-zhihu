@@ -30,7 +30,9 @@
 <!-- Post Card Template -->
 <template name="postCard">
   <view class="post-card" bindtap="onPostTap" data-id="{{item.id}}">
-    <image class="post-image" src="{{item.image}}" mode="widthFix" />
+    <view class="post-image-wrapper">
+      <image class="post-image" src="{{item.image}}" mode="aspectFill" />
+    </view>
     <view class="post-info">
       <view class="post-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
       <view class="post-title">{{item.title}}</view>

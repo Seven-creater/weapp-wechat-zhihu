@@ -1,0 +1,37 @@
+<view class="tab-bar">
+  <block wx:for="{{list}}" wx:key="index">
+    <view 
+      class="tab-bar-item {{selected === index ? 'active' : ''}} {{item.isSpecial ? 'special' : ''}}"
+      data-path="{{item.pagePath}}"
+      data-index="{{index}}"
+      bindtap="switchTab"
+    >
+      <!-- 特殊按钮（发布） -->
+      <view wx:if="{{item.isSpecial}}" class="special-button">
+        <image class="special-icon" src="{{item.iconPath}}" mode="aspectFit"></image>
+      </view>
+      
+      <!-- 普通按钮 -->
+      <block wx:else>
+        <view class="tab-icon-wrapper">
+          <image 
+            class="tab-icon" 
+            src="{{selected === index ? item.selectedIconPath : item.iconPath}}"
+            mode="aspectFit"
+          ></image>
+          <!-- 🆕 未读消息角标 -->
+          <view 
+            class="badge" 
+            wx:if="{{item.text === '消息' && unreadCount > 0}}"
+          >
+            <text class="badge-text">{{unreadCount > 99 ? '99+' : unreadCount}}</text>
+          </view>
+        </view>
+        <text class="tab-text" style="color: {{selected === index ? selectedColor : color}}">
+          {{item.text}}
+        </text>
+      </block>
+    </view>
+  </block>
+</view>
+

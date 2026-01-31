@@ -24,6 +24,11 @@ exports.main = async (event, context) => {
     }).field({
       userInfo: true,
       stats: true,
+      userType: true,      // 🔧 添加用户类型
+      badge: true,         // 🔧 添加徽章
+      profile: true,       // 🔧 添加补充信息
+      reputation: true,    // 🔧 添加信誉信息
+      phoneNumber: true,   // 🔧 添加手机号
       _openid: true
     }).get();
 
@@ -50,8 +55,18 @@ exports.main = async (event, context) => {
       
       return {
         success: true,
-        data: userData,  // 完整的用户数据
-        userInfo: userData.userInfo,  // 兼容旧代码
+        data: {
+          userInfo: userData.userInfo,
+          stats: userData.stats,
+          userType: userData.userType || 'normal',     // 🔧 返回用户类型
+          badge: userData.badge || null,               // 🔧 返回徽章
+          profile: userData.profile || {},             // 🔧 返回补充信息
+          reputation: userData.reputation || null,     // 🔧 返回信誉信息
+          phoneNumber: userData.phoneNumber || null,   // 🔧 返回手机号
+          _openid: userData._openid
+        },
+        // 兼容旧代码
+        userInfo: userData.userInfo,
         _openid: userData._openid,
         stats: userData.stats
       };

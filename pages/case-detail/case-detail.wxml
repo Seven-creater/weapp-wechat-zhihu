@@ -58,7 +58,7 @@
     <!-- 评论列表 -->
     <view class="comment-list">
       <view class="comment-item" wx:for="{{commentList}}" wx:key="_id">
-        <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}"></image>
+        <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
         <view class="comment-content">
           <view class="comment-header">
             <text class="comment-author">{{item.userInfo.nickName}}</text>

@@ -26,6 +26,46 @@
       {
         "value": "images/category_slope.jpg",
         "type": "file"
+      },
+      {
+        "value": "images/24280.jpg",
+        "type": "file"
+      },
+      {
+        "value": "images/24213.jpg",
+        "type": "file"
+      },
+      {
+        "value": "images/icon1.jpeg",
+        "type": "file"
+      },
+      {
+        "value": "images/icon9.jpeg",
+        "type": "file"
+      },
+      {
+        "value": "images/icon8.jpg",
+        "type": "file"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "DEPLOYMENT_GUIDE.md",
+        "type": "file"
+      },
+      {
+        "value": "README.md",
+        "type": "file"
+      },
+      {
+        "value": ".git",
+        "type": "folder"
+      },
+      {
+        "value": ".gitignore",
+        "type": "file"
       }
     ],
     "include": []

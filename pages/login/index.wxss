@@ -33,6 +33,75 @@
   margin-bottom: 60rpx;
 }
 
+/* 🆕 身份选择区域 */
+.identity-section {
+  margin-bottom: 40rpx;
+}
+
+.section-label {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #374151;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.identity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.identity-item {
+  background: #f9fafb;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.identity-item:active {
+  transform: scale(0.98);
+}
+
+.identity-item.selected {
+  background: #ecfdf5;
+  border-color: #10b981;
+  box-shadow: 0 4rpx 12rpx rgba(16, 185, 129, 0.15);
+}
+
+.identity-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.badge-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.identity-label {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #111827;
+  flex: 1;
+}
+
+.check-icon {
+  font-size: 32rpx;
+  color: #10b981;
+  font-weight: bold;
+}
+
+.identity-desc {
+  font-size: 24rpx;
+  color: #6b7280;
+  line-height: 1.5;
+  padding-left: 44rpx;
+}
+
 /* 头像区域 */
 .avatar-section {
   display: flex;
@@ -149,6 +218,73 @@
 .phone-input:focus {
   border-color: #10b981;
   background: white;
+}
+
+/* 🆕 补充信息区域 */
+.optional-section {
+  margin-bottom: 40rpx;
+  padding-top: 40rpx;
+  border-top: 2rpx solid #e5e7eb;
+}
+
+.form-item {
+  margin-bottom: 32rpx;
+}
+
+.text-input {
+  width: 100%;
+  height: 88rpx;
+  background: #f9fafb;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.text-input:focus {
+  border-color: #10b981;
+  background: white;
+}
+
+.textarea-input {
+  width: 100%;
+  min-height: 160rpx;
+  background: #f9fafb;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #111827;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.textarea-input:focus {
+  border-color: #10b981;
+  background: white;
+}
+
+/* 🆕 内联提示 */
+.tips-inline {
+  display: flex;
+  align-items: center;
+  background: #fef3c7;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 40rpx;
+}
+
+.tip-icon {
+  font-size: 28rpx;
+  margin-right: 12rpx;
+}
+
+.tip-text {
+  font-size: 24rpx;
+  color: #92400e;
+  flex: 1;
 }
 
 /* 提交按钮 */

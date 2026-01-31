@@ -134,6 +134,14 @@ Page({
     this.getLocationAndLoad();
   },
 
+  onShow: function () {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({
+        selected: 0
+      });
+    }
+  },
+
   syncChips: function () {
     const chips = [
       { id: "all", name: "全部" },

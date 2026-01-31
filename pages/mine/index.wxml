@@ -12,20 +12,67 @@
 
   <!-- 已登录状态 -->
   <view class="header-section" wx:else>
-    <!-- 头像 - 点击跳转到编辑页面 -->
+    <!-- 左侧：头像 -->
     <view class="avatar-button" bindtap="navigateToEditProfile">
-      <image class="avatar" src="{{userInfo.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" />
+      <image 
+        class="avatar" 
+        src="{{userInfo.avatarUrl || '/images/zhi.png'}}" 
+        mode="aspectFill"
+        binderror="onAvatarError"
+      />
       <view class="avatar-edit-tip">点击编辑</view>
     </view>
 
-    <!-- 用户信息 -->
+    <!-- 中间：用户信息 -->
     <view class="user-details">
-      <!-- 昵称和退出登录按钮同行 -->
-      <view class="nickname-row">
+      <!-- 昵称和徽章 -->
+      <view class="name-badge-row">
         <text class="nickname-text">{{userInfo.nickName || '無界用户'}}</text>
-        <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+        <!-- 身份徽章 -->
+        <view 
+          class="badge" 
+          style="background-color: {{userInfo.badge.color}}20; border-color: {{userInfo.badge.color}}"
+          wx:if="{{userInfo.badge}}"
+        >
+          <text class="badge-icon">{{userInfo.badge.icon}}</text>
+          <text class="badge-text" style="color: {{userInfo.badge.color}}">{{userInfo.badge.text}}</text>
+        </view>
       </view>
-      <text class="user-id">無界营造号：{{userInfo.id || '123456789'}}</text>
+      
+      <!-- 个人简介 -->
+      <text class="user-bio" wx:if="{{userInfo.profile && userInfo.profile.bio}}">{{userInfo.profile.bio}}</text>
+      
+      <!-- 🔧 政府认证信息 -->
+      <view class="user-extra-grid" wx:if="{{userInfo.userType === 'government'}}">
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.department}}">
+          <text class="extra-icon">🏛️</text>
+          <text class="extra-text">{{userInfo.profile.department}}</text>
+        </view>
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.position}}">
+          <text class="extra-icon">👔</text>
+          <text class="extra-text">{{userInfo.profile.position}}</text>
+        </view>
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.workId}}">
+          <text class="extra-icon">🆔</text>
+          <text class="extra-text">{{userInfo.profile.workId}}</text>
+        </view>
+      </view>
+      
+      <!-- 🆕 认证状态提示 -->
+      <view class="cert-status-tip" wx:if="{{userInfo.profile && userInfo.profile.certificationStatus === 'pending'}}">
+        <text class="cert-status-icon">⏳</text>
+        <text class="cert-status-text">政府认证审核中，请耐心等待...</text>
+      </view>
+    </view>
+
+    <!-- 右侧：操作按钮 -->
+    <view class="action-buttons-right">
+      <!-- 🔐 管理员入口 -->
+      <button class="action-btn-right admin-btn" bindtap="navigateToAdminCertification" wx:if="{{isAdmin}}">
+        🔐 认证审核
+      </button>
+      <button class="action-btn-right logout-btn" bindtap="handleLogout">退出登录</button>
+      <button class="action-btn-right switch-btn" bindtap="navigateToSwitchIdentity">切换身份</button>
     </view>
   </view>
 
@@ -38,6 +85,10 @@
     <view class="stat-item" bindtap="navigateToFollowList" data-type="followers">
       <text class="stat-num">{{stats.followers}}</text>
       <text class="stat-label">粉丝</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.likes}}</text>
+      <text class="stat-label">获赞</text>
     </view>
   </view>
 

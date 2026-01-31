@@ -30,26 +30,23 @@ Page({
       following: 0,
       followers: 0,
       likes: 0
-    }
+    },
+    // 🆕 用户身份相关
+    userType: 'normal',  // 🔧 添加 userType
+    badge: null,         // 徽章信息
+    profile: {},         // 补充信息
+    reputation: null     // 信誉评分
   },
 
   onLoad: function (options) {
     const targetId = options.id;
-    console.log('========================================');
-    console.log('用户主页 onLoad');
-    console.log('接收到的参数 options:', options);
-    console.log('目标用户ID (targetId):', targetId);
-    console.log('当前登录用户ID:', app.globalData.openid || wx.getStorageSync('openid'));
-    console.log('========================================');
     
     if (!targetId) {
-      console.error('❌ 错误：targetId 为空');
       wx.showToast({ title: '参数错误', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 1500);
       return;
     }
 
-    // 🔥 关键修复：立即设置 targetId，防止使用错误的数据
     this.setData({ 
       targetId: targetId,
       userInfo: {
@@ -64,78 +61,41 @@ Page({
     this.loadPosts(targetId);
   },
 
-  // 🔥 新增：每次显示页面时刷新统计数据
   onShow: function () {
     const targetId = this.data.targetId;
     if (targetId) {
-      console.log('用户主页 onShow - 刷新统计数据');
       this.loadStats(targetId);
       this.checkFollowStatus(targetId);
     }
   },
 
   loadUserInfo: function (openid) {
-    console.log('========================================');
-    console.log('📥 开始加载用户信息');
-    console.log('目标 openid:', openid);
-    console.log('当前登录用户 openid:', app.globalData.openid || wx.getStorageSync('openid'));
-    console.log('========================================');
-
-    // 🔥 使用云函数查询，避免权限问题
     wx.cloud.callFunction({
       name: 'getUserInfo',
       data: {
         targetId: openid
       }
     }).then(res => {
-      console.log('========================================');
-      console.log('📊 云函数查询结果');
-      console.log('完整结果:', res.result);
-      console.log('========================================');
-      
       if (res.result && res.result.success) {
         const userData = res.result.data;
-        console.log('✅ 找到用户数据');
-        console.log('用户 _openid:', userData._openid);
-        console.log('用户 userInfo:', userData.userInfo);
-        console.log('用户 stats:', userData.stats);
-        
-        // 确保 userInfo 存在
         const userInfo = userData.userInfo || {
           nickName: '未知用户',
           avatarUrl: '/images/zhi.png'
         };
         
-        console.log('========================================');
-        console.log('🎯 准备设置到页面的数据');
-        console.log('nickName:', userInfo.nickName);
-        console.log('avatarUrl:', userInfo.avatarUrl);
-        console.log('========================================');
-        
+        // 🔥 只设置用户信息，不设置 stats（stats 由 loadStats 实时计算）
         this.setData({ 
           userInfo: userInfo,
-          'stats.following': userData.stats?.followingCount || 0,
-          'stats.followers': userData.stats?.followersCount || 0,
-          'stats.likes': userData.stats?.likesCount || 0
-        }, () => {
-          console.log('========================================');
-          console.log('✅ setData 完成');
-          console.log('页面当前 userInfo:', this.data.userInfo);
-          console.log('页面当前 targetId:', this.data.targetId);
-          console.log('========================================');
+          userType: userData.userType || 'normal',  // 🔧 设置用户类型
+          badge: userData.badge || null,            // 🆕 徽章信息
+          profile: userData.profile || {},          // 🆕 补充信息
+          reputation: userData.reputation || null   // 🆕 信誉评分
         });
         
         wx.setNavigationBarTitle({
           title: userInfo.nickName || '用户主页'
         });
       } else {
-        console.log('========================================');
-        console.log('❌ 用户不存在');
-        console.log('查询的 openid:', openid);
-        console.log('错误信息:', res.result?.error);
-        console.log('========================================');
-        
-        // 设置默认用户信息
         this.setData({ 
           userInfo: {
             nickName: '未知用户',
@@ -145,12 +105,7 @@ Page({
         wx.showToast({ title: '该用户暂未完善信息', icon: 'none' });
       }
     }).catch(err => {
-      console.log('========================================');
-      console.error('❌ 加载用户信息失败');
-      console.error('错误信息:', err);
-      console.log('========================================');
-      
-      // 设置默认用户信息
+      console.error('加载用户信息失败:', err);
       this.setData({ 
         userInfo: {
           nickName: '未知用户',
@@ -168,7 +123,6 @@ Page({
     const db = getDB();
     if (!db) return;
 
-    // 检查我是否关注了对方
     db.collection('follows').where({
       followerId: openid,
       targetId: targetId
@@ -180,35 +134,14 @@ Page({
         isFollowing: isFollowing,
         isMutual: isMutual
       });
-      
-      console.log('关注状态:', { isFollowing, isMutual });
     }).catch(err => {
       console.error('检查关注状态失败:', err);
     });
   },
 
   loadStats: function (targetId) {
-    // 🔥 优先从 users 集合的 stats 字段读取（最准确）
-    wx.cloud.callFunction({
-      name: 'getUserInfo',
-      data: { targetId }
-    }).then(res => {
-      if (res.result && res.result.success && res.result.data.stats) {
-        const stats = res.result.data.stats;
-        this.setData({
-          'stats.following': stats.followingCount || 0,
-          'stats.followers': stats.followersCount || 0,
-          'stats.likes': stats.likesCount || 0,
-        });
-        console.log('✅ 用户主页：从 users 集合加载统计数据:', stats);
-      } else {
-        // 降级方案：实时查询
-        this.loadStatsFromCollections(targetId);
-      }
-    }).catch(err => {
-      console.error('加载统计数据失败，使用降级方案:', err);
-      this.loadStatsFromCollections(targetId);
-    });
+    // 🔥 直接使用实时计算，确保数据准确
+    this.loadStatsFromCollections(targetId);
   },
 
   // 🔥 降级方案：从各个集合实时查询统计数据
@@ -220,6 +153,7 @@ Page({
     db.collection('follows').where({
       followerId: targetId
     }).count().then(res => {
+      console.log('关注数:', res.total);
       this.setData({ 'stats.following': res.total });
     }).catch(err => {
       console.error('加载关注数失败:', err);
@@ -229,6 +163,7 @@ Page({
     db.collection('follows').where({
       targetId: targetId
     }).count().then(res => {
+      console.log('粉丝数:', res.total);
       this.setData({ 'stats.followers': res.total });
     }).catch(err => {
       console.error('加载粉丝数失败:', err);
@@ -237,13 +172,20 @@ Page({
     // 🔥 加载获赞数（该用户的帖子被点赞的总数）
     db.collection("posts")
       .where({ _openid: targetId })
-      .field({ stats: true })
+      .field({ stats: true, _id: true })
       .get()
       .then((res) => {
         const posts = res.data || [];
+        console.log('用户帖子数量:', posts.length);
+        console.log('帖子详情:', posts);
+        
         const totalLikes = posts.reduce((sum, post) => {
-          return sum + ((post.stats && post.stats.like) || 0);
+          const likes = (post.stats && post.stats.like) || 0;
+          console.log(`帖子 ${post._id} 的点赞数:`, likes);
+          return sum + likes;
         }, 0);
+        
+        console.log('总获赞数:', totalLikes);
         this.setData({ "stats.likes": totalLikes });
       })
       .catch((err) => {
@@ -282,65 +224,174 @@ Page({
         this.setData({ posts: [] });
       });
     } else if (this.data.currentTab === 1) {
-      // 🔥 收藏标签页：使用 getUserActions 云函数查询用户收藏
-      wx.cloud.callFunction({
-        name: 'getUserActions',
-        data: {
-          targetId: targetId,
-          type: 'collect',
-          page: 1,
-          pageSize: 20
-        }
-      }).then(res => {
-        if (res.result && res.result.success) {
-          const actions = res.result.data || [];
-          const posts = actions.map(item => ({
-            id: item.targetId || item.postId,
-            title: item.title || '无标题',
-            image: item.image || '/images/24213.jpg',
-            likes: 0,
-            route: item.targetRoute || '/pages/post-detail/index'
-          }));
-          this.setData({ posts });
-        } else {
-          this.setData({ posts: [] });
-        }
-      }).catch(err => {
-        console.error('加载收藏失败:', err);
-        this.setData({ posts: [] });
-      });
+      // 🔥 收藏标签页：查询收藏的帖子详情
+      this.loadCollectedPosts(targetId);
     } else if (this.data.currentTab === 2) {
-      // 🔥 赞过标签页：使用 getUserActions 云函数查询用户点赞
-      wx.cloud.callFunction({
-        name: 'getUserActions',
-        data: {
-          targetId: targetId,
-          type: 'like',
-          page: 1,
-          pageSize: 20
-        }
-      }).then(res => {
-        if (res.result && res.result.success) {
-          const actions = res.result.data || [];
-          const posts = actions.map(item => ({
-            id: item.targetId || item.postId,
-            title: item.title || '无标题',
-            image: item.image || '/images/24213.jpg',
-            likes: 0,
-            route: item.targetRoute || '/pages/post-detail/index'
-          }));
-          this.setData({ posts });
-        } else {
-          this.setData({ posts: [] });
-        }
-      }).catch(err => {
-        console.error('加载点赞失败:', err);
-        this.setData({ posts: [] });
-      });
+      // 🔥 赞过标签页：查询点赞的帖子详情
+      this.loadLikedPosts(targetId);
     } else {
       // 其他标签页暂时为空
       this.setData({ posts: [] });
     }
+  },
+
+  // 加载收藏的帖子（包含真实点赞数）
+  loadCollectedPosts: function(targetId) {
+    const db = getDB();
+    if (!db) {
+      this.setData({ posts: [] });
+      return;
+    }
+
+    // 1. 先查询收藏记录
+    db.collection('actions')
+      .where({
+        _openid: targetId,
+        type: db.command.in(['collect_post', 'collect_solution', 'collect'])
+      })
+      .orderBy('createTime', 'desc')
+      .limit(20)
+      .get()
+      .then(async (res) => {
+        const actions = res.data || [];
+        if (actions.length === 0) {
+          this.setData({ posts: [] });
+          return;
+        }
+
+        // 2. 提取帖子ID
+        const postIds = actions.map(a => a.targetId || a.postId).filter(Boolean);
+        
+        if (postIds.length === 0) {
+          this.setData({ posts: [] });
+          return;
+        }
+        
+        // 3. 批量查询帖子详情
+        const postsRes = await db.collection('posts')
+          .where({ _id: db.command.in(postIds) })
+          .get();
+
+        // 4. 转换图片URL
+        const posts = await this.convertCloudImages(postsRes.data || []);
+
+        // 5. 映射为显示格式（只显示能查到详情的帖子）
+        const mappedPosts = posts
+          .filter(item => item && item._id) // 过滤无效数据
+          .map(item => ({
+            id: item._id,
+            title: item.content || item.title || '无标题',
+            image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
+            likes: item.stats ? item.stats.like : 0,
+            route: '/pages/post-detail/index'
+          }));
+
+        this.setData({ posts: mappedPosts });
+      })
+      .catch(err => {
+        console.error('加载收藏失败:', err);
+        this.setData({ posts: [] });
+      });
+  },
+
+  // 加载点赞的帖子（包含真实点赞数）
+  loadLikedPosts: function(targetId) {
+    const db = getDB();
+    if (!db) {
+      this.setData({ posts: [] });
+      return;
+    }
+
+    // 1. 先查询点赞记录
+    db.collection('actions')
+      .where({
+        _openid: targetId,
+        type: db.command.in(['like_post', 'like_solution', 'like'])
+      })
+      .orderBy('createTime', 'desc')
+      .limit(20)
+      .get()
+      .then(async (res) => {
+        const actions = res.data || [];
+        if (actions.length === 0) {
+          this.setData({ posts: [] });
+          return;
+        }
+
+        // 2. 提取帖子ID
+        const postIds = actions.map(a => a.targetId || a.postId).filter(Boolean);
+        
+        if (postIds.length === 0) {
+          this.setData({ posts: [] });
+          return;
+        }
+        
+        // 3. 批量查询帖子详情
+        const postsRes = await db.collection('posts')
+          .where({ _id: db.command.in(postIds) })
+          .get();
+
+        // 4. 转换图片URL
+        const posts = await this.convertCloudImages(postsRes.data || []);
+
+        // 5. 映射为显示格式（只显示能查到详情的帖子）
+        const mappedPosts = posts
+          .filter(item => item && item._id) // 过滤无效数据
+          .map(item => ({
+            id: item._id,
+            title: item.content || item.title || '无标题',
+            image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
+            likes: item.stats ? item.stats.like : 0,
+            route: '/pages/post-detail/index'
+          }));
+
+        this.setData({ posts: mappedPosts });
+      })
+      .catch(err => {
+        console.error('加载点赞失败:', err);
+        this.setData({ posts: [] });
+      });
+  },
+
+  // 转换云存储图片URL
+  convertCloudImages: function(posts) {
+    const cloudUrls = posts
+      .map(item => {
+        if (item.images && item.images.length > 0) {
+          return item.images[0];
+        }
+        return null;
+      })
+      .filter(url => url && url.indexOf('cloud://') === 0);
+
+    if (cloudUrls.length === 0) {
+      return Promise.resolve(posts);
+    }
+
+    const unique = Array.from(new Set(cloudUrls));
+    return wx.cloud.getTempFileURL({ fileList: unique })
+      .then(res => {
+        const mapping = new Map();
+        (res.fileList || []).forEach(file => {
+          if (file.fileID && file.tempFileURL) {
+            mapping.set(file.fileID, file.tempFileURL);
+          }
+        });
+
+        return posts.map(item => {
+          if (item.images && item.images.length > 0) {
+            const firstImage = item.images[0];
+            if (mapping.has(firstImage)) {
+              return {
+                ...item,
+                images: [mapping.get(firstImage), ...item.images.slice(1)]
+              };
+            }
+          }
+          return item;
+        });
+      })
+      .catch(() => posts);
   },
 
   onTabTap: function(e) {

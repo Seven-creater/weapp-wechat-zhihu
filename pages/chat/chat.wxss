@@ -9,6 +9,7 @@
 .message-list {
   flex: 1;
   padding: 20rpx;
+  padding-bottom: 40rpx;
   box-sizing: border-box;
   overflow-y: auto;
 }
@@ -73,11 +74,7 @@
   display: flex;
   align-items: center;
   border-top: 1rpx solid #eee;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 }
 
 .chat-input {

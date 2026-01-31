@@ -231,12 +231,21 @@ page {
 
 .contact-input {
   width: 100%;
-  background-color: #f8f8f8;
-  border: 2rpx dashed #cccccc;
+  background-color: #ffffff;
+  border: 2rpx solid #0a2463;
   border-radius: 12rpx;
-  padding: 18rpx 20rpx;
-  font-size: 26rpx;
-  color: #0a2463;
+  padding: 24rpx 20rpx;
+  min-height: 80rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #000000;
+  box-sizing: border-box;
+  line-height: 1.5;
+}
+
+.contact-input::placeholder {
+  color: #999999;
+  font-weight: normal;
 }
 
 .contact-hint {
@@ -244,6 +253,32 @@ page {
   margin-top: 10rpx;
   font-size: 22rpx;
   color: #8a96ad;
+}
+
+.detail-address-input {
+  width: 100%;
+  background-color: #ffffff;
+  border: 2rpx solid #0a2463;
+  border-radius: 12rpx;
+  padding: 24rpx 20rpx;
+  min-height: 80rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #000000;
+  box-sizing: border-box;
+  margin-top: 16rpx;
+  line-height: 1.5;
+}
+
+.detail-address-input::placeholder {
+  color: #999999;
+  font-weight: normal;
+}
+
+.location-text {
+  font-size: 26rpx;
+  color: #0a2463;
+  line-height: 1.6;
 }
 
 

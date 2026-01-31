@@ -87,6 +87,7 @@
       <view class="location-info">
         <text class="location-label">问题位置</text>
         <text class="location-text">{{post.address}}</text>
+        <text class="detail-address-text" wx:if="{{post.detailAddress}}">{{post.detailAddress}}</text>
       </view>
     </view>
 
@@ -150,6 +151,72 @@
         <text class="action-text">分享</text>
       </view>
     </view>
+
+    <!-- 🆕 专业用户操作区 -->
+    <view class="professional-actions" wx:if="{{showProfessionalActions}}">
+      <view class="section-divider"></view>
+      <view class="professional-title">
+        <text class="title-icon">🔧</text>
+        <text class="title-text">专业操作</text>
+      </view>
+      
+      <view class="professional-buttons">
+        <!-- 核实问题按钮（设计者、施工方、政府） -->
+        <view 
+          class="pro-btn verify-btn" 
+          bindtap="verifyIssue"
+          wx:if="{{canVerifyIssue && !post.verified}}"
+        >
+          <text class="pro-icon">✅</text>
+          <text class="pro-text">核实问题</text>
+        </view>
+        
+        <view class="pro-btn verified-badge" wx:if="{{post.verified}}">
+          <text class="pro-icon">✅</text>
+          <text class="pro-text">已核实</text>
+        </view>
+        
+        <!-- 设计方案按钮（设计者） -->
+        <view 
+          class="pro-btn design-btn" 
+          bindtap="createDesignSolution"
+          wx:if="{{canDesignSolution}}"
+        >
+          <text class="pro-icon">📐</text>
+          <text class="pro-text">设计方案</text>
+        </view>
+        
+        <!-- 提交报价按钮（施工方） -->
+        <view 
+          class="pro-btn quote-btn" 
+          bindtap="submitQuote"
+          wx:if="{{canUpdateProgress}}"
+        >
+          <text class="pro-icon">💰</text>
+          <text class="pro-text">提交报价</text>
+        </view>
+        
+        <!-- 创建项目按钮（政府、施工方） -->
+        <view 
+          class="pro-btn project-btn" 
+          bindtap="createProject"
+          wx:if="{{canCreateProject}}"
+        >
+          <text class="pro-icon">🏗️</text>
+          <text class="pro-text">创建项目</text>
+        </view>
+        
+        <!-- 查看联系方式按钮（政府） -->
+        <view 
+          class="pro-btn contact-btn" 
+          bindtap="viewUserContact"
+          wx:if="{{canViewUserContact}}"
+        >
+          <text class="pro-icon">📞</text>
+          <text class="pro-text">联系用户</text>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 评论区 -->
@@ -164,7 +231,7 @@
       <view class="comment-item" wx:for="{{comments}}" wx:key="_id">
         <!-- 主评论 -->
         <view class="main-comment">
-          <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true"></image>
+          <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
           <view class="comment-content">
             <view class="comment-header">
               <text class="comment-author">{{item.userInfo.nickName}}</text>
@@ -208,7 +275,7 @@
         <!-- 回复列表 -->
         <view class="replies-list" wx:if="{{item.replies && item.replies.length > 0}}">
           <view class="reply-item" wx:for="{{item.replies}}" wx:key="_id">
-            <image class="reply-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true"></image>
+            <image class="reply-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
             <view class="reply-content">
               <view class="reply-header">
                 <text class="reply-author">{{item.userInfo.nickName}}</text>
