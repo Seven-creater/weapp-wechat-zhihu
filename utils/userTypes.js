@@ -92,21 +92,21 @@ const USER_TYPES = {
     profileFields: []  // 🔧 删除自定义字段
   },
 
-  // 4. 政府/监管部门（需要认证）
-  government: {
-    id: 'government',
-    label: '政府/监管部门',
-    description: '监督管理，推进项目，发布政策',
+  // 4. 社区工作者（需要认证）
+  communityWorker: {
+    id: 'communityWorker',
+    label: '社区工作者',
+    description: '服务社区，推进项目，协调资源',
     badge: {
       color: '#EF4444',
       icon: '🔴',
-      text: '政府'
+      text: '社区工作者'
     },
     needCertification: true,  // 需要认证
     permissions: {
       canVerifyIssue: true,          // 可以核实问题
-      canCreateProject: true,        // 可以创建官方项目
-      canPublishPolicy: true,        // 可以发布政策
+      canCreateProject: true,        // 可以创建社区项目
+      canPublishPolicy: true,        // 可以发布通知
       canProvideConsultation: true,  // 可以提供咨询
       canDesignSolution: false,      // 不能设计方案
       canUpdateProgress: false,      // 不能更新施工进度（但可以监督）
@@ -116,14 +116,14 @@ const USER_TYPES = {
       '📊 查看数据统计',
       '📞 联系用户核实',
       '🎯 发布改造项目',
-      '👷 调用施工方',
+      '👷 协调施工方',
       '👀 监督施工进度',
-      '📢 发布政策通知'
+      '📢 发布社区通知'
     ],
     profileFields: [
-      // 🔧 政府必须填写认证信息
-      { key: 'department', label: '所属部门', placeholder: '如：XX街道办事处', required: true },
-      { key: 'position', label: '职位', placeholder: '如：无障碍专员', required: true },
+      // 🔧 社区工作者必须填写认证信息
+      { key: 'community', label: '所属社区', placeholder: '如：XX社区居委会', required: true },
+      { key: 'position', label: '职位', placeholder: '如：社区主任、网格员', required: true },
       { key: 'workId', label: '工作证号', placeholder: '用于认证', required: true }
     ]
   }

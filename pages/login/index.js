@@ -288,9 +288,9 @@ Page({
       return;
     }
 
-    // 🆕 如果是政府用户，提交认证申请
-    if (selectedType === 'government') {
-      this.submitGovCertification();
+    // 🆕 如果是社区工作者，提交认证申请
+    if (selectedType === 'communityWorker') {
+      this.submitCommunityWorkerCertification();
       return;
     }
 
@@ -369,14 +369,14 @@ Page({
   },
 
   /**
-   * 🆕 提交政府用户认证申请
+   * 🆕 提交社区工作者认证申请
    */
-  submitGovCertification: function () {
+  submitCommunityWorkerCertification: function () {
     const { avatarUrl, nickName, phoneNumber, bio, customFields } = this.data;
-    const { department, position, workId } = customFields;
+    const { community, position, workId } = customFields;
 
-    // 验证政府认证信息
-    if (!department || !position || !workId) {
+    // 验证社区工作者认证信息
+    if (!community || !position || !workId) {
       wx.showToast({
         title: '请填写完整的认证信息',
         icon: 'none',
@@ -400,12 +400,12 @@ Page({
         wx.showLoading({ title: '提交申请...', mask: true });
         // 3. 提交认证申请
         return wx.cloud.callFunction({
-          name: 'applyGovCertification',
+          name: 'applyCommunityWorkerCertification',
           data: {
             nickName: nickName.trim(),
             avatarUrl: cloudAvatarUrl,
             phoneNumber: phoneNumber,
-            department: department,
+            community: community,
             position: position,
             workId: workId
           }
@@ -415,7 +415,7 @@ Page({
         wx.hideLoading();
         
         if (res.result && res.result.success) {
-          // 先保存为普通用户，等待审核通过后升级为政府用户
+          // 先保存为普通用户，等待审核通过后升级为社区工作者
           return this.saveUserInfo({
             nickName: nickName.trim(),
             avatarUrl: avatarUrl,
@@ -446,7 +446,7 @@ Page({
         
         wx.showModal({
           title: '认证申请已提交',
-          content: '您的政府用户认证申请已提交，请等待管理员审核。审核通过后将自动升级为政府用户。',
+          content: '您的社区工作者认证申请已提交，请等待管理员审核。审核通过后将自动升级为社区工作者。',
           showCancel: false,
           success: () => {
             const pages = getCurrentPages();

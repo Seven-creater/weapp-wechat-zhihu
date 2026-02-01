@@ -1,0 +1,10 @@
+{
+  "name": "removeCommunityWorkerCertification",
+  "version": "1.0.0",
+  "description": "移除社区工作者身份",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

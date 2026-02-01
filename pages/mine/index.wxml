@@ -42,11 +42,11 @@
       <!-- 个人简介 -->
       <text class="user-bio" wx:if="{{userInfo.profile && userInfo.profile.bio}}">{{userInfo.profile.bio}}</text>
       
-      <!-- 🔧 政府认证信息 -->
-      <view class="user-extra-grid" wx:if="{{userInfo.userType === 'government'}}">
-        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.department}}">
-          <text class="extra-icon">🏛️</text>
-          <text class="extra-text">{{userInfo.profile.department}}</text>
+      <!-- 🔧 社区工作者认证信息 -->
+      <view class="user-extra-grid" wx:if="{{userInfo.userType === 'communityWorker'}}">
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.community}}">
+          <text class="extra-icon">🏘️</text>
+          <text class="extra-text">{{userInfo.profile.community}}</text>
         </view>
         <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.position}}">
           <text class="extra-icon">👔</text>
@@ -61,7 +61,7 @@
       <!-- 🆕 认证状态提示 -->
       <view class="cert-status-tip" wx:if="{{userInfo.profile && userInfo.profile.certificationStatus === 'pending'}}">
         <text class="cert-status-icon">⏳</text>
-        <text class="cert-status-text">政府认证审核中，请耐心等待...</text>
+        <text class="cert-status-text">社区工作者认证审核中，请耐心等待...</text>
       </view>
     </view>
 

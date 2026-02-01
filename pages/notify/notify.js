@@ -126,31 +126,41 @@ Page({
             if (res.result && res.result.success) {
               return {
                 id: targetId,
-                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: res.result.data.userType || 'normal' // ✅ 获取 userType
               };
             }
             return {
               id: targetId,
-              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+              userType: 'normal'
             };
           }).catch(() => ({
             id: targetId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+            userType: 'normal'
           }));
         });
         
         const usersData = await Promise.all(userInfoPromises);
         const userMap = {};
         usersData.forEach(u => {
-          userMap[u.id] = u.userInfo;
+          userMap[u.id] = {
+            userInfo: u.userInfo,
+            userType: u.userType
+          };
         });
         
         const mapped = conversations.map((item) => {
-          const userInfo = userMap[item.targetId] || { nickName: '未知用户', avatarUrl: '/images/zhi.png' };
+          const userData = userMap[item.targetId] || { 
+            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+            userType: 'normal'
+          };
           return {
             id: item.targetId,
-            name: userInfo.nickName || "未知用户",
-            avatar: userInfo.avatarUrl || "/images/zhi.png",
+            name: userData.userInfo.nickName || "未知用户",
+            avatar: userData.userInfo.avatarUrl || "/images/zhi.png",
+            userType: userData.userType, // ✅ 添加 userType
             time: this.formatTime(item.updateTime),
             preview: item.lastMessage || "暂无消息",
             unread: item.unreadCount || 0,  // 🔧 使用 unreadCount 字段
@@ -302,12 +312,18 @@ Page({
             _.and([
               { type: _.in(likeTypes) },
               _.or([{ targetId: _.in(ids) }, { postId: _.in(ids) }]),
+              { _openid: _.neq(openid) }, // ✅ 排除自己的点赞
             ]),
           )
       : null;
 
     const commentQuery = ids.length
-      ? db.collection("comments").where({ postId: _.in(ids) })
+      ? db.collection("comments").where(
+          _.and([
+            { postId: _.in(ids) },
+            { _openid: _.neq(openid) }, // ✅ 排除自己的评论
+          ])
+        )
       : null;
 
     const followQuery = db.collection("follows").where({ targetId: openid });
@@ -326,6 +342,7 @@ Page({
               { type: _.in(likeTypes) },
               _.or([{ targetId: _.in(ids) }, { postId: _.in(ids) }]),
               { createTime: _.gt(new Date(this.getLastRead("like"))) },
+              { _openid: _.neq(openid) }, // ✅ 排除自己的点赞
             ]),
           )
           .count()
@@ -344,6 +361,7 @@ Page({
             _.and([
               { postId: _.in(ids) },
               { createTime: _.gt(new Date(this.getLastRead("comment"))) },
+              { _openid: _.neq(openid) }, // ✅ 排除自己的评论
             ]),
           )
           .count()

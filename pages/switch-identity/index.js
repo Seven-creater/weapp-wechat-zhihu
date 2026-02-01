@@ -56,7 +56,7 @@ Page({
         this.setData({
           bio: profile.bio || '',
           customFields: {
-            department: profile.department || '',
+            community: profile.community || '',
             position: profile.position || '',
             workId: profile.workId || ''
           }
@@ -75,25 +75,7 @@ Page({
     const typeId = e.currentTarget.dataset.type;
     const typeConfig = getUserTypeConfig(typeId);
     
-    // 如果选择政府类型，跳转到认证申请页面
-    if (typeId === 'government') {
-      wx.showModal({
-        title: '需要认证',
-        content: '政府/监管部门身份需要进行专业认证。是否前往填写认证信息？',
-        confirmText: '去认证',
-        cancelText: '取消',
-        success: (res) => {
-          if (res.confirm) {
-            // 跳转到登录页面，选择政府身份
-            wx.navigateTo({
-              url: '/pages/gov-certification/index'
-            });
-          }
-        }
-      });
-      return;
-    }
-    
+    // 🔧 允许选择社区工作者，显示认证信息表单
     this.setData({
       selectedType: typeId,
       selectedTypeConfig: typeConfig,
@@ -123,7 +105,7 @@ Page({
    * 保存身份切换
    */
   saveIdentity: function () {
-    const { selectedType, bio, customFields } = this.data;
+    const { selectedType, bio, customFields, currentType } = this.data;
     
     // 🔧 获取当前用户信息
     const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
@@ -132,6 +114,12 @@ Page({
         title: '请先完善个人信息',
         icon: 'none'
       });
+      return;
+    }
+    
+    // 🆕 如果选择社区工作者，提交认证申请
+    if (selectedType === 'communityWorker' && currentType !== 'communityWorker') {
+      this.submitCommunityWorkerCertification();
       return;
     }
     
@@ -145,7 +133,7 @@ Page({
         userType: selectedType,
         profile: {
           bio,
-          ...customFields  // 政府认证信息
+          ...customFields
         }
       }
     }).then(res => {
@@ -179,6 +167,66 @@ Page({
       console.error('切换身份失败:', err);
       wx.showToast({
         title: '切换失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  /**
+   * 🆕 提交社区工作者认证申请
+   */
+  submitCommunityWorkerCertification: function () {
+    const { bio, customFields } = this.data;
+    const { community, position, workId } = customFields;
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
+
+    // 验证认证信息
+    if (!community || !position || !workId) {
+      wx.showToast({
+        title: '请填写完整的认证信息',
+        icon: 'none',
+      });
+      return;
+    }
+
+    wx.showLoading({
+      title: '提交认证申请...',
+      mask: true,
+    });
+
+    wx.cloud.callFunction({
+      name: 'applyCommunityWorkerCertification',
+      data: {
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl,
+        phoneNumber: '', // 从数据库获取
+        community: community,
+        position: position,
+        workId: workId
+      }
+    }).then(res => {
+      wx.hideLoading();
+      
+      if (res.result && res.result.success) {
+        wx.showModal({
+          title: '认证申请已提交',
+          content: '您的社区工作者认证申请已提交，请等待管理员审核。审核通过后将自动升级为社区工作者。',
+          showCancel: false,
+          success: () => {
+            wx.navigateBack();
+          }
+        });
+      } else {
+        wx.showToast({
+          title: res.result?.error || '提交失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('提交认证申请失败:', err);
+      wx.showToast({
+        title: '提交失败',
         icon: 'none'
       });
     });

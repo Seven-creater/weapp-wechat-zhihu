@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "用户主页",
-  "usingComponents": {}
+  "usingComponents": {
+    "user-name": "/components/user-name/index"
+  }
 }

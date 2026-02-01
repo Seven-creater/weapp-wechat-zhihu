@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "user-name": "/components/user-name/index"
+  },
   "navigationBarTitleText": "帖子详情",
   "navigationBarBackgroundColor": "#002fa7",
   "navigationBarTextStyle": "white",

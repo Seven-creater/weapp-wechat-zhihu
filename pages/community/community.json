@@ -1,4 +1,7 @@
 {
+  "usingComponents": {
+    "user-name": "/components/user-name/index"
+  },
   "navigationBarTitleText": "无障碍交流论坛",
   "navigationBarBackgroundColor": "#FFFFFF",
   "navigationBarTextStyle": "black",

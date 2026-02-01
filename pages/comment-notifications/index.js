@@ -116,28 +116,37 @@ Page({
                 if (res.result && res.result.success) {
                   return {
                     _openid: userId,
-                    userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                    userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                    userType: res.result.data.userType || 'normal' // ✅ 获取 userType
                   };
                 }
                 return {
                   _openid: userId,
-                  userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                  userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                  userType: 'normal'
                 };
               }).catch(() => ({
                 _openid: userId,
-                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: 'normal'
               }));
             });
 
             const usersData = await Promise.all(userInfoPromises);
             const userMap = {};
             usersData.forEach(u => {
-              userMap[u._openid] = u.userInfo;
+              userMap[u._openid] = {
+                userInfo: u.userInfo,
+                userType: u.userType
+              };
             });
 
             // 4. 组装通知数据
             const notifications = pagedComments.map(comment => {
-              const userInfo = userMap[comment._openid] || { nickName: '未知用户', avatarUrl: '/images/zhi.png' };
+              const userData = userMap[comment._openid] || { 
+                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: 'normal'
+              };
               const postInfo = postMap[comment.postId] || { title: '未知帖子', image: '/images/24213.jpg' };
 
               // 截取帖子标题前20个字
@@ -149,8 +158,9 @@ Page({
               return {
                 id: comment._id,
                 userId: comment._openid,
-                userName: userInfo.nickName,
-                userAvatar: userInfo.avatarUrl,
+                userName: userData.userInfo.nickName,
+                userAvatar: userData.userInfo.avatarUrl,
+                userType: userData.userType, // ✅ 添加 userType
                 commentContent: comment.content || '评论内容',
                 postId: comment.postId,
                 postTitle: postTitle,

@@ -112,6 +112,7 @@ Page({
               name: userInfo.nickName || "匿名用户",
               avatar: userInfo.avatarUrl || "/images/zhi.png",
             },
+            userType: p.userType || 'normal', // ✅ 添加 userType 字段
             likes: (p.stats && p.stats.like) || 0,
           };
         });
@@ -203,6 +204,7 @@ Page({
               name: userInfo.nickName || "匿名用户",
               avatar: userInfo.avatarUrl || "/images/zhi.png",
             },
+            userType: p.userType || 'normal', // ✅ 添加 userType 字段
             likes: (p.stats && p.stats.like) || 0,
           };
         });

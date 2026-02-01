@@ -48,7 +48,7 @@
 
   <!-- 补充信息（专业用户） -->
   <view class="profile-section" wx:if="{{showProfileFields}}">
-    <text class="section-title">补充信息{{selectedType === 'government' ? '（必填）' : '（可选）'}}</text>
+    <text class="section-title">补充信息{{selectedType === 'communityWorker' ? '（必填）' : '（可选）'}}</text>
     
     <view class="form-item">
       <text class="label">个人简介</text>
@@ -61,8 +61,8 @@
       ></textarea>
     </view>
 
-    <!-- 🔧 政府用户必须填写认证信息 -->
-    <view wx:if="{{selectedType === 'government'}}">
+    <!-- 🔧 社区工作者必须填写认证信息 -->
+    <view wx:if="{{selectedType === 'communityWorker'}}">
       <view 
         wx:for="{{selectedTypeConfig.profileFields}}" 
         wx:key="key"
@@ -86,8 +86,8 @@
     <view class="tip-content">
       <text class="tip-title">温馨提示</text>
       <text class="tip-text">• 不同身份拥有不同的功能权限</text>
-      <text class="tip-text">• 身份可随时切换，无需审核</text>
-      <text class="tip-text">• 政府/监管部门需要填写认证信息</text>
+      <text class="tip-text">• 普通用户、设计者、施工方可随时切换</text>
+      <text class="tip-text">• 社区工作者需要管理员认证审核</text>
       <text class="tip-text">• 个人简介会显示在您的主页上</text>
     </view>
   </view>

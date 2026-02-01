@@ -1,0 +1,14 @@
+<!-- components/user-name/index.wxml -->
+<!-- 用户昵称显示组件（带身份徽章） -->
+<view class="user-name-wrapper {{inline ? 'inline' : ''}} {{vertical ? 'vertical' : ''}}">
+  <text class="user-nickname">{{nickName || '未知用户'}}</text>
+  <view 
+    class="user-badge" 
+    style="background-color: {{badge.color}}20; border-color: {{badge.color}}"
+    wx:if="{{badge}}"
+  >
+    <text class="badge-icon">{{badge.icon}}</text>
+    <text class="badge-text" style="color: {{badge.color}}">{{badge.text}}</text>
+  </view>
+</view>
+

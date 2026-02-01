@@ -75,7 +75,7 @@
       <text class="section-label">补充信息</text>
       
       <view class="form-item">
-        <text class="label">个人简介 {{selectedType === 'government' ? '' : '（可选）'}}</text>
+        <text class="label">个人简介 {{selectedType === 'communityWorker' ? '' : '（可选）'}}</text>
         <textarea 
           class="textarea-input" 
           placeholder="简单介绍一下自己..."
@@ -85,8 +85,8 @@
         ></textarea>
       </view>
 
-      <!-- 🔧 政府用户必须填写认证信息 -->
-      <view wx:if="{{selectedType === 'government'}}">
+      <!-- 🔧 社区工作者必须填写认证信息 -->
+      <view wx:if="{{selectedType === 'communityWorker'}}">
         <view 
           wx:for="{{selectedTypeConfig.profileFields}}" 
           wx:key="key"
@@ -105,9 +105,9 @@
     </view>
 
     <!-- 提示信息 -->
-    <view class="tips-inline" wx:if="{{selectedType === 'government'}}">
+    <view class="tips-inline" wx:if="{{selectedType === 'communityWorker'}}">
       <text class="tip-icon">⚠️</text>
-      <text class="tip-text">政府用户需要填写认证信息以验证身份</text>
+      <text class="tip-text">社区工作者需要填写认证信息以验证身份</text>
     </view>
 
     <!-- 提交按钮 -->

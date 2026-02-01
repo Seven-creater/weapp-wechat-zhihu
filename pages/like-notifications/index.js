@@ -111,28 +111,37 @@ Page({
                 if (res.result && res.result.success) {
                   return {
                     _openid: userId,
-                    userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                    userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                    userType: res.result.data.userType || 'normal' // ✅ 获取 userType
                   };
                 }
                 return {
                   _openid: userId,
-                  userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                  userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                  userType: 'normal'
                 };
               }).catch(() => ({
                 _openid: userId,
-                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: 'normal'
               }));
             });
 
             const usersData = await Promise.all(userInfoPromises);
             const userMap = {};
             usersData.forEach(u => {
-              userMap[u._openid] = u.userInfo;
+              userMap[u._openid] = {
+                userInfo: u.userInfo,
+                userType: u.userType
+              };
             });
 
             // 4. 组装通知数据
             const notifications = actions.map(action => {
-              const userInfo = userMap[action._openid] || { nickName: '未知用户', avatarUrl: '/images/zhi.png' };
+              const userData = userMap[action._openid] || { 
+                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: 'normal'
+              };
               const postInfo = postMap[action.targetId] || { title: '未知帖子', image: '/images/24213.jpg' };
               
               let actionText = '';
@@ -151,8 +160,9 @@ Page({
               return {
                 id: action._id,
                 userId: action._openid,
-                userName: userInfo.nickName,
-                userAvatar: userInfo.avatarUrl,
+                userName: userData.userInfo.nickName,
+                userAvatar: userData.userInfo.avatarUrl,
+                userType: userData.userType, // ✅ 添加 userType
                 actionText: actionText,
                 postId: action.targetId,
                 postTitle: postTitle,

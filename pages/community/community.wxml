@@ -39,7 +39,12 @@
       <view class="post-meta">
         <view class="user-info" catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}">
           <image class="user-avatar" src="{{item.user.avatar}}" />
-          <text class="user-name">{{item.user.name}}</text>
+          <user-name 
+            nickName="{{item.user.name}}" 
+            userType="{{item.userType}}"
+            inline="{{true}}"
+            vertical="{{true}}"
+          />
         </view>
         <view class="like-info">
           <image class="like-icon" src="/images/heart2.png" />

@@ -167,8 +167,26 @@ exports.main = async (event, context) => {
           nickName: "匿名用户",
           avatarUrl: "/images/zhi.png",
         };
+        data.userType = 'normal';
       } else if (!data.userInfo.nickName) {
         data.userInfo.nickName = "匿名用户";
+      }
+
+      // ✅ 查询作者的 userType
+      if (data._openid) {
+        try {
+          const userRes = await db.collection('users').where({ _openid: data._openid }).get();
+          if (userRes.data && userRes.data.length > 0) {
+            data.userType = userRes.data[0].userType || 'normal';
+          } else {
+            data.userType = 'normal';
+          }
+        } catch (err) {
+          console.error('查询用户类型失败:', err);
+          data.userType = 'normal';
+        }
+      } else {
+        data.userType = 'normal';
       }
 
       return {
@@ -426,12 +444,13 @@ exports.main = async (event, context) => {
           // 构建用户 Map：_openid -> 最新用户资料
           if (usersRes.data && usersRes.data.length > 0) {
             usersRes.data.forEach((user) => {
-              // 🔥 修复：正确访问 userInfo 字段
+              // 🔥 修复：正确访问 userInfo 字段，并包含 userType
               const userInfo = user.userInfo || {};
               authorMap.set(user._openid, {
                 nickName: userInfo.nickName || "匿名用户",
                 avatarUrl: userInfo.avatarUrl || "/images/zhi.png",
                 _openid: user._openid,
+                userType: user.userType || 'normal', // ✅ 添加 userType 字段
               });
             });
           }
@@ -545,12 +564,15 @@ exports.main = async (event, context) => {
           avatarUrl: authorInfo.avatarUrl || "/images/zhi.png",
           _openid: doc._openid,
         };
+        // ✅ 添加 userType 到文档根级别
+        processedDoc.userType = authorInfo.userType || 'normal';
       } else if (!processedDoc.userInfo) {
         // 没有用户信息时使用默认值
         processedDoc.userInfo = {
           nickName: "匿名用户",
           avatarUrl: "/images/zhi.png",
         };
+        processedDoc.userType = 'normal';
       }
 
       // 转换用户头像 URL

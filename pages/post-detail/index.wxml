@@ -8,7 +8,13 @@
       <view class="info-right">
         <!-- 第一行：名字 + 标签 -->
         <view class="name-row">
-          <text class="nickname" bindtap="navigateToProfile" data-id="{{post._openid}}">{{post.userInfo.nickName}}</text>
+          <view bindtap="navigateToProfile" data-id="{{post._openid}}">
+            <user-name 
+              nickName="{{post.userInfo.nickName}}" 
+              userType="{{post.userType}}"
+              inline="{{true}}"
+            />
+          </view>
           <view class="follow-btn {{isFollowing ? 'followed' : ''}}" bindtap="toggleFollow" wx:if="{{!post.isOwner}}">
             {{isFollowing ? '已关注' : '关注'}}
           </view>
@@ -234,7 +240,14 @@
           <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
           <view class="comment-content">
             <view class="comment-header">
-              <text class="comment-author">{{item.userInfo.nickName}}</text>
+              <view class="comment-author-wrapper">
+                <user-name 
+                  nickName="{{item.userInfo.nickName}}" 
+                  userType="{{item.userType}}"
+                  inline="{{true}}"
+                  vertical="{{true}}"
+                />
+              </view>
               <text class="comment-time">{{item.createTime}}</text>
             </view>
             <text class="comment-text" user-select="true">{{item.content}}</text>
@@ -278,7 +291,14 @@
             <image class="reply-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
             <view class="reply-content">
               <view class="reply-header">
-                <text class="reply-author">{{item.userInfo.nickName}}</text>
+                <view class="reply-author-wrapper">
+                  <user-name 
+                    nickName="{{item.userInfo.nickName}}" 
+                    userType="{{item.userType}}"
+                    inline="{{true}}"
+                    vertical="{{true}}"
+                  />
+                </view>
                 <text class="reply-time">{{item.createTime}}</text>
               </view>
               <text class="reply-text" user-select="true">{{item.content}}</text>

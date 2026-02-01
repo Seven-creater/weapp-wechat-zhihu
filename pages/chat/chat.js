@@ -1,5 +1,6 @@
 // pages/chat/chat.js
 const app = getApp();
+const { formatUserName } = require('../../utils/userDisplay');
 
 // 延迟初始化数据库
 let db = null;
@@ -110,21 +111,29 @@ Page({
           nickName: '用户',
           avatarUrl: '/images/zhi.png'
         };
+        const userType = userData.userType || 'normal';
         
         console.log('✅ 找到目标用户信息');
         console.log('nickName:', targetUserInfo.nickName);
         console.log('avatarUrl:', targetUserInfo.avatarUrl);
+        console.log('userType:', userType);
         
-        this.setData({ targetUserInfo: targetUserInfo }, () => {
+        this.setData({ 
+          targetUserInfo: targetUserInfo,
+          targetUserType: userType
+        }, () => {
           console.log('========================================');
           console.log('✅ 聊天页面：setData 完成');
           console.log('页面当前 targetUserInfo:', this.data.targetUserInfo);
           console.log('页面当前 targetOpenId:', this.data.targetOpenId);
+          console.log('页面当前 targetUserType:', this.data.targetUserType);
           console.log('========================================');
         });
         
+        // 使用工具函数格式化标题（添加身份标识）
+        const displayName = formatUserName(targetUserInfo.nickName || '聊天', userType, true);
         wx.setNavigationBarTitle({
-          title: targetUserInfo.nickName || '聊天'
+          title: displayName
         });
       } else {
         console.log('========================================');

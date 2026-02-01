@@ -17,7 +17,13 @@
         
         <view class="notification-content">
           <view class="notification-header">
-            <text class="user-name" bindtap="onUserTap" data-userid="{{item.userId}}">{{item.userName}}</text>
+            <view class="user-name-wrapper" bindtap="onUserTap" data-userid="{{item.userId}}">
+              <user-name 
+                nickName="{{item.userName}}" 
+                userType="{{item.userType}}"
+                inline="{{true}}"
+              />
+            </view>
             <text class="action-text">{{item.actionText}}</text>
           </view>
           

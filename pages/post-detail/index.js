@@ -314,37 +314,44 @@ Page({
             if (res.result && res.result.success) {
               return {
                 _openid: userId,
-                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+                userType: res.result.data.userType || 'normal' // ✅ 获取 userType
               };
             }
             return {
               _openid: userId,
-              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+              userType: 'normal'
             };
           }).catch(() => ({
             _openid: userId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' }
+            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
+            userType: 'normal'
           }));
         });
         
         const usersData = await Promise.all(userInfoPromises);
         const userMap = {};
         usersData.forEach(u => {
-          userMap[u._openid] = u.userInfo;
+          userMap[u._openid] = {
+            userInfo: u.userInfo,
+            userType: u.userType
+          };
         });
         
         const commentMap = new Map();
         const rootComments = [];
 
         rawComments.forEach((comment) => {
-          const userInfo = userMap[comment._openid] || {
-            nickName: "匿名用户",
-            avatarUrl: "/images/zhi.png",
+          const userData = userMap[comment._openid] || {
+            userInfo: { nickName: "匿名用户", avatarUrl: "/images/zhi.png" },
+            userType: 'normal'
           };
           
           const mapped = {
             ...comment,
-            userInfo: userInfo,
+            userInfo: userData.userInfo,
+            userType: userData.userType, // ✅ 添加 userType
             createTime: this.formatTime(comment.createTime),
             likes: comment.likes || 0,
             liked: false,

@@ -45,8 +45,8 @@ const USER_TYPE_CONFIG = {
       canViewUserContact: false
     }
   },
-  government: {
-    badge: { color: '#EF4444', icon: '🔴', text: '政府' },
+  communityWorker: {
+    badge: { color: '#EF4444', icon: '🔴', text: '社区工作者' },
     needCertification: true,
     permissions: {
       canVerifyIssue: true,
@@ -118,8 +118,8 @@ exports.main = async (event, context) => {
     const typeId = userType || 'normal';
     const typeConfig = USER_TYPE_CONFIG[typeId] || USER_TYPE_CONFIG.normal;
 
-    // 🆕 如果是政府类型但未认证，默认为普通用户
-    const finalTypeId = (typeId === 'government' && !event.isCertified) ? 'normal' : typeId;
+    // 🆕 如果是社区工作者类型但未认证，默认为普通用户
+    const finalTypeId = (typeId === 'communityWorker' && !event.isCertified) ? 'normal' : typeId;
     const finalTypeConfig = USER_TYPE_CONFIG[finalTypeId] || USER_TYPE_CONFIG.normal;
 
     // 🔧 使用现有数据或新数据
@@ -144,14 +144,20 @@ exports.main = async (event, context) => {
       };
       
       // 🔧 只在明确传递了 userType 时才更新类型和徽章
-      if (userType && userType !== existingUser.userType) {
+      if (userType) {
+        // 🔥 如果传递了 userType，无论是否改变，都更新徽章（确保徽章正确）
         updateData.userType = finalTypeId;
         updateData.userTypeLabel = finalTypeConfig.badge.text;
         updateData.badge = finalTypeConfig.badge;
         updateData.permissions = finalTypeConfig.permissions;
-        console.log('🔄 更新用户类型:', existingUser.userType, '->', finalTypeId);
+        
+        if (userType !== existingUser.userType) {
+          console.log('🔄 更新用户类型:', existingUser.userType, '->', finalTypeId);
+        } else {
+          console.log('✓ 刷新用户徽章:', finalTypeId, finalTypeConfig.badge.text);
+        }
       } else {
-        // 保持原有类型，不更新徽章
+        // 没有传递 userType，保持原有类型
         console.log('✓ 保持原有用户类型:', existingUser.userType);
       }
       

@@ -2,8 +2,8 @@
 <view class="admin-container">
   <!-- 顶部标题 -->
   <view class="header">
-    <text class="header-title">🔐 政府用户认证审核</text>
-    <text class="header-subtitle">审核政府部门工作人员的身份认证申请</text>
+    <text class="header-title">🔐 社区工作者认证审核</text>
+    <text class="header-subtitle">审核社区工作者的身份认证申请</text>
   </view>
 
   <!-- 统计卡片 -->
@@ -64,8 +64,8 @@
         <!-- 认证信息 -->
         <view class="cert-info">
           <view class="cert-item">
-            <text class="cert-label">🏛️ 所属部门：</text>
-            <text class="cert-value">{{item.department}}</text>
+            <text class="cert-label">🏘️ 所属社区：</text>
+            <text class="cert-value">{{item.community}}</text>
           </view>
           <view class="cert-item">
             <text class="cert-label">👔 职位：</text>
@@ -121,7 +121,7 @@
             data-openid="{{item.openid}}"
             data-name="{{item.nickName}}"
           >
-            🗑️ 移除政府身份
+            🗑️ 移除社区工作者身份
           </button>
         </view>
       </view>

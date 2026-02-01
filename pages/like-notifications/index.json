@@ -1,6 +1,8 @@
 {
   "navigationBarTitleText": "赞和收藏",
   "enablePullDownRefresh": true,
-  "usingComponents": {}
+  "usingComponents": {
+    "user-name": "/components/user-name/index"
+  }
 }
 

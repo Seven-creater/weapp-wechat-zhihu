@@ -394,8 +394,13 @@
 .comment-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 10rpx;
+}
+
+.comment-author-wrapper {
+  flex: 1;
+  min-width: 0;
 }
 
 .comment-author {
@@ -407,6 +412,8 @@
 .comment-time {
   font-size: 24rpx;
   color: var(--color-text-secondary);
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 .comment-text {
@@ -499,8 +506,13 @@
 .reply-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 8rpx;
+}
+
+.reply-author-wrapper {
+  flex: 1;
+  min-width: 0;
 }
 
 .reply-author {
@@ -512,6 +524,8 @@
 .reply-time {
   font-size: 22rpx;
   color: var(--color-text-secondary);
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 .reply-text {

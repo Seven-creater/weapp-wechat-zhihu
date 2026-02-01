@@ -1,0 +1,10 @@
+{
+  "name": "reviewCommunityWorkerCertification",
+  "version": "1.0.0",
+  "description": "审核社区工作者认证申请",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

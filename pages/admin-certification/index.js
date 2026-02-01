@@ -59,7 +59,7 @@ Page({
    */
   loadStats() {
     wx.cloud.callFunction({
-      name: 'getGovCertStats',
+      name: 'getCommunityWorkerCertStats',
       data: {}
     }).then(res => {
       if (res.result && res.result.success) {
@@ -79,7 +79,7 @@ Page({
     wx.showLoading({ title: '加载中...' });
     
     wx.cloud.callFunction({
-      name: 'getGovCertApplications',
+      name: 'getCommunityWorkerCertApplications',
       data: {
         status: this.data.currentFilter,
         page: this.data.page,
@@ -139,7 +139,7 @@ Page({
     
     wx.showModal({
       title: '确认通过',
-      content: '确认通过该用户的政府认证申请？',
+      content: '确认通过该用户的社区工作者认证申请？',
       success: (res) => {
         if (res.confirm) {
           this.reviewApplication(id, 'approved', '');
@@ -197,7 +197,7 @@ Page({
   },
 
   /**
-   * 🆕 移除政府身份
+   * 🆕 移除社区工作者身份
    */
   handleRemove(e) {
     const openid = e.currentTarget.dataset.openid;
@@ -205,25 +205,25 @@ Page({
     
     wx.showModal({
       title: '确认移除',
-      content: `确认移除 ${name} 的政府用户身份？移除后该用户将变为普通用户。`,
+      content: `确认移除 ${name} 的社区工作者身份？移除后该用户将变为普通用户。`,
       confirmText: '确认移除',
       confirmColor: '#ef4444',
       success: (res) => {
         if (res.confirm) {
-          this.removeGovIdentity(openid);
+          this.removeCommunityWorkerIdentity(openid);
         }
       }
     });
   },
 
   /**
-   * 🆕 执行移除政府身份
+   * 🆕 执行移除社区工作者身份
    */
-  removeGovIdentity(userOpenid) {
+  removeCommunityWorkerIdentity(userOpenid) {
     wx.showLoading({ title: '处理中...' });
     
     wx.cloud.callFunction({
-      name: 'removeGovCertification',
+      name: 'removeCommunityWorkerCertification',
       data: {
         userOpenid: userOpenid
       }
@@ -232,7 +232,7 @@ Page({
       
       if (res.result && res.result.success) {
         wx.showToast({
-          title: '已移除政府身份',
+          title: '已移除社区工作者身份',
           icon: 'success'
         });
         
@@ -268,7 +268,7 @@ Page({
     wx.showLoading({ title: '处理中...' });
     
     wx.cloud.callFunction({
-      name: 'reviewGovCertification',
+      name: 'reviewCommunityWorkerCertification',
       data: {
         applicationId: id,
         status: status,
