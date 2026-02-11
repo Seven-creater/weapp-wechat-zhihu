@@ -1,0 +1,10 @@
+{
+  "name": "getFacilities",
+  "version": "1.0.0",
+  "description": "获取无障碍设施列表",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

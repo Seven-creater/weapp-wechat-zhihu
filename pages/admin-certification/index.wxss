@@ -9,6 +9,7 @@
 .header {
   padding: 40px 20px 20px;
   text-align: center;
+  position: relative;
 }
 
 .header-title {
@@ -23,6 +24,22 @@
   display: block;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* 🆕 数据修复按钮 */
+.fix-data-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.fix-data-btn::after {
+  border: none;
 }
 
 /* 统计卡片 */

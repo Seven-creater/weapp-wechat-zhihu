@@ -6,51 +6,111 @@
     <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{2}}">案例</view>
   </view>
 
+  <!-- Post Type Filter (only show in Community tab) -->
+  <view class="post-type-filter" wx:if="{{currentTab === 1}}">
+    <view 
+      class="filter-item {{postTypeFilter === 'all' ? 'active' : ''}}" 
+      bindtap="switchPostType" 
+      data-type="all"
+    >
+      全部
+    </view>
+    <view 
+      class="filter-item {{postTypeFilter === 'issue' ? 'active' : ''}}" 
+      bindtap="switchPostType" 
+      data-type="issue"
+    >
+      问题反馈
+    </view>
+    <view 
+      class="filter-item {{postTypeFilter === 'daily' ? 'active' : ''}}" 
+      bindtap="switchPostType" 
+      data-type="daily"
+    >
+      日常分享
+    </view>
+  </view>
+
+  <!-- Category Filter (only show in Case tab) -->
+  <scroll-view class="category-filter" scroll-x wx:if="{{currentTab === 2}}">
+    <view 
+      class="category-item {{caseCategory === item.id ? 'active' : ''}}" 
+      wx:for="{{caseCategories}}"
+      wx:key="id"
+      bindtap="switchCaseCategory" 
+      data-id="{{item.id}}"
+    >
+      {{item.shortName}}
+    </view>
+  </scroll-view>
+
   <!-- Content Area -->
   <scroll-view scroll-y class="content-scroll" bindscrolltolower="onLoadMore">
     <view class="waterfall">
       <view class="waterfall-column">
         <block wx:for="{{leftColPosts}}" wx:key="id">
-          <template is="postCard" data="{{item}}" />
+          <view class="post-card" bindtap="onPostTap" data-id="{{item.id}}">
+            <view class="post-image-wrapper" wx:if="{{item.hasImage}}">
+              <image class="post-image" src="{{item.image}}" mode="aspectFill" />
+            </view>
+            <view class="post-info">
+              <view class="post-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
+              <view class="post-title">{{item.title}}</view>
+              <view class="post-meta">
+                <view class="user-info">
+                  <image class="user-avatar" src="{{item.user.avatar}}" catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}" />
+                  <view catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}">
+                    <user-name 
+                      nickName="{{item.user.name}}" 
+                      userType="{{item.userType}}"
+                      inline="{{true}}"
+                      vertical="{{true}}"
+                    />
+                  </view>
+                </view>
+                <view class="like-info">
+                  <image class="like-icon" src="/images/heart2.png" />
+                  <text class="like-count">{{item.likes}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
         </block>
       </view>
       <view class="waterfall-column">
         <block wx:for="{{rightColPosts}}" wx:key="id">
-          <template is="postCard" data="{{item}}" />
+          <view class="post-card" bindtap="onPostTap" data-id="{{item.id}}">
+            <view class="post-image-wrapper" wx:if="{{item.hasImage}}">
+              <image class="post-image" src="{{item.image}}" mode="aspectFill" />
+            </view>
+            <view class="post-info">
+              <view class="post-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
+              <view class="post-title">{{item.title}}</view>
+              <view class="post-meta">
+                <view class="user-info">
+                  <image class="user-avatar" src="{{item.user.avatar}}" catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}" />
+                  <view catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}">
+                    <user-name 
+                      nickName="{{item.user.name}}" 
+                      userType="{{item.userType}}"
+                      inline="{{true}}"
+                      vertical="{{true}}"
+                    />
+                  </view>
+                </view>
+                <view class="like-info">
+                  <image class="like-icon" src="/images/heart2.png" />
+                  <text class="like-count">{{item.likes}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
         </block>
       </view>
     </view>
     <view class="loading" wx:if="{{loading}}">加载中...</view>
     <view class="empty" wx:if="{{!loading && posts.length === 0}}">
-      {{currentTab === 0 ? '暂无关注内容' : (currentTab === 2 ? '暂无案例，发布时选择“案例”即可显示' : '暂无内容')}}
+      {{currentTab === 0 ? '暂无关注内容' : (currentTab === 2 ? '暂无案例，发布时选择"案例"即可显示' : '暂无内容')}}
     </view>
   </scroll-view>
 </view>
-
-<!-- Post Card Template -->
-<template name="postCard">
-  <view class="post-card" bindtap="onPostTap" data-id="{{item.id}}">
-    <view class="post-image-wrapper">
-      <image class="post-image" src="{{item.image}}" mode="aspectFill" />
-    </view>
-    <view class="post-info">
-      <view class="post-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
-      <view class="post-title">{{item.title}}</view>
-      <view class="post-meta">
-        <view class="user-info" catchtap="onUserTap" data-id="{{item.user.id || item.user._openid}}">
-          <image class="user-avatar" src="{{item.user.avatar}}" />
-          <user-name 
-            nickName="{{item.user.name}}" 
-            userType="{{item.userType}}"
-            inline="{{true}}"
-            vertical="{{true}}"
-          />
-        </view>
-        <view class="like-info">
-          <image class="like-icon" src="/images/heart2.png" />
-          <text class="like-count">{{item.likes}}</text>
-        </view>
-      </view>
-    </view>
-  </view>
-</template>

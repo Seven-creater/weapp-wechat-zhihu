@@ -1,0 +1,98 @@
+<!--pages/project/create/index.wxml-->
+<view class="container">
+  <!-- 问题信息 -->
+  <view wx:if="{{post}}" class="problem-section">
+    <view class="section-title">障碍问题</view>
+    <view class="problem-card">
+      <view class="problem-header">
+        <view class="category-badge">{{post.category}}</view>
+        <view class="status-badge pending">待处理</view>
+      </view>
+      <view class="problem-content">{{post.content}}</view>
+      <view wx:if="{{post.images && post.images.length > 0}}" class="problem-images">
+        <image 
+          wx:for="{{post.images}}" 
+          wx:key="index"
+          class="problem-image"
+          src="{{item}}" 
+          mode="aspectFill"
+        />
+      </view>
+      <view class="problem-footer">
+        <text class="location-text">📍 {{post.formattedAddress || post.address}}</text>
+        <text class="budget-text">💰 预算: ¥{{post.priceEstimate || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 项目信息 -->
+  <view class="form-section">
+    <view class="section-title">项目信息</view>
+    
+    <view class="form-item">
+      <view class="form-label">项目名称</view>
+      <input 
+        class="form-input" 
+        placeholder="请输入项目名称"
+        value="{{title}}"
+        bindinput="onTitleInput"
+        maxlength="50"
+      />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">联系电话</view>
+      <input 
+        class="form-input" 
+        type="number"
+        placeholder="请输入您的联系电话"
+        value="{{contactPhone}}"
+        bindinput="onPhoneInput"
+        maxlength="11"
+      />
+      <view class="form-tip">用于项目沟通和进度通知</view>
+    </view>
+  </view>
+
+  <!-- 项目说明 -->
+  <view class="info-section">
+    <view class="section-title">项目流程</view>
+    <view class="flow-card">
+      <view class="flow-item">
+        <view class="flow-number">1</view>
+        <view class="flow-content">
+          <view class="flow-title">准备阶段</view>
+          <view class="flow-desc">现场勘察、材料准备</view>
+        </view>
+      </view>
+      <view class="flow-item">
+        <view class="flow-number">2</view>
+        <view class="flow-content">
+          <view class="flow-title">施工阶段</view>
+          <view class="flow-desc">按设计方案施工</view>
+        </view>
+      </view>
+      <view class="flow-item">
+        <view class="flow-number">3</view>
+        <view class="flow-content">
+          <view class="flow-title">验收阶段</view>
+          <view class="flow-desc">质量检查、完工验收</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 创建按钮 -->
+  <view class="submit-section">
+    <button 
+      class="submit-btn {{submitting ? 'disabled' : ''}}" 
+      bindtap="createProject"
+      disabled="{{submitting}}"
+    >
+      {{submitting ? '创建中...' : '创建项目'}}
+    </button>
+  </view>
+</view>
+
+
+

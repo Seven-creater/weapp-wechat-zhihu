@@ -293,6 +293,20 @@
   font-weight: 500;
 }
 
+.btn-route {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  background: #667eea;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
 .btn-go {
   flex: 1;
   height: 40px;
@@ -466,4 +480,125 @@
   margin-top: 6px;
   font-size: 24rpx;
   color: #6b7280;
+}
+
+/* 状态筛选面板 */
+.control-icon-text {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.filter-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.status-filter-panel {
+  position: absolute;
+  right: 80px;
+  top: 120px;
+  width: 280px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 30;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.filter-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.filter-close {
+  font-size: 24px;
+  color: #999;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.filter-options {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8f9fa;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.filter-option.active {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+}
+
+.option-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.option-label {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.filter-actions {
+  display: flex;
+  border-top: 1px solid #f0f0f0;
+}
+
+.filter-clear,
+.filter-confirm {
+  flex: 1;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.filter-clear {
+  color: #666;
+  background: #f5f5f5;
+}
+
+.filter-confirm {
+  color: #fff;
+  background: #667eea;
 }

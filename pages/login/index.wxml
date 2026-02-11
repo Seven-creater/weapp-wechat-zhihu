@@ -85,8 +85,8 @@
         ></textarea>
       </view>
 
-      <!-- 🔧 社区工作者必须填写认证信息 -->
-      <view wx:if="{{selectedType === 'communityWorker'}}">
+      <!-- 🔧 社区工作者和施工方必须填写认证信息 -->
+      <view wx:if="{{selectedType === 'communityWorker' || selectedType === 'contractor'}}">
         <view 
           wx:for="{{selectedTypeConfig.profileFields}}" 
           wx:key="key"
@@ -108,6 +108,10 @@
     <view class="tips-inline" wx:if="{{selectedType === 'communityWorker'}}">
       <text class="tip-icon">⚠️</text>
       <text class="tip-text">社区工作者需要填写认证信息以验证身份</text>
+    </view>
+    <view class="tips-inline" wx:if="{{selectedType === 'contractor'}}">
+      <text class="tip-icon">⚠️</text>
+      <text class="tip-text">施工方需要填写认证信息以验证身份</text>
     </view>
 
     <!-- 提交按钮 -->

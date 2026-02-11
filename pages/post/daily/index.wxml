@@ -1,0 +1,76 @@
+<!--pages/post/daily/index.wxml-->
+<view class="container">
+  <view class="content-section">
+    <!-- 内容输入 -->
+    <textarea
+      class="content-input"
+      placeholder="分享你的生活..."
+      value="{{content}}"
+      bindinput="onContentInput"
+      maxlength="1000"
+      auto-height
+    />
+    
+    <!-- 字数统计 -->
+    <view class="char-count">{{content.length}}/1000</view>
+  </view>
+
+  <!-- 图片上传 -->
+  <view class="images-section">
+    <view class="section-title">添加图片</view>
+    <view class="images-grid">
+      <!-- 已选图片 -->
+      <view wx:for="{{images}}" wx:key="index" class="image-item">
+        <image 
+          class="image-preview" 
+          src="{{item}}" 
+          mode="aspectFill"
+          bindtap="previewImage"
+          data-src="{{item}}"
+        />
+        <view class="remove-btn" bindtap="removeImage" data-index="{{index}}">
+          <text class="remove-icon">✕</text>
+        </view>
+      </view>
+      
+      <!-- 添加按钮 -->
+      <view wx:if="{{images.length < maxImages}}" class="add-image-btn" bindtap="chooseImage">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加图片</text>
+      </view>
+    </view>
+    <view class="image-tip">最多上传{{maxImages}}张图片</view>
+  </view>
+
+  <!-- 位置选择 -->
+  <view class="location-section">
+    <view class="section-title">位置</view>
+    <view wx:if="{{!location}}" class="location-empty" bindtap="chooseLocation">
+      <text class="location-icon">📍</text>
+      <text class="location-text">选择位置</text>
+    </view>
+    <view wx:else class="location-selected">
+      <view class="location-info" bindtap="chooseLocation">
+        <text class="location-icon">📍</text>
+        <text class="location-address">{{formattedAddress}}</text>
+      </view>
+      <view class="location-clear" bindtap="clearLocation">
+        <text class="clear-icon">✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 发布按钮 -->
+  <view class="publish-section">
+    <button 
+      class="publish-btn {{submitting ? 'disabled' : ''}}" 
+      bindtap="publishPost"
+      disabled="{{submitting}}"
+    >
+      {{submitting ? '发布中...' : '发布'}}
+    </button>
+  </view>
+</view>
+
+
+

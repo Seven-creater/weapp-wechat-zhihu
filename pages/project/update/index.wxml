@@ -1,0 +1,86 @@
+<!-- pages/project/update/index.wxml -->
+<view class="container">
+  <view class="header">
+    <view class="header-title">更新节点：{{nodeName}}</view>
+    <view class="header-subtitle">记录施工进度和现场情况</view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="label-text">现场照片</text>
+      <text class="label-required">*</text>
+      <text class="label-tip">（最多{{maxImages}}张）</text>
+    </view>
+    
+    <view class="image-grid">
+      <block wx:for="{{images}}" wx:key="index">
+        <view class="image-item">
+          <image 
+            class="image-preview" 
+            src="{{item}}" 
+            mode="aspectFill"
+            bindtap="previewImage"
+            data-src="{{item}}"
+          />
+          <view class="image-remove" bindtap="removeImage" data-index="{{index}}">
+            <text class="remove-icon">×</text>
+          </view>
+        </view>
+      </block>
+      
+      <view 
+        wx:if="{{images.length < maxImages}}" 
+        class="image-add" 
+        bindtap="chooseImage"
+      >
+        <text class="add-icon">+</text>
+        <text class="add-text">添加照片</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="label-text">进度说明</text>
+    </view>
+    <textarea 
+      class="form-textarea"
+      placeholder="描述当前节点的完成情况、遇到的问题等..."
+      value="{{description}}"
+      bindinput="onDescInput"
+      maxlength="500"
+      show-confirm-bar="{{false}}"
+    />
+    <view class="char-count">{{description.length}}/500</view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="label-text">实际费用（元）</text>
+    </view>
+    <input 
+      class="form-input"
+      type="digit"
+      placeholder="输入本节点实际花费"
+      value="{{actualCost}}"
+      bindinput="onCostInput"
+    />
+  </view>
+
+  <view class="tips-section">
+    <view class="tips-title">📝 温馨提示</view>
+    <view class="tips-item">• 请上传清晰的现场照片，便于业主查看进度</view>
+    <view class="tips-item">• 详细记录施工情况，有助于后续沟通</view>
+    <view class="tips-item">• 如有额外费用，请及时与业主沟通确认</view>
+  </view>
+
+  <view class="submit-section">
+    <button 
+      class="submit-btn" 
+      bindtap="submitUpdate"
+      disabled="{{submitting}}"
+    >
+      {{submitting ? '提交中...' : '提交更新'}}
+    </button>
+  </view>
+</view>

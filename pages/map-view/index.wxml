@@ -1,11 +1,80 @@
 <view class="map-container">
+  <!-- 地图 -->
   <map
+    id="issueMap"
     class="map-view"
     latitude="{{latitude}}"
     longitude="{{longitude}}"
-    scale="14"
-    show-location
+    scale="{{scale}}"
     markers="{{markers}}"
     bindmarkertap="handleMarkerTap"
-  ></map>
+    setting="{{setting}}"
+  >
+    <!-- 顶部标题栏 -->
+    <cover-view class="map-header">
+      <cover-view class="header-title">
+        <cover-view class="title-icon">🗺️</cover-view>
+        <cover-view class="title-text">问题地图</cover-view>
+      </cover-view>
+      <cover-view class="header-stats">
+        <cover-view class="stat-item">
+          <cover-view class="stat-number">{{filteredPosts.length}}</cover-view>
+          <cover-view class="stat-label">个问题</cover-view>
+        </cover-view>
+      </cover-view>
+    </cover-view>
+
+    <!-- 分类筛选按钮 -->
+    <cover-view class="category-toggle-btn" bindtap="toggleCategoryPanel">
+      <cover-view class="toggle-icon">🏷️</cover-view>
+      <cover-view class="toggle-text">{{selectedCategoryName}}</cover-view>
+      <cover-view class="toggle-arrow">{{showCategoryPanel ? '▲' : '▼'}}</cover-view>
+    </cover-view>
+
+    <!-- 分类筛选面板 -->
+    <cover-view class="category-panel" wx:if="{{showCategoryPanel}}">
+      <cover-view class="panel-header">
+        <cover-view class="panel-title">选择分类</cover-view>
+        <cover-view class="panel-close" bindtap="toggleCategoryPanel">✕</cover-view>
+      </cover-view>
+      <cover-view class="category-grid">
+        <cover-view 
+          wx:for="{{categories}}" 
+          wx:key="id"
+          class="category-card {{selectedCategory === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="switchCategory"
+        >
+          <cover-view class="card-name">{{item.shortName}}</cover-view>
+        </cover-view>
+      </cover-view>
+    </cover-view>
+
+
+
+    <!-- 图例说明 -->
+    <cover-view class="map-legend">
+      <cover-view class="legend-item">
+        <cover-view class="legend-dot" style="background: #fef3c7;"></cover-view>
+        <cover-view class="legend-text">待处理</cover-view>
+      </cover-view>
+      <cover-view class="legend-item">
+        <cover-view class="legend-dot" style="background: #dbeafe;"></cover-view>
+        <cover-view class="legend-text">处理中</cover-view>
+      </cover-view>
+      <cover-view class="legend-item">
+        <cover-view class="legend-dot" style="background: #d1fae5;"></cover-view>
+        <cover-view class="legend-text">已完成</cover-view>
+      </cover-view>
+    </cover-view>
+
+    <!-- 遮挡右侧按钮 -->
+    <cover-view class="right-side-mask"></cover-view>
+  </map>
+
+  <!-- 加载提示 -->
+  <view wx:if="{{loading}}" class="loading-overlay">
+    <view class="loading-spinner"></view>
+    <view class="loading-text">加载中...</view>
+  </view>
 </view>

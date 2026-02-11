@@ -7,7 +7,9 @@
  * @returns {object} 徽章配置
  */
 function getUserBadge(userType) {
+  // ✅ 支持首字母大写和小写两种格式
   const badges = {
+    // 小写格式（旧版兼容）
     normal: {
       color: '#6B7280',
       icon: '👤',
@@ -15,18 +17,44 @@ function getUserBadge(userType) {
     },
     designer: {
       color: '#10B981',
-      icon: '🟢',
+      icon: '🎨',
       text: '设计者'
     },
     contractor: {
       color: '#3B82F6',
-      icon: '🔵',
+      icon: '🔧',
       text: '施工方'
     },
     communityWorker: {
       color: '#EF4444',
-      icon: '🔴',
+      icon: '🏘️',
       text: '社区工作者'
+    },
+    // 首字母大写格式（新版）
+    Normal: {
+      color: '#6B7280',
+      icon: '👤',
+      text: '用户'
+    },
+    Designer: {
+      color: '#10B981',
+      icon: '🎨',
+      text: '设计者'
+    },
+    ConstructionTeam: {
+      color: '#3B82F6',
+      icon: '🔧',
+      text: '施工方'
+    },
+    CommunityWorker: {
+      color: '#EF4444',
+      icon: '🏘️',
+      text: '社区工作者'
+    },
+    Government: {
+      color: '#9333EA',
+      icon: '🏛️',
+      text: '政府'
     }
   };
   
@@ -82,6 +110,3 @@ module.exports = {
   formatUserName,
   getUserDisplayInfo
 };
-
-
-

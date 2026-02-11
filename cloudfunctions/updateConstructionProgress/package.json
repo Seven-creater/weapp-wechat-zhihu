@@ -1,0 +1,12 @@
+{
+  "name": "updateConstructionProgress",
+  "version": "1.0.0",
+  "description": "更新施工进度",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+
+
+

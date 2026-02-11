@@ -1,6 +1,5 @@
 // 用户类型配置
-// 三类用户：普通用户、设计者、施工方
-// 政府需要认证
+// 四类用户：普通用户、设计者、施工方、社区工作者
 
 const USER_TYPES = {
   // 1. 普通用户
@@ -42,6 +41,7 @@ const USER_TYPES = {
       icon: '🟢',
       text: '设计者'
     },
+    needCertification: true,  // 🆕 需要认证
     permissions: {
       canVerifyIssue: true,          // 可以核实问题
       canCreateProject: false,       // 不能创建项目（只能设计方案）
@@ -59,7 +59,12 @@ const USER_TYPES = {
       '💡 提供设计建议',
       '🎓 分享设计经验'
     ],
-    profileFields: []  // 🔧 删除自定义字段
+    profileFields: [
+      // 🆕 设计者认证信息
+      { key: 'organization', label: '所属机构', placeholder: '如：长沙理工大学建筑学院', required: true },
+      { key: 'title', label: '职称/职位', placeholder: '如：助理工程师、在读研究生', required: true },
+      { key: 'expertise', label: '专业领域', placeholder: '如：无障碍设计、适老化改造', required: true }
+    ]
   },
 
   // 3. 施工方
@@ -72,6 +77,7 @@ const USER_TYPES = {
       icon: '🔵',
       text: '施工方'
     },
+    needCertification: true,  // 🆕 需要认证
     permissions: {
       canVerifyIssue: true,          // 可以核实问题
       canCreateProject: true,        // 可以创建施工项目
@@ -89,7 +95,13 @@ const USER_TYPES = {
       '✅ 完工验收',
       '🏆 展示成功案例'
     ],
-    profileFields: []  // 🔧 删除自定义字段
+    profileFields: [
+      // 🆕 施工方认证信息（不包含联系电话，使用注册时的手机号）
+      { key: 'companyName', label: '公司名称', placeholder: '如：邵东市第一建筑公司', required: true },
+      { key: 'contactPerson', label: '联系人', placeholder: '如：张师傅', required: true },
+      { key: 'serviceArea', label: '服务区域', placeholder: '如：长沙市、邵阳市', required: true },
+      { key: 'specialties', label: '擅长领域', placeholder: '如：无障碍坡道、无障碍卫生间', required: true }
+    ]
   },
 
   // 4. 社区工作者（需要认证）
@@ -183,4 +195,3 @@ module.exports = {
   hasPermission,
   getBadgeStyle
 };
-

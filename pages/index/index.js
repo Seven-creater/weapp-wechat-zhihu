@@ -97,6 +97,7 @@ Page({
     chips: [],
     currentChipId: "all",
     facilities: [],
+    userFacilities: [], // 用户标注的设施
     issues: [],
     selectedFacility: null,
     nearbyOfSelected: [],
@@ -111,6 +112,9 @@ Page({
     searchKeyword: "",
     searchResults: [],
     searchLoading: false,
+    // 设施状态筛选
+    statusFilter: [], // 可选值：accessible, blocked, maintenance, occupied
+    showStatusFilter: false,
   },
 
   onLoad: function () {
@@ -282,6 +286,7 @@ Page({
           },
           () => {
             this.loadFacilitiesAroundCenter();
+            this.loadUserFacilities(); // 加载用户标注的设施
             this.loadIssuesAroundCenter();
           },
         );
@@ -552,6 +557,70 @@ Page({
       });
   },
 
+  // 加载用户标注的设施
+  loadUserFacilities: function () {
+    const latitude = Number(this.data.latitude);
+    const longitude = Number(this.data.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+    const category = findCategoryById(this.data.currentCategoryId);
+    
+    // 调用 getFacilities 云函数
+    wx.cloud.callFunction({
+      name: 'getFacilities',
+      data: {
+        latitude: latitude,
+        longitude: longitude,
+        radius: 5000, // 5公里范围
+        facilityType: category ? category.name : undefined,
+        status: this.data.statusFilter.length > 0 ? this.data.statusFilter : undefined,
+        page: 1,
+        pageSize: 50
+      }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        const facilities = res.result.data || [];
+        
+        // 转换为地图标记格式
+        const items = facilities.map(facility => {
+          const coords = facility.location?.coordinates;
+          const lng = Array.isArray(coords) ? Number(coords[0]) : facility.location?.longitude;
+          const lat = Array.isArray(coords) ? Number(coords[1]) : facility.location?.latitude;
+          
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          
+          const dist = distanceMeters(latitude, longitude, lat, lng);
+          
+          return {
+            id: facility._id,
+            name: facility.name || facility.facilityType,
+            address: facility.formattedAddress || facility.address,
+            facilityType: facility.facilityType,
+            status: facility.status,
+            latitude: lat,
+            longitude: lng,
+            distanceMeters: dist,
+            distanceText: formatDistance(dist),
+            images: facility.images || [],
+            description: facility.description || '',
+            verified: facility.verified || false,
+            source: 'user_facility'
+          };
+        }).filter(Boolean);
+        
+        this.setData({ userFacilities: items }, () => {
+          this.updateMarkers();
+        });
+        
+        console.log('✅ 加载用户标注设施成功，数量:', items.length);
+      } else {
+        console.error('加载用户标注设施失败:', res.result?.error);
+      }
+    }).catch(err => {
+      console.error('加载用户标注设施失败:', err);
+    });
+  },
+
   updateMarkers: function () {
     const facilityMarkers = (this.data.facilities || []).map((item, idx) => {
       const isSelected =
@@ -578,6 +647,64 @@ Page({
     });
 
     const offset = facilityMarkers.length;
+    
+    // 用户标注的设施标记（不同状态不同颜色）
+    const userFacilityMarkers = (this.data.userFacilities || []).map((item, idx) => {
+      const isSelected =
+        this.data.selectedFacility && this.data.selectedFacility.id === item.id;
+      
+      // 根据状态选择图标路径
+      let iconPath = "/images/marker_alert.svg";
+      let bgColor = "#ffffff";
+      
+      switch(item.status) {
+        case 'accessible':
+          iconPath = "/images/marker_alert.svg"; // 绿色标记
+          bgColor = "#d1fae5"; // 浅绿色背景
+          break;
+        case 'blocked':
+          iconPath = "/images/flag.png"; // 红色标记
+          bgColor = "#fee2e2"; // 浅红色背景
+          break;
+        case 'maintenance':
+          iconPath = "/images/marker_alert.svg"; // 黄色标记
+          bgColor = "#fef3c7"; // 浅黄色背景
+          break;
+        case 'occupied':
+          iconPath = "/images/marker_alert.svg"; // 橙色标记
+          bgColor = "#fed7aa"; // 浅橙色背景
+          break;
+      }
+      
+      // 状态标识
+      const statusText = {
+        'accessible': '✅',
+        'blocked': '🚫',
+        'maintenance': '🔧',
+        'occupied': '⚠️'
+      }[item.status] || '';
+      
+      return {
+        id: offset + idx + 1,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        width: isSelected ? 34 : 28,
+        height: isSelected ? 34 : 28,
+        iconPath: iconPath,
+        callout: {
+          content: `${statusText} ${item.name.length > 14 ? item.name.slice(0, 14) + '...' : item.name}`,
+          color: "#111827",
+          fontSize: 12,
+          borderRadius: 8,
+          padding: 8,
+          bgColor: bgColor,
+          display: "BYCLICK",
+        },
+        payload: { type: "user_facility", id: item.id },
+      };
+    });
+
+    const issueOffset = offset + userFacilityMarkers.length;
     const issueMarkers = (this.data.issues || []).map((item, idx) => {
       const title = item.category ? `【${item.category}】` : "【障碍点】";
       const label = item.description ? item.description : "查看详情";
@@ -587,7 +714,7 @@ Page({
           ? `${contentBase.slice(0, 18)}...`
           : contentBase;
       return {
-        id: offset + idx + 1,
+        id: issueOffset + idx + 1,
         latitude: item.latitude,
         longitude: item.longitude,
         width: 28,
@@ -606,7 +733,7 @@ Page({
       };
     });
 
-    this.setData({ markers: facilityMarkers.concat(issueMarkers) });
+    this.setData({ markers: facilityMarkers.concat(userFacilityMarkers).concat(issueMarkers) });
   },
 
   onCategoryTap: function (e) {
@@ -675,6 +802,14 @@ Page({
     if (marker.payload.type === "issue") {
       wx.navigateTo({
         url: `/pages/issue-detail/issue-detail?id=${marker.payload.id}`,
+      });
+      return;
+    }
+
+    if (marker.payload.type === "user_facility") {
+      // 跳转到用户标注设施详情页
+      wx.navigateTo({
+        url: `/pages/facility/detail/index?id=${marker.payload.id}`,
       });
       return;
     }
@@ -875,6 +1010,101 @@ Page({
       name: facility.name,
       address: facility.address || "",
       scale: 18,
+    });
+  },
+
+  // 长按地图标注设施
+  onMapLongPress: function (e) {
+    const { latitude, longitude } = e.detail;
+    
+    wx.showModal({
+      title: '标注设施',
+      content: '是否在此位置标注无障碍设施？',
+      confirmText: '标注',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: `/pages/facility/mark?latitude=${latitude}&longitude=${longitude}`
+          });
+        }
+      }
+    });
+  },
+
+  // 切换状态筛选面板
+  toggleStatusFilter: function () {
+    this.setData({
+      showStatusFilter: !this.data.showStatusFilter
+    });
+  },
+
+  // 选择状态筛选
+  onStatusFilterTap: function (e) {
+    const status = e.currentTarget.dataset.status;
+    const statusFilter = [...this.data.statusFilter];
+    
+    const index = statusFilter.indexOf(status);
+    if (index > -1) {
+      // 已选中，取消选中
+      statusFilter.splice(index, 1);
+    } else {
+      // 未选中，添加选中
+      statusFilter.push(status);
+    }
+    
+    this.setData({ statusFilter }, () => {
+      // 重新加载设施
+      this.loadUserFacilities();
+    });
+  },
+
+  // 清除状态筛选
+  clearStatusFilter: function () {
+    this.setData({ statusFilter: [] }, () => {
+      this.loadUserFacilities();
+    });
+  },
+
+  // 打开路线规划
+  openRoutePlanning: function () {
+    // 获取当前位置
+    wx.getLocation({
+      type: 'gcj02',
+      success: (res) => {
+        wx.navigateTo({
+          url: `/pages/route/plan/index?startLat=${res.latitude}&startLng=${res.longitude}`
+        });
+      },
+      fail: () => {
+        wx.navigateTo({
+          url: '/pages/route/plan/index'
+        });
+      }
+    });
+  },
+
+  // 规划到设施的路线
+  planRouteToFacility: function (e) {
+    const id = e.currentTarget.dataset.id;
+    const facility = (this.data.facilities || []).find((f) => f.id === id) ||
+                     (this.data.userFacilities || []).find((f) => f.id === id);
+    
+    if (!facility) return;
+    
+    wx.getLocation({
+      type: 'gcj02',
+      success: (res) => {
+        wx.navigateTo({
+          url: `/pages/route/plan/index?startLat=${res.latitude}&startLng=${res.longitude}&endLat=${facility.latitude}&endLng=${facility.longitude}&endAddress=${encodeURIComponent(facility.name)}`
+        });
+      },
+      fail: () => {
+        wx.showToast({
+          title: '请先开启定位',
+          icon: 'none'
+        });
+      }
     });
   },
 });

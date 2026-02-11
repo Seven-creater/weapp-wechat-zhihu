@@ -1,0 +1,12 @@
+{
+  "name": "getUserPhone",
+  "version": "1.0.0",
+  "description": "获取用户手机号云函数（社区工作者专用）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+
+
+

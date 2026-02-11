@@ -1,0 +1,100 @@
+<!--pages/design/proposal/index.wxml-->
+<view class="container">
+  <!-- 问题信息 -->
+  <view wx:if="{{post}}" class="problem-section">
+    <view class="section-title">障碍问题</view>
+    <view class="problem-card">
+      <view class="problem-content">{{post.content}}</view>
+      <view wx:if="{{post.images && post.images.length > 0}}" class="problem-images">
+        <image 
+          wx:for="{{post.images}}" 
+          wx:key="index"
+          class="problem-image"
+          src="{{item}}" 
+          mode="aspectFill"
+        />
+      </view>
+      <view class="problem-info">
+        <text class="info-item">📍 {{post.formattedAddress || post.address}}</text>
+        <text class="info-item">💰 预算: ¥{{post.priceEstimate || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设计方案输入 -->
+  <view class="proposal-section">
+    <view class="section-title">设计方案</view>
+    <textarea
+      class="proposal-input"
+      placeholder="请详细描述您的设计方案..."
+      value="{{content}}"
+      bindinput="onContentInput"
+      maxlength="2000"
+      auto-height
+    />
+    <view class="char-count">{{content.length}}/2000</view>
+  </view>
+
+  <!-- 设计图上传 -->
+  <view class="images-section">
+    <view class="section-title">设计图</view>
+    <view class="images-grid">
+      <view wx:for="{{images}}" wx:key="index" class="image-item">
+        <image 
+          class="image-preview" 
+          src="{{item}}" 
+          mode="aspectFill"
+          bindtap="previewImage"
+          data-src="{{item}}"
+        />
+        <view class="remove-btn" bindtap="removeImage" data-index="{{index}}">
+          <text class="remove-icon">✕</text>
+        </view>
+      </view>
+      
+      <view wx:if="{{images.length < maxImages}}" class="add-image-btn" bindtap="chooseImage">
+        <text class="add-icon">+</text>
+        <text class="add-text">添加设计图</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 预算调整 -->
+  <view class="budget-section">
+    <view class="section-title">预算调整</view>
+    <view class="budget-input-row">
+      <text class="budget-label">调整金额</text>
+      <input 
+        class="budget-input" 
+        type="digit"
+        placeholder="0"
+        value="{{priceAdjustment}}"
+        bindinput="onPriceInput"
+      />
+      <text class="budget-unit">元</text>
+    </view>
+    <view class="budget-tip">正数表示增加，负数表示减少</view>
+    
+    <textarea
+      class="reason-input"
+      placeholder="请说明预算调整的原因..."
+      value="{{adjustmentReason}}"
+      bindinput="onReasonInput"
+      maxlength="500"
+    />
+  </view>
+
+  <!-- 提交按钮 -->
+  <view class="submit-section">
+    <button 
+      class="submit-btn {{submitting ? 'disabled' : ''}}" 
+      bindtap="submitProposal"
+      disabled="{{submitting}}"
+    >
+      {{submitting ? '提交中...' : '提交设计方案'}}
+    </button>
+  </view>
+</view>
+
+
+

@@ -1,8 +1,9 @@
-const collectUtil = require("../../utils/collect.js");
-const { hasPermission, checkAndExecute } = require("../../utils/permission.js");
+// pages/post-detail/index.js
 const app = getApp();
+const collectUtil = require('../../utils/collect.js');
+const followUtil = require('../../utils/follow.js');
+const { checkPermission, checkAndExecute } = require('../../utils/permission.js');
 
-// 延迟初始化数据库
 let db = null;
 let _ = null;
 
@@ -14,938 +15,895 @@ const getDB = () => {
   return { db, _ };
 };
 
-const isCollectionNotExistError = (err) => {
-  if (!err) return false;
-  const msg = String(err.errMsg || err.message || "");
-  const code = err.errCode || err.code;
-  if (code === 502005) return true;
-  return msg.includes("collection not exist") || msg.includes("DATABASE_COLLECTION_NOT_EXIST");
-};
-
 Page({
   data: {
+    postId: '',
     post: null,
     comments: [],
-    newComment: "",
-    replyTo: null,
-    loading: false,
-    showCommentInput: false,
-    isCollected: false, // 是否已收藏
-    collectCount: 0, // 收藏数量
-    isFollowing: false, // 是否已关注
-    // 动态输入相关状态
-    placeholderText: "发表评论",
+    newComment: '',
+    replyToId: '',
+    replyToName: '',
     isInputFocus: false,
-    replyTarget: null,
+    placeholderText: '说点什么...',
+    loading: true,
+    isCollected: false,
+    collectCount: 0,
+    isFollowing: false,
+    likeCount: 0,
+    isLiked: false,
+    showProfessionalActions: false,
+    canVerifyIssue: false,
+    canDesignSolution: false,
+    canCreateProject: false,
+    canUpdateProgress: false,
+    canViewUserContact: false,
     
-    // 🆕 专业用户权限
-    showProfessionalActions: false,  // 是否显示专业操作区
-    canVerifyIssue: false,           // 可以核实问题
-    canDesignSolution: false,        // 可以设计方案
-    canCreateProject: false,         // 可以创建项目
-    canUpdateProgress: false,        // 可以更新进度（施工方）
-    canViewUserContact: false        // 可以查看联系方式（政府）
+    // 关联内容
+    linkedProposal: null,
+    linkedProject: null,
+    showLinkedContent: false,
+    proposalCount: 0,
+    
+    // 专业操作权限
+    isDesigner: false,
+    isContractor: false,
+    isCommunityWorker: false,
+    isPostOwner: false,
+    
+    // 管理员权限
+    isAdmin: false,
   },
 
-  onLoad: function (options) {
+  onLoad(options) {
     const postId = options.id || options.postId;
-    console.log("接收到的参数:", options);
-    console.log("帖子ID:", postId);
+    if (!postId) {
+      wx.showToast({ title: '帖子不存在', icon: 'none' });
+      setTimeout(() => wx.navigateBack(), 1500);
+      return;
+    }
+    this.setData({ postId });
+    this.loadPostDetail();
+    this.loadComments();
+    this.checkProfessionalPermissions();
+  },
 
-    if (postId) {
-      this.loadPostDetail(postId);
-      this.loadComments(postId);
-      // 自动修复评论数统计
-      this.fixCommentCount(postId);
-      // 🆕 检查用户权限
-      this.checkUserPermissions();
-    } else {
-      console.error("帖子ID为空", options);
-      wx.showToast({
-        title: "参数错误",
-        icon: "none",
-      });
+  onShow() {
+    if (this.data.postId) {
+      this.loadPostDetail();
+      this.loadComments();
     }
   },
 
-  /**
-   * 🆕 检查用户权限
-   */
-  checkUserPermissions: function () {
-    const canVerifyIssue = hasPermission('canVerifyIssue');
-    const canDesignSolution = hasPermission('canDesignSolution');
-    const canCreateProject = hasPermission('canCreateProject');
-    const canUpdateProgress = hasPermission('canUpdateProgress');
-    const canViewUserContact = hasPermission('canViewUserContact');
+  onPullDownRefresh() {
+    this.loadPostDetail();
+    this.loadComments();
+    wx.stopPullDownRefresh();
+  },
+
+  checkProfessionalPermissions() {
+    const userType = app.globalData.userType || wx.getStorageSync('userType');
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
     
-    // 如果有任何专业权限，显示专业操作区
-    const showProfessionalActions = canVerifyIssue || canDesignSolution || 
-                                    canCreateProject || canUpdateProgress || 
-                                    canViewUserContact;
+    // 检查是否是管理员
+    const adminOpenids = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
+      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
+    ];
+    const isAdmin = adminOpenids.includes(openid);
+    
+    // 判断用户角色
+    const isDesigner = userType === 'designer';
+    const isContractor = userType === 'contractor';
+    const isCommunityWorker = userType === 'communityWorker';
+    
+    // 判断是否是帖子作者
+    const isPostOwner = this.data.post && this.data.post._openid === openid;
     
     this.setData({
-      showProfessionalActions,
-      canVerifyIssue,
-      canDesignSolution,
-      canCreateProject,
-      canUpdateProgress,
-      canViewUserContact
+      isDesigner: isDesigner,
+      isContractor: isContractor,
+      isCommunityWorker: isCommunityWorker,
+      isPostOwner: isPostOwner,
+      isAdmin: isAdmin,
+      showProfessionalActions: this.data.post && this.data.post.type === 'issue'
     });
   },
 
-  // 修复评论数统计
-  fixCommentCount: function(postId) {
+  loadPostDetail() {
+    wx.showLoading({ title: '加载中...' });
     wx.cloud.callFunction({
-      name: 'fixPostCommentCount',
-      data: { postId: postId }
+      name: 'getPublicData',
+      data: {
+        collection: 'posts',
+        docId: this.data.postId
+      }
     }).then(res => {
       if (res.result && res.result.success) {
-        console.log('评论数已修复:', res.result.commentCount);
-        // 重新加载帖子详情以更新显示
-        this.loadPostDetail(postId);
+        const post = res.result.data;
+        if (post.createTime) {
+          post.createTime = this.formatTime(post.createTime);
+        }
+        if (!post.stats) {
+          post.stats = { like: 0, comment: 0, collect: 0 };
+        }
+        const openid = app.globalData.openid || wx.getStorageSync('openid');
+        post.isOwner = post._openid === openid;
+        
+        // 检查是否是管理员
+        const adminOpenids = [
+          'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
+          'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
+        ];
+        const isAdmin = adminOpenids.includes(openid);
+        post.canDelete = post.isOwner || isAdmin; // 作者或管理员可以删除
+        
+        // 🔍 调试日志
+        console.log('🔍 当前用户 openid:', openid);
+        console.log('🔍 管理员列表:', adminOpenids);
+        console.log('🔍 是否是管理员:', isAdmin);
+        console.log('🔍 是否是作者:', post.isOwner);
+        console.log('🔍 是否可以删除:', post.canDelete);
+        
+        this.setData({
+          post,
+          loading: false,
+          likeCount: post.stats.like || 0
+        });
+
+        // 实时查询作者的最新用户信息
+        if (post._openid) {
+          wx.cloud.callFunction({
+            name: 'getUserInfo',
+            data: { targetId: post._openid }
+          }).then(userRes => {
+            if (userRes.result && userRes.result.success && userRes.result.data) {
+              const userData = userRes.result.data;
+              const updatedUserInfo = userData.userInfo || post.userInfo;
+              const updatedUserType = userData.userType || post.userType;
+              
+              this.setData({
+                'post.userInfo': updatedUserInfo,
+                'post.userType': updatedUserType
+              });
+            }
+          }).catch(err => {
+            console.error('查询作者信息失败:', err);
+          });
+        }
+        
+        // 加载关联内容（设计方案和项目）
+        this.loadLinkedContent();
+        
+        // ✅ 重新检查专业权限（此时 post 数据已加载）
+        this.checkProfessionalPermissions();
+        
+        collectUtil.initCollectStatus(this, 'collect_post', this.data.postId).catch(() => {});
+        this.checkLikeStatus();
+        this.checkFollowStatus();
+      } else {
+        throw new Error(res.result?.error || '加载失败');
       }
     }).catch(err => {
-      console.error('修复评论数失败:', err);
+      console.error('加载帖子详情失败:', err);
+      wx.showToast({ title: '加载失败', icon: 'none' });
+      this.setData({ loading: false });
+    }).finally(() => {
+      wx.hideLoading();
     });
   },
 
-  // 加载帖子详情
-  loadPostDetail: function (postId) {
-    this.setData({ loading: true });
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-
-    // 调用云函数获取详情（云函数会自动转换图片URL）
-    wx.cloud.callFunction({
-      name: "getPublicData",
-      data: {
-        collection: "posts",
-        docId: postId,
-      },
-      success: (res) => {
-        wx.hideLoading();
-
-        if (res.result && res.result.success) {
-          let post = res.result.data;
-
-          if (post) {
-            // 确保 userInfo 存在
-            if (!post.userInfo) {
-              post.userInfo = {
-                nickName: "匿名用户",
-                avatarUrl: "/images/zhi.png",
-              };
-            } else if (!post.userInfo.nickName) {
-              post.userInfo.nickName = "匿名用户";
-            }
-
-            // 🟢 关键修复：分离用户内容和AI诊断
-            if (post.content && typeof post.content === "string") {
-              const aiDiagnosisRegex = /AI诊断：|AI诊断：/;
-              const parts = post.content.split(aiDiagnosisRegex);
-
-              if (parts.length > 1) {
-                // 分离成功：用户内容 + AI诊断
-                post.content = parts[0].trim();
-                post.aiDiagnosis = parts[1].trim();
-              }
-            }
-
-            this.updatePostData(post, openid);
-            this.initLikeStatus(postId, openid);
-          } else {
-            this.setData({ post: null, loading: false });
-            wx.showToast({ title: "帖子不存在", icon: "none" });
-          }
-        } else {
-          throw new Error(res.result?.error || "获取数据失败");
-        }
-      },
-      fail: (err) => {
-        wx.hideLoading();
-        console.error("加载帖子详情失败:", err);
-        this.setData({ loading: false });
-        wx.showToast({
-          title: "加载失败",
-          icon: "none",
-        });
-      },
-    });
-  },
-
-  // 更新帖子数据
-  updatePostData: function (post, openid) {
-    this.setData({
-      post: {
-        ...post,
-        userInfo: post.userInfo || {
-          nickName: "匿名用户",
-          avatarUrl: "/images/zhi.png",
-        },
-        stats: post.stats || { view: 0, like: 0, comment: 0 },
-        createTime: this.formatTime(post.createTime),
-        isOwner: post._openid === openid,
-      },
-      loading: false,
-    });
-
-    // 初始化收藏状态
-    collectUtil
-      .initCollectStatus(this, "collect_post", post._id || post.postId)
-      .catch(() => {
-        // 初始化失败不影响主要功能
-      });
-
-    // 初始化关注状态
-    this.initFollowStatus(post._openid, openid);
-  },
-
-  // 初始化关注状态
-  initFollowStatus: function (targetId, openid) {
-    if (!openid || !targetId || openid === targetId) return;
-
-    const { db } = getDB();
-
-    db.collection("follows")
-      .where({
-        followerId: openid,
-        targetId: targetId
-      })
-      .get()
-      .then(res => {
-        this.setData({ isFollowing: res.data.length > 0 });
-      })
-      .catch((err) => {
-        if (isCollectionNotExistError(err)) {
-          this.setData({ isFollowing: false });
-          return;
-        }
-        this.setData({ isFollowing: false });
-      });
-  },
-
-  // 关注/取消关注
-  toggleFollow: function () {
-    const targetId = this.data.post?._openid;
-    if (!targetId) return;
-
-    app.checkLogin().then(() => {
-      const { db } = getDB();
-      const openid = app.globalData.openid;
-      if (openid === targetId) {
-        wx.showToast({ title: '不能关注自己', icon: 'none' });
-        return;
-      }
-
-      if (this.data.isFollowing) {
-        // 取消关注
-        db.collection("follows")
-          .where({
-            followerId: openid,
-            targetId: targetId
-          })
-          .remove()
-          .then(() => {
-            this.setData({ isFollowing: false });
-            wx.showToast({ title: '已取消关注', icon: 'none' });
-          });
-      } else {
-        // 关注
-        db.collection("follows").add({
-          data: {
-            followerId: openid,
-            targetId: targetId,
-            createTime: db.serverDate()
-          }
-        }).then(() => {
-          this.setData({ isFollowing: true });
-          wx.showToast({ title: '关注成功', icon: 'success' });
-        });
-      }
-    }).catch(() => {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-    });
-  },
-
-  // 初始化点赞状态
-  initLikeStatus: function (postId, openid) {
-    if (!openid) return;
-
-    const { db } = getDB();
-
-    db.collection("actions")
-      .where({
-        type: "like_post",
-        targetId: postId,
-        _openid: openid,
-      })
-      .get()
-      .then((likeRes) => {
-        this.setData({
-          post: {
-            ...this.data.post,
-            liked: likeRes.data.length > 0,
-          },
-        });
-      })
-      .catch(() => {});
-  },
-
-  // 加载评论列表
-  loadComments: function (postId) {
-    const { db } = getDB();
-    
-    db.collection("comments")
-      .where({ postId })
-      .orderBy("createTime", "desc")
-      .get()
-      .then(async (res) => {
-        const rawComments = res.data || [];
-        const openid = app.globalData.openid || wx.getStorageSync("openid");
-        
-        // 获取所有评论者的 openid
-        const userIds = [...new Set(rawComments.map(c => c._openid))];
-        
-        // 批量获取用户信息
-        const userInfoPromises = userIds.map(userId => {
-          return wx.cloud.callFunction({
-            name: 'getUserInfo',
-            data: { targetId: userId }
-          }).then(res => {
-            if (res.result && res.result.success) {
-              return {
-                _openid: userId,
-                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                userType: res.result.data.userType || 'normal' // ✅ 获取 userType
-              };
-            }
-            return {
-              _openid: userId,
-              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-              userType: 'normal'
-            };
-          }).catch(() => ({
-            _openid: userId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-            userType: 'normal'
-          }));
-        });
-        
-        const usersData = await Promise.all(userInfoPromises);
-        const userMap = {};
-        usersData.forEach(u => {
-          userMap[u._openid] = {
-            userInfo: u.userInfo,
-            userType: u.userType
-          };
-        });
-        
-        const commentMap = new Map();
-        const rootComments = [];
-
-        rawComments.forEach((comment) => {
-          const userData = userMap[comment._openid] || {
-            userInfo: { nickName: "匿名用户", avatarUrl: "/images/zhi.png" },
-            userType: 'normal'
-          };
-          
-          const mapped = {
-            ...comment,
-            userInfo: userData.userInfo,
-            userType: userData.userType, // ✅ 添加 userType
-            createTime: this.formatTime(comment.createTime),
-            likes: comment.likes || 0,
-            liked: false,
-            replies: [],
-            isOwner: openid ? comment._openid === openid : false,
-          };
-          commentMap.set(comment._id, mapped);
-        });
-
-        rawComments.forEach((comment) => {
-          const mapped = commentMap.get(comment._id);
-          if (comment.parentId) {
-            const parent = commentMap.get(comment.parentId);
-            if (parent) {
-              parent.replies.push(mapped);
-            } else {
-              rootComments.push(mapped);
-            }
-          } else {
-            rootComments.push(mapped);
-          }
-        });
-
-        this.setData({ comments: rootComments });
-        this.initCommentLikeStatus(rawComments.map((item) => item._id));
-      })
-      .catch((err) => {
-        console.error("加载评论失败:", err);
-        this.setData({ comments: [] });
-      });
-  },
-
-  initCommentLikeStatus: function (commentIds) {
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-    if (!openid || commentIds.length === 0) return;
-
-    const { db, _ } = getDB();
-
-    db.collection("actions")
-      .where(
-        _.or([
-          { type: "like_comment", targetId: _.in(commentIds), _openid: openid },
-          { type: "like_comment", postId: _.in(commentIds), _openid: openid },
-        ])
-      )
-      .get()
-      .then((res) => {
-        const likedIds = new Set(
-          res.data.map((item) => item.targetId || item.postId)
-        );
-
-        const comments = this.data.comments.map((comment) => {
-          const replies = comment.replies
-            ? comment.replies.map((reply) => ({
-                ...reply,
-                liked: likedIds.has(reply._id),
-              }))
-            : [];
-
-          return {
-            ...comment,
-            liked: likedIds.has(comment._id),
-            replies,
-          };
-        });
-
-        this.setData({ comments });
-      })
-      .catch(() => {});
-  },
-
-  // 点赞帖子
-  likePost: function () {
-    const post = this.data.post;
-    if (!post) return;
-
-    app
-      .checkLogin()
-      .catch(() => {
-        return new Promise((resolve, reject) => {
-          wx.showModal({
-            title: "提示",
-            content: "请先登录",
-            confirmText: "去登录",
-            cancelText: "取消",
-            success: (res) => {
-              if (res.confirm) {
-                app
-                  .login()
-                  .then(() => resolve())
-                  .catch((err) => reject(err));
-              } else {
-                reject(new Error("未登录"));
-              }
-            },
-          });
-        });
-      })
-      .then(() => {
-        const isLiked = !!post.liked;
-        const currentLike = post.stats?.like || 0;
-        const newLikeCount = isLiked
-          ? Math.max(0, currentLike - 1)
-          : currentLike + 1;
-
-        const updatedPost = {
-          ...post,
-          liked: !isLiked,
-          stats: {
-            ...post.stats,
-            like: newLikeCount,
-          },
-        };
-
-        this.setData({ post: updatedPost });
-
-        // 调用云函数执行原子操作
-        wx.cloud
-          .callFunction({
-            name: "toggleInteraction",
-            data: {
-              id: post._id,
-              collection: "posts",
-              type: "like",
-            },
-          })
-          .then((res) => {
-            if (res.result && res.result.success) {
-              const serverCount = res.result.count;
-              const nextPost = {
-                ...this.data.post,
-                liked: res.result.status,
-                stats: {
-                  ...this.data.post.stats,
-                  like:
-                    typeof serverCount === "number"
-                      ? serverCount
-                      : this.data.post.stats?.like || 0,
-                },
-              };
-              this.setData({ post: nextPost });
-              return;
-            }
-
-            throw new Error(res.result?.error || "操作失败");
-          })
-          .catch((err) => {
-            console.error("点赞失败:", err);
-            this.setData({ post });
-            wx.showToast({ title: "操作失败", icon: "none" });
-          });
-      })
-      .catch(() => {});
-  },
-
-  // 显示评论输入框
-  showCommentInput: function (e) {
-    const replyTo = e.currentTarget.dataset.replyto;
-    let placeholderText = "发表评论";
-    let replyTarget = null;
-
-    // 如果是回复评论，获取被回复用户的信息
-    if (replyTo) {
-      // 查找被回复的评论
-      const comments = this.data.comments;
-      let targetComment = null;
-
-      // 先在主评论中查找
-      targetComment = comments.find((c) => c._id === replyTo);
-
-      // 如果没找到，在回复中查找
-      if (!targetComment) {
-        for (const comment of comments) {
-          if (comment.replies) {
-            targetComment = comment.replies.find((r) => r._id === replyTo);
-            if (targetComment) break;
-          }
-        }
-      }
-
-      if (targetComment) {
-        placeholderText = `回复 @${targetComment.userInfo.nickName}`;
-        replyTarget = targetComment;
-      }
+  // 加载关联的设计方案和项目
+  loadLinkedContent() {
+    if (!this.data.post || this.data.post.type !== 'issue') {
+      return;
     }
 
-    this.setData({
-      showCommentInput: true,
-      replyTo: replyTo || null,
-      placeholderText: placeholderText,
-      replyTarget: replyTarget,
-      isInputFocus: true,
+    // 查询关联的设计方案数量
+    wx.cloud.callFunction({
+      name: 'getDesignProposals',
+      data: { issueId: this.data.postId }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        this.setData({
+          proposalCount: res.result.data.length,
+          showLinkedContent: res.result.data.length > 0
+        });
+      }
+    }).catch(err => {
+      console.log('查询设计方案失败:', err);
+    });
+
+    // 查询关联的项目
+    wx.cloud.callFunction({
+      name: 'getProjectByIssue',
+      data: { issueId: this.data.postId }
+    }).then(res => {
+      if (res.result && res.result.success && res.result.data) {
+        this.setData({
+          linkedProject: res.result.data,
+          showLinkedContent: true
+        });
+      }
+    }).catch(err => {
+      console.log('未找到关联的项目');
     });
   },
 
-  // 隐藏评论输入框
-  hideCommentInput: function () {
-    this.setData({
-      showCommentInput: false,
-      newComment: "",
-      replyTo: null,
-      placeholderText: "发表评论",
-      isInputFocus: false,
-      replyTarget: null,
+  // 查看设计方案列表
+  viewProposalList() {
+    wx.navigateTo({
+      url: `/pages/design/proposal-list/index?issueId=${this.data.postId}`
     });
   },
 
-  // 输入框失去焦点
-  onInputBlur: function () {
-    this.setData({ isInputFocus: false });
+  // 查看项目详情
+  viewProject() {
+    if (this.data.linkedProject) {
+      wx.navigateTo({
+        url: `/pages/project/detail/index?id=${this.data.linkedProject._id}`
+      });
+    }
   },
 
-  // 输入评论内容
-  onCommentInput: function (e) {
-    this.setData({
-      newComment: e.detail.value,
-    });
-  },
-
-  // 提交评论
-  submitComment: async function () {
-    const { newComment, replyTo, post } = this.data;
-
-    if (!newComment.trim()) {
+  // 设计师：添加设计方案
+  addDesignSolution() {
+    if (!this.data.isDesigner) {
       wx.showToast({
-        title: "请输入评论内容",
-        icon: "none",
+        title: '仅设计师可操作',
+        icon: 'none'
       });
       return;
     }
 
-    if (!post) return;
-
-    try {
-      // 1. 开始 Loading
-      wx.showLoading({ title: "正在审核...", mask: true });
-
-      // --- 第一关：安全检测 ---
-      const textCheckResult = await wx.cloud.callFunction({
-        name: "checkContent",
-        data: {
-          type: "text",
-          value: newComment,
-        },
-      });
-      if (textCheckResult.result.code !== 0) {
-        throw new Error(textCheckResult.result.msg || "评论包含敏感信息");
-      }
-
-      // --- 第二关：登录检查 ---
-      await app.checkLogin().catch(() => {
-        return new Promise((resolve, reject) => {
-          wx.showModal({
-            title: "提示",
-            content: "请先登录",
-            confirmText: "去登录",
-            cancelText: "取消",
-            success: (res) => {
-              if (res.confirm) {
-                app
-                  .login()
-                  .then(() => resolve())
-                  .catch((err) => reject(err));
-              } else {
-                reject(new Error("未登录"));
-              }
-            },
-          });
-        });
-      });
-
-      // --- 第三关：写入数据库 ---
-      const { db } = getDB();
-      const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
-      const commentData = {
-        postId: post._id,
-        parentId: replyTo || "",
-        content: newComment.trim(),
-        postTitle: post.content ? post.content.substring(0, 30) : "",
-        userInfo: userInfo || {
-          nickName: "匿名用户",
-            avatarUrl: "/images/zhi.png",
-        },
-        createTime: db.serverDate(),
-        likes: 0,
-      };
-
-      const addRes = await db.collection("comments").add({ data: commentData });
-      
-      // 只有主评论才增加评论数，回复不增加
-      if (!replyTo) {
-        await db
-          .collection("posts")
-          .doc(post._id)
-          .update({
-            data: {
-              "stats.comment": db.command.inc(1),
-            },
-          });
-      }
-
-      // ==========================================
-      // ✅ 只有到了这里，才是真正的成功！
-      // ==========================================
-
-      wx.hideLoading();
-      wx.showToast({
-        title: "评论成功",
-        icon: "success",
-      });
-
-      // 1. 创建评论对象
-      const createdComment = {
-        ...commentData,
-        _id: addRes._id,
-        createTime: this.formatTime(new Date()),
-        liked: false,
-        replies: [],
-      };
-
-      // 2. 更新评论列表 (UI 更新)
-      const comments = [...this.data.comments];
-      if (replyTo) {
-        const parentIndex = comments.findIndex((c) => c._id === replyTo);
-        if (parentIndex !== -1) {
-          const parent = comments[parentIndex];
-          const replies = parent.replies ? [...parent.replies] : [];
-          replies.unshift(createdComment);
-          comments[parentIndex] = {
-            ...parent,
-            replies,
-          };
-        } else {
-          comments.unshift(createdComment);
-        }
-      } else {
-        comments.unshift(createdComment);
-      }
-
-      // 3. 清空输入框并隐藏输入框 (UI 更新)
-      this.setData({
-        comments,
-        newComment: "",
-        showCommentInput: false,
-        replyTo: null,
-        post: {
-          ...post,
-          stats: {
-            ...post.stats,
-            // 只有主评论才增加评论数
-            comment: replyTo ? post.stats?.comment || 0 : (post.stats?.comment || 0) + 1,
-          },
-        },
-      });
-    } catch (err) {
-      // ❌ 失败处理
-      wx.hideLoading();
-      console.error("拦截成功或出错:", err);
-
-      // 弹出红色警告，且**不清空输入框**（方便用户修改）
-      wx.showModal({
-        title: "发布失败",
-        content: err.message || "内容包含敏感信息",
-        showCancel: false,
-        confirmText: "我知道了",
-      });
-    }
+    wx.navigateTo({
+      url: `/pages/design/solution/create?postId=${this.data.postId}`
+    });
   },
 
-  // 点赞评论
-  likeComment: function (e) {
-    const commentId = e.currentTarget.dataset.commentid;
-    const isReply = e.currentTarget.dataset.isreply;
-    const parentId = e.currentTarget.dataset.parentid;
+  // 施工方：创建项目
+  createProject() {
+    if (!this.data.isContractor) {
+      wx.showToast({
+        title: '仅施工方可操作',
+        icon: 'none'
+      });
+      return;
+    }
 
-    if (!commentId) return;
+    wx.navigateTo({
+      url: `/pages/project/create/index?postId=${this.data.postId}`
+    });
+  },
 
-    app
-      .checkLogin()
-      .catch(() => {
-        return new Promise((resolve, reject) => {
+  // 施工方：更新项目节点
+  updateProjectNode() {
+    if (!this.data.isContractor) {
+      wx.showToast({
+        title: '仅施工方可操作',
+        icon: 'none'
+      });
+      return;
+    }
+
+    if (!this.data.linkedProject) {
+      wx.showToast({
+        title: '请先创建项目',
+        icon: 'none'
+      });
+      return;
+    }
+
+    wx.navigateTo({
+      url: `/pages/project/detail/index?id=${this.data.linkedProject._id}`
+    });
+  },
+
+  // 施工方和社区工作者：查看联系方式
+  viewContactInfo() {
+    if (!this.data.isContractor && !this.data.isCommunityWorker) {
+      wx.showToast({
+        title: '仅施工方和社区工作者可操作',
+        icon: 'none'
+      });
+      return;
+    }
+
+    const post = this.data.post;
+    if (!post || !post._openid) {
+      wx.showToast({
+        title: '无法获取用户信息',
+        icon: 'none'
+      });
+      return;
+    }
+
+    // 调用云函数获取用户联系方式
+    wx.showLoading({ title: '加载中...' });
+    wx.cloud.callFunction({
+      name: 'getUserInfo',
+      data: { targetId: post._openid }
+    }).then(res => {
+      wx.hideLoading();
+      
+      if (res.result && res.result.success && res.result.data) {
+        const userData = res.result.data;
+        const phoneNumber = userData.phoneNumber || '';
+        const nickName = userData.userInfo?.nickName || '用户';
+        
+        if (!phoneNumber) {
           wx.showModal({
-            title: "提示",
-            content: "请先登录",
-            confirmText: "去登录",
-            cancelText: "取消",
-            success: (res) => {
-              if (res.confirm) {
-                app
-                  .login()
-                  .then(() => resolve())
-                  .catch((err) => reject(err));
-              } else {
-                reject(new Error("未登录"));
-              }
-            },
+            title: '联系方式',
+            content: '该用户未填写联系方式',
+            showCancel: false
           });
+          return;
+        }
+
+        wx.showModal({
+          title: `${nickName}的联系方式`,
+          content: `手机号：${phoneNumber}`,
+          confirmText: '拨打电话',
+          cancelText: '取消',
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              wx.makePhoneCall({
+                phoneNumber: phoneNumber,
+                fail: (err) => {
+                  console.error('拨打电话失败:', err);
+                  wx.showToast({
+                    title: '拨打失败',
+                    icon: 'none'
+                  });
+                }
+              });
+            }
+          }
+        });
+      } else {
+        wx.showToast({
+          title: '获取联系方式失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('获取联系方式失败:', err);
+      wx.showToast({
+        title: '获取失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  // 确认项目完成（发帖者或社区工作者）
+  confirmProjectCompletion() {
+    if (!this.data.isPostOwner && !this.data.isCommunityWorker) {
+      wx.showToast({
+        title: '无权限操作',
+        icon: 'none'
+      });
+      return;
+    }
+
+    if (!this.data.linkedProject) {
+      wx.showToast({
+        title: '该帖子没有关联项目',
+        icon: 'none'
+      });
+      return;
+    }
+
+    wx.showModal({
+      title: '确认完成',
+      content: '确认该项目已完成？完成后将移至案例板块。',
+      success: (res) => {
+        if (res.confirm) {
+          this.doConfirmCompletion();
+        }
+      }
+    });
+  },
+
+  // 执行确认完成
+  doConfirmCompletion() {
+    wx.showLoading({ title: '处理中...' });
+
+    wx.cloud.callFunction({
+      name: 'confirmProjectCompletion',
+      data: {
+        projectId: this.data.linkedProject._id,
+        postId: this.data.postId,
+        confirmedBy: this.data.isCommunityWorker ? 'communityWorker' : 'owner'
+      }
+    }).then(res => {
+      wx.hideLoading();
+
+      if (res.result && res.result.success) {
+        wx.showToast({
+          title: '确认成功',
+          icon: 'success'
+        });
+
+        // 刷新页面
+        setTimeout(() => {
+          this.loadPostDetail();
+        }, 1500);
+      } else {
+        throw new Error(res.result?.error || '确认失败');
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('确认失败:', err);
+      wx.showToast({
+        title: err.message || '确认失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  checkLikeStatus() {
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    const { db, _ } = getDB();
+    db.collection('actions').where({
+      _openid: openid,
+      type: _.in(['like_post', 'like']),
+      targetId: this.data.postId
+    }).count().then(res => {
+      this.setData({ isLiked: res.total > 0 });
+    }).catch(err => {
+      console.error('检查点赞状态失败:', err);
+    });
+  },
+
+  loadComments() {
+    const { db, _ } = getDB();
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    console.log('🔍 开始加载评论，postId:', this.data.postId);
+    
+    // 检查是否是管理员
+    const adminOpenids = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
+      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
+    ];
+    const isAdmin = adminOpenids.includes(openid);
+
+    db.collection('comments')
+      .where({ postId: this.data.postId })
+      .orderBy('createTime', 'desc')
+      .get()
+      .then(res => {
+        console.log('📊 查询到的评论总数:', res.data.length);
+        const allComments = res.data;
+        
+        if (allComments.length === 0) { 
+          this.setData({ comments: [] }); 
+        return;
+      }
+
+        const commentIds = allComments.map(c => c._id);
+        const authorIds = [...new Set(allComments.map(c => c._openid).filter(Boolean))];
+        
+        const likesPromise = openid ? 
+          db.collection('actions').where({ 
+        _openid: openid,
+            type: _.in(['like_comment', 'like']), 
+            targetId: _.in(commentIds) 
+          }).get() : 
+          Promise.resolve({ data: [] });
+
+        const usersPromise = Promise.all(
+          authorIds.map(authorId => 
+            wx.cloud.callFunction({
+            name: 'getUserInfo',
+              data: { targetId: authorId }
+          }).then(res => {
+            if (res.result && res.result.success) {
+              return {
+                  openid: authorId,
+                  userInfo: res.result.data.userInfo || { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
+                  userType: res.result.data.userType || 'CommunityWorker'
+              };
+            }
+            return {
+                openid: authorId,
+                userInfo: { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
+                userType: 'CommunityWorker'
+            };
+            }).catch(err => {
+              console.error('查询用户信息失败:', authorId, err);
+              return {
+                openid: authorId,
+                userInfo: { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
+                userType: 'CommunityWorker'
+              };
+            })
+          )
+        );
+
+        return Promise.all([likesPromise, usersPromise]).then(([likesRes, usersData]) => {
+          const likedMap = new Set();
+          likesRes.data.forEach(like => likedMap.add(like.targetId));
+          
+          const userMap = new Map();
+          usersData.forEach(user => {
+            userMap.set(user.openid, {
+              userInfo: user.userInfo,
+              userType: user.userType
+            });
+        });
+        
+          console.log('❤️ 已点赞的评论数:', likedMap.size);
+          console.log('👥 查询到的用户数:', userMap.size);
+
+          const mainComments = [];
+          const repliesMap = {};
+          
+          allComments.forEach(comment => {
+            comment.createTime = this.formatTime(comment.createTime);
+            comment.isOwner = comment._openid === openid;
+            comment.canDelete = comment.isOwner || isAdmin; // 作者或管理员可以删除
+            comment.likes = comment.likes || comment.likeCount || 0;
+            comment.liked = likedMap.has(comment._id);
+
+            const userData = userMap.get(comment._openid);
+            if (userData) {
+              comment.userInfo = userData.userInfo;
+              comment.userType = userData.userType;
+            } else {
+              if (!comment.userInfo) {
+                comment.userInfo = { 
+                  avatarUrl: '/images/default-avatar.png', 
+                  nickName: '微信用户' 
+                };
+              }
+              if (!comment.userType) {
+                comment.userType = 'CommunityWorker';
+              }
+            }
+
+            if (!comment.parentId) { 
+              comment.replies = []; 
+              mainComments.push(comment); 
+          } else {
+              if (!repliesMap[comment.parentId]) {
+                repliesMap[comment.parentId] = [];
+              }
+              repliesMap[comment.parentId].push(comment); 
+          }
+        });
+
+          mainComments.forEach(comment => { 
+            if (repliesMap[comment._id]) {
+              comment.replies = repliesMap[comment._id]; 
+            }
+          });
+          
+          console.log('✅ 主评论数量:', mainComments.length);
+          this.setData({ comments: mainComments });
         });
       })
-      .then(() => {
-        const comments = [...this.data.comments];
-        let comment = null;
+      .catch(err => {
+        console.error('❌ 加载评论失败:', err);
+      });
+  },
 
-        if (isReply && parentId) {
-          const parentComment = comments.find((c) => c._id === parentId);
-          if (parentComment && parentComment.replies) {
-            comment = parentComment.replies.find((r) => r._id === commentId);
+  checkFollowStatus() {
+    if (!this.data.post || this.data.post.isOwner) return;
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) return;
+    
+    followUtil.checkFollowStatus(this.data.post._openid)
+      .then(isFollowing => {
+        this.setData({ isFollowing });
+      })
+      .catch(err => {
+        console.error('检查关注状态失败:', err);
+      });
+  },
+
+  likePost() {
+    if (!this.data.post) return;
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    const newLikeStatus = !this.data.isLiked;
+    const newLikeCount = newLikeStatus ? this.data.likeCount + 1 : Math.max(0, this.data.likeCount - 1);
+    this.setData({
+      isLiked: newLikeStatus,
+      likeCount: newLikeCount
+    });
+
+    wx.cloud.callFunction({
+      name: 'toggleInteraction',
+      data: {
+        id: this.data.postId,
+        collection: 'posts',
+        type: 'like'
+      }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        this.setData({
+          isLiked: res.result.status,
+          likeCount: res.result.count || newLikeCount
+        });
+    const post = this.data.post;
+        post.stats.like = res.result.count || newLikeCount;
+        this.setData({ post });
+              } else {
+        this.setData({
+          isLiked: !newLikeStatus,
+          likeCount: this.data.likeCount
+        });
+        wx.showToast({ title: '操作失败', icon: 'none' });
+      }
+    }).catch(err => {
+      console.error('点赞失败:', err);
+      this.setData({
+        isLiked: !newLikeStatus,
+        likeCount: this.data.likeCount
+      });
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    });
+  },
+
+  toggleCollect() {
+    collectUtil.toggleCollect(this, 'collect_post', this.data.postId, this.data.post)
+      .then(() => {
+        wx.showToast({
+          title: this.data.isCollected ? '收藏成功' : '已取消收藏',
+          icon: 'success'
+        });
+          })
+      .catch(err => {
+        console.error('收藏操作失败:', err);
+        if (err.message !== '未登录') {
+          wx.showToast({ title: '操作失败', icon: 'none' });
+        }
+      });
+  },
+
+  toggleFollow() {
+    if (!this.data.post) return;
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    const targetId = this.data.post._openid;
+    const isFollowing = this.data.isFollowing;
+
+    wx.showLoading({ title: '处理中...' });
+
+    const promise = isFollowing 
+      ? followUtil.unfollowUser(targetId)
+      : followUtil.followUser(targetId);
+
+    promise
+      .then(() => {
+        wx.hideLoading();
+        this.setData({ isFollowing: !isFollowing });
+        wx.showToast({ 
+          title: isFollowing ? '已取消关注' : '关注成功', 
+          icon: 'success' 
+        });
+      })
+      .catch(err => {
+        wx.hideLoading();
+        console.error('操作失败:', err);
+        wx.showToast({ 
+          title: err.message || '操作失败', 
+          icon: 'none' 
+        });
+      });
+  },
+
+  showCommentInput(e) {
+    const replyToId = e.currentTarget.dataset.replyto || '';
+    const replyToName = e.currentTarget.dataset.replyname || '';
+    const placeholderText = replyToId ? `回复 ${replyToName}...` : '说点什么...';
+    this.setData({
+      replyToId,
+      replyToName,
+      placeholderText,
+      isInputFocus: true
+    });
+  },
+
+  onCommentInput(e) {
+    this.setData({ newComment: e.detail.value });
+  },
+
+  onInputBlur() {
+    setTimeout(() => {
+    this.setData({ isInputFocus: false });
+    }, 200);
+  },
+
+  submitComment() {
+    const content = this.data.newComment.trim();
+    if (!content) {
+      wx.showToast({ title: '请输入评论内容', icon: 'none' });
+      return;
+    }
+
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '发送中...' });
+      const { db } = getDB();
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+    const userType = app.globalData.userType || wx.getStorageSync('userType') || 'CommunityWorker';
+
+      const commentData = {
+      postId: this.data.postId,
+      content: content,
+      parentId: this.data.replyToId || null,
+      userInfo: {
+        nickName: userInfo.nickName || '微信用户',
+        avatarUrl: userInfo.avatarUrl || '/images/default-avatar.png'
+        },
+      userType: userType,
+        likes: 0,
+      likeCount: 0,
+      createTime: db.serverDate()
+    };
+
+    console.log('💬 提交评论数据:', commentData);
+
+    db.collection('comments')
+      .add({ data: commentData })
+      .then(() => {
+        wx.showToast({ title: '评论成功', icon: 'success' });
+        this.setData({
+          newComment: '',
+          replyToId: '',
+          replyToName: '',
+          placeholderText: '说点什么...',
+          isInputFocus: false
+        });
+        this.loadComments();
+        
+        if (this.data.post) {
+          const post = this.data.post;
+          post.stats.comment = (post.stats.comment || 0) + 1;
+          this.setData({ post });
+        }
+      })
+      .catch(err => {
+        console.error('评论失败:', err);
+        wx.showToast({ title: '评论失败', icon: 'none' });
+      })
+      .finally(() => {
+      wx.hideLoading();
+      });
+  },
+
+  likeComment(e) {
+    const { commentid } = e.currentTarget.dataset;
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    if (!openid) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    wx.cloud.callFunction({
+      name: 'toggleInteraction',
+      data: {
+        id: commentid,
+        collection: 'comments',
+        type: 'like'
+      }
+    }).then(res => {
+      if (res.result && res.result.success) {
+        this.loadComments();
+      }
+    }).catch(err => {
+      console.error('点赞评论失败:', err);
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    });
+  },
+
+  deleteComment(e) {
+    const { commentid } = e.currentTarget.dataset;
+          wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条评论吗？',
+            success: (res) => {
+              if (res.confirm) {
+          wx.showLoading({ title: '删除中...' });
+          wx.cloud.callFunction({
+            name: 'deleteComment',
+            data: {
+              commentId: commentid,
+              postId: this.data.postId
+            }
+          }).then(res => {
+            if (res.result && res.result.success) {
+              wx.showToast({ title: '删除成功', icon: 'success' });
+              this.loadComments();
+              
+              if (this.data.post) {
+                const post = this.data.post;
+                post.stats.comment = Math.max(0, (post.stats.comment || 0) - 1);
+                this.setData({ post });
           }
         } else {
-          comment = comments.find((c) => c._id === commentId);
+              throw new Error(res.result?.error || '删除失败');
+            }
+          }).catch(err => {
+            console.error('删除评论失败:', err);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          }).finally(() => {
+            wx.hideLoading();
+          });
         }
+      }
+    });
+  },
 
-        if (!comment) return;
-
-        const isLiked = !!comment.liked;
-        const currentLikes = comment.likes || 0;
-        const newLikes = isLiked
-          ? Math.max(0, currentLikes - 1)
-          : currentLikes + 1;
-
-        comment.likes = newLikes;
-        comment.liked = !isLiked;
-
-        this.setData({ comments });
-
-        wx.cloud
-          .callFunction({
-            name: "toggleInteraction",
-            data: {
-              id: commentId,
-              collection: "comments",
-              type: "like",
-            },
-          })
-          .then((res) => {
+  deletePost() {
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这篇帖子吗？删除后无法恢复。',
+      confirmText: '删除',
+      confirmColor: '#ff4d4f',
+      success: (res) => {
+        if (res.confirm) {
+          wx.showLoading({ title: '删除中...' });
+          wx.cloud.callFunction({
+            name: 'deletePost',
+            data: { postId: this.data.postId }
+          }).then(res => {
             if (res.result && res.result.success) {
-              const serverCount = res.result.count;
-              comment.likes =
-                typeof serverCount === "number" ? serverCount : comment.likes;
-              comment.liked = res.result.status;
-              this.setData({ comments });
-              return;
+              wx.showToast({ title: '删除成功', icon: 'success' });
+              setTimeout(() => wx.navigateBack(), 1500);
+            } else {
+              throw new Error(res.result?.error || '删除失败');
             }
-
-            throw new Error(res.result?.error || "操作失败");
-          })
-          .catch((err) => {
-            console.error("评论点赞失败:", err);
-            comment.likes = currentLikes;
-            comment.liked = isLiked;
-            this.setData({ comments });
-            wx.showToast({ title: "操作失败", icon: "none" });
-          });
-      })
-      .catch(() => {});
-  },
-
-  // 删除帖子
-  deletePost: function (e) {
-    const postId = e.currentTarget.dataset.postid;
-    if (!postId) return;
-
-    wx.showModal({
-      title: "确认删除",
-      content: "删除后评论和点赞会一并清理，是否继续？",
-      confirmText: "删除",
-      confirmColor: "#ff4d4f",
-      success: (res) => {
-        if (!res.confirm) return;
-
-        wx.showLoading({ title: "删除中...", mask: true });
-
-        wx.cloud
-          .callFunction({
-            name: "deletePost",
-            data: { postId },
-          })
-          .then((result) => {
-            const success = result && result.result && result.result.success;
-            if (!success) {
-              throw new Error(
-                (result && result.result && result.result.error) || "删除失败"
-              );
-            }
-
-            wx.showToast({ title: "已删除", icon: "success" });
-            wx.navigateBack();
-          })
-          .catch((err) => {
-            console.error("删除帖子失败:", err);
-            wx.showToast({ title: "删除失败", icon: "none" });
-          })
-          .finally(() => {
+          }).catch(err => {
+            console.error('删除帖子失败:', err);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          }).finally(() => {
             wx.hideLoading();
           });
-      },
+        }
+      }
     });
   },
 
-  // 删除评论/回复
-  deleteComment: function (e) {
-    const commentId = e.currentTarget.dataset.commentid;
-    const postId = this.data.post?._id;
-    if (!commentId || !postId) return;
-
-    wx.showModal({
-      title: "确认删除",
-      content: "删除后该评论及回复将被清理，是否继续？",
-      confirmText: "删除",
-      confirmColor: "#ff4d4f",
-      success: (res) => {
-        if (!res.confirm) return;
-
-        wx.showLoading({ title: "删除中...", mask: true });
-
-        wx.cloud
-          .callFunction({
-            name: "deleteComment",
-            data: { commentId, postId },
-          })
-          .then((result) => {
-            const success = result && result.result && result.result.success;
-            if (!success) {
-              throw new Error(
-                (result && result.result && result.result.error) || "删除失败"
-              );
-            }
-
-            const removedCount = result.result.removed || 1;
-
-            this.loadComments(postId);
-
-            this.setData({
-              post: {
-                ...this.data.post,
-                stats: {
-                  ...this.data.post.stats,
-                  comment: Math.max(
-                    0,
-                    (this.data.post.stats?.comment || 0) - removedCount
-                  ),
-                },
-              },
-            });
-
-            wx.showToast({ title: "已删除", icon: "success" });
-          })
-          .catch((err) => {
-            console.error("删除评论失败:", err);
-            wx.showToast({ title: "删除失败", icon: "none" });
-          })
-          .finally(() => {
-            wx.hideLoading();
-          });
-      },
+  previewImage(e) {
+    const { current, urls } = e.currentTarget.dataset;
+    wx.previewImage({
+      current: current,
+      urls: urls
     });
   },
 
-  // 分享帖子
-  sharePost: function () {
+  sharePost() {
     wx.showShareMenu({
       withShareTicket: true,
-    });
-
-    wx.showToast({
-      title: "分享功能已开启",
-      icon: "success",
+      menus: ['shareAppMessage', 'shareTimeline']
     });
   },
 
-  // 预览图片
-  previewImage: function (e) {
-    const current = e.currentTarget.dataset.current;
-    const urls = e.currentTarget.dataset.urls;
-
-    if (current && urls && urls.length > 0) {
-      wx.previewImage({
-        current: current,
-        urls: urls,
-      });
-    }
-  },
-
-  navigateToProfile: function (e) {
-    const id = e.currentTarget.dataset.id;
-    if (id) {
+  navigateToProfile(e) {
+    const openid = e.currentTarget.dataset.id;
+    if (openid) {
       wx.navigateTo({
-        url: `/pages/user-profile/index?id=${id}`
+        url: `/pages/user-profile/index?id=${openid}`
       });
     }
   },
 
-  // 跳转到评论用户的主页
-  navigateToUserProfile: function (e) {
+  navigateToUserProfile(e) {
     const openid = e.currentTarget.dataset.openid;
     if (openid) {
       wx.navigateTo({
@@ -954,123 +912,29 @@ Page({
     }
   },
 
-  formatTime: function (timestamp) {
-    if (!timestamp) return "";
-
-    const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return "";
-
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const day = date.getDate().toString().padStart(2, "0");
-    const hours = date.getHours().toString().padStart(2, "0");
-    const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
-  },
-
-  onShareAppMessage: function () {
-    const { post } = this.data;
-    return {
-      title: post ? post.content.substring(0, 20) + "..." : "无障碍社区分享",
-      path: "/pages/post-detail/index?postId=" + (post ? post._id : ""),
-    };
-  },
-
-  // 收藏/取消收藏帖子
-  toggleCollect: function () {
-    const postId = this.data.post?._id;
-    if (!postId) return;
-
-    const targetData = {
-      title: this.data.post.content?.substring(0, 30) || "未命名帖子",
-      image: this.data.post.images?.[0] || "",
-    };
-
-    collectUtil
-      .toggleCollect(this, "collect_post", postId, targetData)
-      .then(() => {
-        // 收藏操作成功，不需要额外提示
-      })
-      .catch((err) => {
-        console.error("收藏操作失败:", err);
-        wx.showToast({
-          title: "操作失败，请重试",
-          icon: "none",
-        });
-      });
-  },
-
-  // 页面卸载时，将最新的收藏状态更新回列表页
-  onUnload: function () {
-    const pages = getCurrentPages();
-    if (pages.length < 2) return;
-
-    const prevPage = pages[pages.length - 2];
-    const postId = this.data.post?._id;
-
-    if (!postId) return;
-
-    // 检查上一页是否是列表页，并调用更新方法
-    if (
-      prevPage.route === "pages/community/community" &&
-      prevPage.updatePostStatus
-    ) {
-      prevPage.updatePostStatus(postId, {
-        isCollected: this.data.isCollected,
-        collectCount: this.data.collectCount,
-      });
-    }
-  },
-
-  // ========================================
-  // 🆕 专业用户操作方法
-  // ========================================
-
-  /**
-   * 核实问题（设计者、施工方、政府）
-   */
-  verifyIssue: function () {
-    checkAndExecute('canVerifyIssue', () => {
-      const postId = this.data.post?._id;
-      if (!postId) return;
-
+  verifyIssue() {
+    checkAndExecute(['Designer', 'ConstructionTeam', 'Government'], () => {
       wx.showModal({
         title: '核实问题',
-        content: '确认该问题真实存在且描述准确？',
-        confirmText: '确认核实',
+        content: '确认该问题真实存在吗？',
         success: (res) => {
           if (res.confirm) {
-            wx.showLoading({ title: '核实中...', mask: true });
-            
+            wx.showLoading({ title: '核实中...' });
             wx.cloud.callFunction({
               name: 'verifyIssue',
-              data: { postId }
-            }).then(result => {
-              wx.hideLoading();
-              
-              if (result.result && result.result.success) {
-                // 更新帖子状态
-                this.setData({
-                  post: {
-                    ...this.data.post,
-                    verified: true
-                  }
-                });
-                
-                wx.showToast({
-                  title: '核实成功',
-                  icon: 'success'
-                });
+              data: { postId: this.data.postId }
+            }).then(res => {
+              if (res.result && res.result.success) {
+                wx.showToast({ title: '核实成功', icon: 'success' });
+                this.loadPostDetail();
               } else {
-                throw new Error(result.result?.error || '核实失败');
+                throw new Error(res.result?.error || '核实失败');
               }
             }).catch(err => {
+              console.error('核实失败:', err);
+              wx.showToast({ title: '核实失败', icon: 'none' });
+            }).finally(() => {
               wx.hideLoading();
-              console.error('核实问题失败:', err);
-              wx.showToast({
-                title: '核实失败',
-                icon: 'none'
-              });
             });
           }
         }
@@ -1078,98 +942,95 @@ Page({
     });
   },
 
-  /**
-   * 设计方案（设计者）
-   */
-  createDesignSolution: function () {
-    checkAndExecute('canDesignSolution', () => {
-      wx.showToast({
-        title: '设计方案功能开发中',
-        icon: 'none'
+  createDesignSolution() {
+    checkAndExecute(['Designer'], () => {
+      wx.navigateTo({
+        url: `/pages/design-solution/create?postId=${this.data.postId}`
       });
-      // TODO: 跳转到设计方案创建页面
-      // wx.navigateTo({
-      //   url: `/pages/design-solution/create?postId=${this.data.post._id}`
-      // });
     });
   },
 
-  /**
-   * 提交报价（施工方）
-   */
-  submitQuote: function () {
-    checkAndExecute('canUpdateProgress', () => {
-      wx.showToast({
-        title: '报价功能开发中',
-        icon: 'none'
+  submitQuote() {
+    checkAndExecute(['ConstructionTeam'], () => {
+      wx.navigateTo({
+        url: `/pages/quote/create?postId=${this.data.postId}`
       });
-      // TODO: 跳转到报价提交页面
-      // wx.navigateTo({
-      //   url: `/pages/quote/submit?postId=${this.data.post._id}`
-      // });
     });
   },
 
-  /**
-   * 创建项目（政府、施工方）
-   */
-  createProject: function () {
-    checkAndExecute('canCreateProject', () => {
-      wx.showToast({
-        title: '项目创建功能开发中',
-        icon: 'none'
-      });
-      // TODO: 跳转到项目创建页面
-      // wx.navigateTo({
-      //   url: `/pages/project/create?postId=${this.data.post._id}`
-      // });
-    });
-  },
-
-  /**
-   * 查看用户联系方式（政府）
-   */
-  viewUserContact: function () {
-    checkAndExecute('canViewUserContact', () => {
-      const postOwnerId = this.data.post?._openid;
-      if (!postOwnerId) return;
-
-      wx.showLoading({ title: '加载中...', mask: true });
-
+  viewUserContact() {
+    checkAndExecute(['Government'], () => {
+      wx.showLoading({ title: '加载中...' });
       wx.cloud.callFunction({
         name: 'getUserContact',
-        data: { targetId: postOwnerId }
-      }).then(result => {
-        wx.hideLoading();
-
-        if (result.result && result.result.success) {
-          const contact = result.result.data;
-          
+        data: { userId: this.data.post._openid }
+      }).then(res => {
+        if (res.result && res.result.success) {
+          const contact = res.result.data;
           wx.showModal({
             title: '用户联系方式',
-            content: `手机号：${contact.phoneNumber || '未填写'}\n微信号：${contact.wechat || '未填写'}\n邮箱：${contact.email || '未填写'}`,
-            showCancel: true,
-            confirmText: '拨打电话',
-            cancelText: '关闭',
-            success: (res) => {
-              if (res.confirm && contact.phoneNumber) {
-                wx.makePhoneCall({
-                  phoneNumber: contact.phoneNumber
-                });
-              }
-            }
+            content: `姓名：${contact.name || '未填写'}\n电话：${contact.phone || '未填写'}`,
+            showCancel: false
           });
         } else {
-          throw new Error(result.result?.error || '获取失败');
+          throw new Error(res.result?.error || '获取失败');
         }
       }).catch(err => {
-        wx.hideLoading();
         console.error('获取联系方式失败:', err);
-        wx.showToast({
-          title: '获取失败',
-          icon: 'none'
+        wx.showToast({ title: '获取失败', icon: 'none' });
+      }).finally(() => {
+        wx.hideLoading();
         });
       });
-    });
+  },
+
+  formatTime(date) {
+    if (!date) return '';
+    
+    let target;
+    if (date instanceof Date) {
+      target = date;
+    } else if (typeof date === 'number') {
+      target = new Date(date);
+    } else if (typeof date === 'string') {
+      target = new Date(date);
+    } else if (date.$date) {
+      target = new Date(date.$date);
+    } else {
+      return '';
+    }
+
+    const now = new Date();
+    const diff = now - target;
+
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`;
+
+    const year = target.getFullYear();
+    const month = String(target.getMonth() + 1).padStart(2, '0');
+    const day = String(target.getDate()).padStart(2, '0');
+    
+    if (year === now.getFullYear()) {
+      return `${month}-${day}`;
+    }
+    return `${year}-${month}-${day}`;
+  },
+
+  onShareAppMessage() {
+    return {
+      title: this.data.post?.content || '查看帖子详情',
+      path: `/pages/post-detail/index?id=${this.data.postId}`,
+      imageUrl: this.data.post?.images?.[0] || ''
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: this.data.post?.content || '查看帖子详情',
+      query: `id=${this.data.postId}`,
+      imageUrl: this.data.post?.images?.[0] || ''
+    };
   }
 });

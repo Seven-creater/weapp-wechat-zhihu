@@ -1,0 +1,80 @@
+<view class="container">
+  <!-- 头部 -->
+  <view class="header">
+    <text class="header-title">设计方案</text>
+    <text class="header-subtitle">共 {{proposals.length}} 个方案</text>
+  </view>
+
+  <!-- 方案列表 -->
+  <view class="proposals-list" wx:if="{{!loading && proposals.length > 0}}">
+    <view 
+      class="proposal-card" 
+      wx:for="{{proposals}}" 
+      wx:key="_id"
+      bindtap="viewProposal"
+      data-id="{{item._id}}"
+    >
+      <!-- 设计师信息 -->
+      <view class="designer-info">
+        <image 
+          class="designer-avatar" 
+          src="{{item.designerAvatar || '/images/default-avatar.png'}}" 
+          mode="aspectFill"
+          bindtap="navigateToDesigner"
+          data-id="{{item.designerId}}"
+          catchtap="navigateToDesigner"
+        ></image>
+        <view class="designer-details">
+          <text class="designer-name">{{item.designerName || '设计师'}}</text>
+          <text class="submit-time">提交于 {{item.createTime}}</text>
+        </view>
+        <view class="designer-badge">
+          <text class="badge-icon">📐</text>
+          <text class="badge-text">设计师</text>
+        </view>
+      </view>
+
+      <!-- 方案预览 -->
+      <view class="proposal-preview">
+        <text class="proposal-desc">{{item.description}}</text>
+      </view>
+
+      <!-- 方案图片 -->
+      <view class="proposal-images" wx:if="{{item.images && item.images.length > 0}}">
+        <image 
+          class="preview-image" 
+          wx:for="{{item.images}}" 
+          wx:key="index"
+          wx:for-item="img"
+          src="{{img}}" 
+          mode="aspectFill"
+        ></image>
+      </view>
+
+      <!-- 预算调整 -->
+      <view class="budget-info" wx:if="{{item.budgetAdjustment}}">
+        <text class="budget-label">预算调整：</text>
+        <text class="budget-value">¥{{item.budgetAdjustment}}</text>
+      </view>
+
+      <!-- 查看详情提示 -->
+      <view class="view-detail">
+        <text class="detail-text">查看详情</text>
+        <text class="detail-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && proposals.length === 0}}">
+    <image class="empty-icon" src="/images/empty.png" mode="aspectFit"></image>
+    <text class="empty-text">暂无设计方案</text>
+    <text class="empty-subtext">等待设计师提交方案</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>
+

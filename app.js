@@ -8,29 +8,28 @@ App({
   globalData: {
     userInfo: null,
     openid: null,
+    userType: null,
     hasLogin: false,
     systemInfo: null,
+    unreadCount: 0,  // 🆕 未读消息数量
   },
 
-  /**
-   * 小程序初始化
-   */
   onLaunch: function () {
     console.log('無界营造小程序启动');
     
-    // 初始化云开发（必须在最前面）
     this.initCloud();
-    
-    // 获取系统信息
     this.getSystemInfo();
-    
-    // 尝试自动登录
     this.autoLogin();
+    
+    // 🆕 启动未读消息轮询
+    this.startUnreadPolling();
   },
 
-  /**
-   * 初始化云开发环境
-   */
+  onShow: function () {
+    // 🆕 应用进入前台时刷新未读消息
+    this.updateUnreadCount();
+  },
+
   initCloud: function () {
     if (!wx.cloud) {
       console.error('请使用 2.2.3 或以上的基础库以使用云能力');
@@ -45,9 +44,6 @@ App({
     console.log('云开发环境初始化成功:', config.CLOUD_ENV);
   },
 
-  /**
-   * 获取系统信息
-   */
   getSystemInfo: function () {
     try {
       const systemInfo = wx.getSystemInfoSync();
@@ -59,31 +55,39 @@ App({
   },
 
   /**
-   * 自动登录（从本地存储恢复）
+   * ✅ 自动登录（从本地存储恢复）
    */
   autoLogin: function () {
     const userInfo = wx.getStorageSync('userInfo');
     const openid = wx.getStorageSync('openid');
+    const userType = wx.getStorageSync('userType');
     
-    if (userInfo && openid) {
-      // 🔧 确保头像URL有效
+    // ✅ 必须同时存在 openid 和 userInfo 才能自动登录
+    if (openid && userInfo) {
       if (!userInfo.avatarUrl || userInfo.avatarUrl.trim() === '') {
         userInfo.avatarUrl = '/images/zhi.png';
       }
       
       this.globalData.userInfo = userInfo;
       this.globalData.openid = openid;
+      this.globalData.userType = userType || 'CommunityWorker';
       this.globalData.hasLogin = true;
-      console.log('✅ 自动登录成功');
+      console.log('✅ 自动登录成功, openid:', openid, 'userType:', this.globalData.userType);
       
-      // 🆕 从数据库重新加载用户信息（异步，不阻塞启动）
       this.refreshUserInfo(openid);
+    } else {
+      // ✅ 如果缺少任何一个，清除所有登录数据
+      console.log('⚠️ 登录数据不完整（openid:', !!openid, 'userInfo:', !!userInfo, '），清除缓存');
+      wx.removeStorageSync('openid');
+      wx.removeStorageSync('userInfo');
+      wx.removeStorageSync('userType');
+      this.globalData.openid = null;
+      this.globalData.userInfo = null;
+      this.globalData.userType = null;
+      this.globalData.hasLogin = false;
     }
   },
 
-  /**
-   * 🆕 从数据库刷新用户信息
-   */
   refreshUserInfo: function (openid) {
     if (!openid) return;
     
@@ -97,7 +101,6 @@ App({
         const userData = res.result.data;
         const userInfo = userData.userInfo || {};
         
-        // 🔧 确保头像URL有效
         let avatarUrl = userInfo.avatarUrl;
         if (!avatarUrl || avatarUrl.trim() === '') {
           avatarUrl = '/images/zhi.png';
@@ -107,20 +110,19 @@ App({
         const fullUserInfo = {
           nickName: userInfo.nickName || '無界用户',
           avatarUrl: avatarUrl,
-          userType: userData.userType || 'normal',
-          badge: userData.badge || null,
-          profile: userData.profile || {}
         };
         
-        // 更新全局和本地缓存
-        this.globalData.userInfo = fullUserInfo;
-        wx.setStorageSync('userInfo', fullUserInfo);
+        const userType = userData.userType || 'CommunityWorker';
         
-        console.log('✅ 用户信息已从数据库刷新');
+        this.globalData.userInfo = fullUserInfo;
+        this.globalData.userType = userType;
+        wx.setStorageSync('userInfo', fullUserInfo);
+        wx.setStorageSync('userType', userType);
+        
+        console.log('✅ 用户信息已从数据库刷新, userType:', userType);
       }
     }).catch(err => {
       console.error('❌ 刷新用户信息失败:', err);
-      // 失败时确保使用默认头像
       const currentUserInfo = this.globalData.userInfo;
       if (currentUserInfo && (!currentUserInfo.avatarUrl || currentUserInfo.avatarUrl.trim() === '')) {
         currentUserInfo.avatarUrl = '/images/zhi.png';
@@ -130,10 +132,6 @@ App({
     });
   },
 
-  /**
-   * 用户登录
-   * @returns {Promise}
-   */
   login: function () {
     const { showLoading, hideLoading, showError } = require('./utils/common.js');
     
@@ -149,7 +147,6 @@ App({
           this.globalData.openid = res.result.openid;
           wx.setStorageSync('openid', res.result.openid);
           
-          // 获取用户信息
           return this.getUserProfile();
         } else {
           throw new Error('登录失败，未获取到 openid');
@@ -169,13 +166,8 @@ App({
     });
   },
 
-  /**
-   * 获取用户信息（微信官方推荐方式）
-   * @returns {Promise}
-   */
   getUserProfile: function () {
     return new Promise((resolve, reject) => {
-      // 先尝试从本地存储获取
       const savedUserInfo = wx.getStorageSync('userInfo');
       if (savedUserInfo) {
         this.globalData.userInfo = savedUserInfo;
@@ -183,16 +175,10 @@ App({
         return;
       }
       
-      // 如果没有，则需要用户手动授权
-      // 注意：这里不自动弹出授权，由页面调用
       reject(new Error('需要用户授权'));
     });
   },
 
-  /**
-   * 检查登录状态
-   * @returns {Promise}
-   */
   checkLogin: function () {
     return new Promise((resolve, reject) => {
       if (this.globalData.hasLogin && this.globalData.openid) {
@@ -203,25 +189,17 @@ App({
     });
   },
 
-  /**
-   * 退出登录
-   */
   logout: function () {
     this.globalData.userInfo = null;
     this.globalData.openid = null;
+    this.globalData.userType = null;
     this.globalData.hasLogin = false;
     
-    // 清除本地存储（但保留用户信息，以便下次登录恢复）
-    // wx.removeStorageSync('userInfo');
     wx.removeStorageSync('openid');
     
     console.log('退出登录成功');
   },
 
-  /**
-   * 更新用户信息
-   * @param {Object} userInfo - 用户信息
-   */
   updateUserInfo: function (userInfo) {
     if (!userInfo) return;
     
@@ -230,14 +208,17 @@ App({
     console.log('用户信息已更新');
   },
 
-  /**
-   * 确保有 openid
-   * @returns {Promise<string>}
-   */
   ensureOpenid: function () {
     return new Promise((resolve, reject) => {
       if (this.globalData.openid) {
         resolve(this.globalData.openid);
+        return;
+      }
+      
+      const openid = wx.getStorageSync('openid');
+      if (openid) {
+        this.globalData.openid = openid;
+        resolve(openid);
         return;
       }
       
@@ -247,84 +228,71 @@ App({
     });
   },
 
-  /**
-   * 应用用户状态（用于页面恢复）
-   * @param {Object} page - 页面实例
-   */
-  applyUserState: function (page) {
-    if (!page) return;
+  applyUserState: function (userInfo, openid) {
+    if (!userInfo) return null;
     
-    const userInfo = this.globalData.userInfo || wx.getStorageSync('userInfo');
-    if (userInfo && page.setData) {
-      page.setData({
-        userInfo: userInfo,
-        hasUserInfo: true,
-      });
+    if (!userInfo.avatarUrl || userInfo.avatarUrl.trim() === '') {
+      userInfo.avatarUrl = '/images/zhi.png';
     }
+    
+    this.globalData.userInfo = userInfo;
+    this.globalData.openid = openid;
+    
+    wx.setStorageSync('userInfo', userInfo);
+    wx.setStorageSync('openid', openid);
+    
+    return userInfo;
   },
 
-  /**
-   * 上传文件到云存储
-   * @param {string} filePath - 本地文件路径
-   * @param {string} cloudPath - 云存储路径
-   * @returns {Promise<string>} - 返回文件 ID
-   */
-  uploadFile: function (filePath, cloudPath) {
-    const { showLoading, hideLoading, showError } = require('./utils/common.js');
+  uploadFile: function (options) {
+    const { filePath, dir = 'uploads' } = options;
     
     return new Promise((resolve, reject) => {
-      showLoading('上传中...');
+      if (!filePath) {
+        reject(new Error('文件路径不能为空'));
+        return;
+      }
+      
+      const ext = filePath.split('.').pop();
+      const cloudPath = `${dir}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       
       wx.cloud.uploadFile({
         cloudPath: cloudPath,
         filePath: filePath,
       })
       .then(res => {
-        hideLoading();
+        console.log('文件上传成功:', res.fileID);
         resolve(res.fileID);
       })
       .catch(err => {
-        hideLoading();
         console.error('上传文件失败:', err);
-        showError('上传失败');
         reject(err);
       });
     });
   },
 
-  /**
-   * 批量上传文件
-   * @param {Array<string>} filePaths - 本地文件路径数组
-   * @param {string} prefix - 云存储路径前缀
-   * @returns {Promise<Array<string>>} - 返回文件 ID 数组
-   */
   uploadFiles: function (filePaths, prefix = 'uploads') {
-    const uploads = filePaths.map((filePath, index) => {
-      const ext = filePath.split('.').pop();
-      const cloudPath = `${prefix}/${Date.now()}-${index}.${ext}`;
-      return this.uploadFile(filePath, cloudPath);
+    const uploads = filePaths.map((filePath) => {
+      return this.uploadFile({ filePath, dir: prefix });
     });
     
     return Promise.all(uploads);
   },
 
-  /**
-   * 更新用户资料到数据库
-   * @param {Object} userInfo - 用户信息
-   * @returns {Promise}
-   */
-  upsertUserProfile: function (userInfo) {
-    if (!userInfo || !this.globalData.openid) {
+  upsertUserProfile: function (openid, userInfo) {
+    if (!userInfo || !openid) {
       return Promise.reject(new Error('缺少必要参数'));
     }
     
+    console.log('📝 更新用户资料:', { openid, userInfo });
+    
     const db = wx.cloud.database();
     return db.collection('users')
-      .where({ _openid: this.globalData.openid })
+      .where({ _openid: openid })
       .get()
       .then(res => {
         if (res.data && res.data.length > 0) {
-          // 更新
+          console.log('✅ 更新现有用户资料，保留 userType:', res.data[0].userType);
           return db.collection('users')
             .doc(res.data[0]._id)
             .update({
@@ -334,24 +302,26 @@ App({
               }
             });
         } else {
-          // 新增
+          console.log('✅ 创建新用户，默认 userType: CommunityWorker');
           return db.collection('users').add({
             data: {
               userInfo: userInfo,
+              userType: 'CommunityWorker',
               createTime: db.serverDate(),
               updateTime: db.serverDate(),
             }
           });
         }
+      })
+      .then(() => {
+        console.log('✅ 用户资料更新成功');
+      })
+      .catch(err => {
+        console.error('❌ 更新用户资料失败:', err);
+        throw err;
       });
   },
 
-  /**
-   * 调用云函数
-   * @param {string} name - 云函数名称
-   * @param {Object} data - 参数
-   * @returns {Promise}
-   */
   callFunction: function (name, data = {}) {
     return new Promise((resolve, reject) => {
       wx.cloud.callFunction({
@@ -372,12 +342,6 @@ App({
     });
   },
 
-  /**
-   * 内容安全检测
-   * @param {string} type - 类型（text/image）
-   * @param {string} value - 内容
-   * @returns {Promise<boolean>}
-   */
   checkContentSafe: function (type, value) {
     return this.callFunction('checkContent', { type, value })
       .then(res => {
@@ -389,10 +353,6 @@ App({
       });
   },
 
-  /**
-   * 获取位置信息
-   * @returns {Promise<Object>}
-   */
   getLocation: function () {
     return new Promise((resolve, reject) => {
       wx.getLocation({
@@ -403,10 +363,6 @@ App({
     });
   },
 
-  /**
-   * 选择位置
-   * @returns {Promise<Object>}
-   */
   chooseLocation: function () {
     return new Promise((resolve, reject) => {
       wx.chooseLocation({
@@ -414,5 +370,124 @@ App({
         fail: reject,
       });
     });
+  },
+
+  getOpenid: function () {
+    return this.globalData.openid || wx.getStorageSync('openid') || null;
+  },
+
+  getCurrentUserInfo: function () {
+    const userInfo = this.globalData.userInfo || wx.getStorageSync('userInfo');
+    
+    if (userInfo && (!userInfo.avatarUrl || userInfo.avatarUrl.trim() === '')) {
+      userInfo.avatarUrl = '/images/zhi.png';
+    }
+    
+    return userInfo;
+  },
+
+  getUserType: function () {
+    return this.globalData.userType || wx.getStorageSync('userType') || 'CommunityWorker';
+  },
+
+  isCurrentUser: function (targetOpenid) {
+    const currentOpenid = this.getOpenid();
+    return currentOpenid && currentOpenid === targetOpenid;
+  },
+
+  /**
+   * 🆕 启动未读消息轮询
+   */
+  startUnreadPolling: function () {
+    // 立即执行一次
+    this.updateUnreadCount();
+    
+    // 每30秒轮询一次
+    this.unreadPollingTimer = setInterval(() => {
+      this.updateUnreadCount();
+    }, 30000);
+  },
+
+  /**
+   * 🆕 更新未读消息数量
+   */
+  updateUnreadCount: function () {
+    const openid = this.getOpenid();
+    if (!openid) {
+      return;
+    }
+
+    wx.cloud.database().collection('conversations')
+      .where({
+        ownerId: openid
+      })
+      .field({
+        unreadCount: true
+      })
+      .get()
+      .then(res => {
+        const conversations = res.data || [];
+        const totalUnread = conversations.reduce((sum, conv) => {
+          return sum + (conv.unreadCount || 0);
+        }, 0);
+        
+        console.log('📊 全局未读消息统计:', totalUnread, '条');
+        
+        // 更新全局数据
+        this.globalData.unreadCount = totalUnread;
+        
+        // 更新 TabBar 角标
+        this.updateTabBarBadge(totalUnread);
+        
+        // 通知所有页面更新
+        this.notifyUnreadCountChange(totalUnread);
+      })
+      .catch(err => {
+        console.error('更新未读消息数量失败:', err);
+      });
+  },
+
+  /**
+   * 🆕 更新 TabBar 角标
+   */
+  updateTabBarBadge: function (count) {
+    if (count > 0) {
+      wx.setTabBarBadge({
+        index: 3,  // 消息是第4个tab（索引为3）
+        text: count > 99 ? '99+' : String(count)
+      });
+    } else {
+      wx.removeTabBarBadge({
+        index: 3
+      });
+    }
+  },
+
+  /**
+   * 🆕 通知所有页面未读消息数量变化
+   */
+  notifyUnreadCountChange: function (count) {
+    const pages = getCurrentPages();
+    pages.forEach(page => {
+      // 更新自定义 TabBar
+      if (typeof page.getTabBar === 'function') {
+        const tabBar = page.getTabBar();
+        if (tabBar && typeof tabBar.updateUnreadCount === 'function') {
+          tabBar.updateUnreadCount(count);
+        }
+      }
+      
+      // 如果是消息页面，触发刷新
+      if (page.route === 'pages/notify/notify' && typeof page.updateUnreadBadge === 'function') {
+        page.updateUnreadBadge();
+      }
+    });
+  },
+
+  /**
+   * 🆕 获取未读消息数量
+   */
+  getUnreadCount: function () {
+    return this.globalData.unreadCount || 0;
   },
 });

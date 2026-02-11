@@ -3,10 +3,16 @@ Page({
   data: {
     applications: [],
     currentFilter: 'pending', // pending, approved, rejected
+    currentRoleFilter: 'all', // all, designer, contractor, communityWorker
     stats: {
       pending: 0,
       approved: 0,
-      rejected: 0
+      rejected: 0,
+      byRole: {
+        designer: 0,
+        contractor: 0,
+        communityWorker: 0
+      }
     },
     hasMore: false,
     page: 1,
@@ -17,7 +23,15 @@ Page({
     rejectReason: '',
     currentRejectId: null,
     
-    filterText: '认证申请'
+    filterText: '认证申请',
+    
+    // 角色筛选选项
+    roleFilters: [
+      { id: 'all', label: '全部角色' },
+      { id: 'designer', label: '设计者', icon: '🟢' },
+      { id: 'contractor', label: '施工方', icon: '🔵' },
+      { id: 'communityWorker', label: '社区工作者', icon: '🔴' }
+    ]
   },
 
   onLoad() {
@@ -33,9 +47,6 @@ Page({
    * 检查管理员权限
    */
   checkAdminPermission() {
-    // TODO: 实现管理员权限检查
-    // 可以通过云函数检查当前用户是否是管理员
-    // 或者在数据库中设置管理员列表
     const userInfo = wx.getStorageSync('userInfo');
     if (!userInfo) {
       wx.showModal({
@@ -49,8 +60,6 @@ Page({
       return;
     }
     
-    // 简单示例：检查是否是特定用户
-    // 实际应用中应该在云端验证
     console.log('管理员权限检查通过');
   },
 
@@ -59,7 +68,7 @@ Page({
    */
   loadStats() {
     wx.cloud.callFunction({
-      name: 'getCommunityWorkerCertStats',
+      name: 'getCertificationStats',
       data: {}
     }).then(res => {
       if (res.result && res.result.success) {
@@ -78,12 +87,15 @@ Page({
   loadApplications() {
     wx.showLoading({ title: '加载中...' });
     
+    const { currentFilter, currentRoleFilter, page, pageSize } = this.data;
+    
     wx.cloud.callFunction({
-      name: 'getCommunityWorkerCertApplications',
+      name: 'getCertificationApplications',
       data: {
-        status: this.data.currentFilter,
-        page: this.data.page,
-        pageSize: this.data.pageSize
+        status: currentFilter,
+        userType: currentRoleFilter === 'all' ? undefined : currentRoleFilter,
+        page: page,
+        pageSize: pageSize
       }
     }).then(res => {
       wx.hideLoading();
@@ -111,7 +123,7 @@ Page({
   },
 
   /**
-   * 切换筛选
+   * 切换状态筛选
    */
   switchFilter(e) {
     const filter = e.currentTarget.dataset.filter;
@@ -132,14 +144,30 @@ Page({
   },
 
   /**
+   * 🆕 切换角色筛选
+   */
+  switchRoleFilter(e) {
+    const roleFilter = e.currentTarget.dataset.role;
+    
+    this.setData({
+      currentRoleFilter: roleFilter,
+      page: 1,
+      applications: []
+    }, () => {
+      this.loadApplications();
+    });
+  },
+
+  /**
    * 通过申请
    */
   handleApprove(e) {
     const id = e.currentTarget.dataset.id;
+    const userTypeLabel = e.currentTarget.dataset.label;
     
     wx.showModal({
       title: '确认通过',
-      content: '确认通过该用户的社区工作者认证申请？',
+      content: `确认通过该用户的${userTypeLabel}认证申请？`,
       success: (res) => {
         if (res.confirm) {
           this.reviewApplication(id, 'approved', '');
@@ -197,66 +225,6 @@ Page({
   },
 
   /**
-   * 🆕 移除社区工作者身份
-   */
-  handleRemove(e) {
-    const openid = e.currentTarget.dataset.openid;
-    const name = e.currentTarget.dataset.name;
-    
-    wx.showModal({
-      title: '确认移除',
-      content: `确认移除 ${name} 的社区工作者身份？移除后该用户将变为普通用户。`,
-      confirmText: '确认移除',
-      confirmColor: '#ef4444',
-      success: (res) => {
-        if (res.confirm) {
-          this.removeCommunityWorkerIdentity(openid);
-        }
-      }
-    });
-  },
-
-  /**
-   * 🆕 执行移除社区工作者身份
-   */
-  removeCommunityWorkerIdentity(userOpenid) {
-    wx.showLoading({ title: '处理中...' });
-    
-    wx.cloud.callFunction({
-      name: 'removeCommunityWorkerCertification',
-      data: {
-        userOpenid: userOpenid
-      }
-    }).then(res => {
-      wx.hideLoading();
-      
-      if (res.result && res.result.success) {
-        wx.showToast({
-          title: '已移除社区工作者身份',
-          icon: 'success'
-        });
-        
-        // 刷新列表和统计
-        this.setData({ page: 1, applications: [] });
-        this.loadStats();
-        this.loadApplications();
-      } else {
-        wx.showToast({
-          title: res.result?.error || '操作失败',
-          icon: 'none'
-        });
-      }
-    }).catch(err => {
-      wx.hideLoading();
-      console.error('移除失败:', err);
-      wx.showToast({
-        title: '操作失败',
-        icon: 'none'
-      });
-    });
-  },
-
-  /**
    * 阻止冒泡
    */
   stopPropagation() {},
@@ -268,7 +236,7 @@ Page({
     wx.showLoading({ title: '处理中...' });
     
     wx.cloud.callFunction({
-      name: 'reviewCommunityWorkerCertification',
+      name: 'reviewCertification',
       data: {
         applicationId: id,
         status: status,
@@ -304,6 +272,67 @@ Page({
   },
 
   /**
+   * 🆕 移除用户的认证身份
+   */
+  handleRemove(e) {
+    const openid = e.currentTarget.dataset.openid;
+    const name = e.currentTarget.dataset.name;
+    const label = e.currentTarget.dataset.label || '认证';
+    
+    wx.showModal({
+      title: '确认移除',
+      content: `确认移除 ${name} 的${label}身份？移除后该用户将恢复为普通用户。`,
+      confirmText: '确认移除',
+      confirmColor: '#ff4444',
+      success: (res) => {
+        if (res.confirm) {
+          this.removeUserCertification(openid);
+        }
+      }
+    });
+  },
+
+  /**
+   * 🆕 执行移除认证
+   */
+  removeUserCertification(openid) {
+    wx.showLoading({ title: '处理中...' });
+    
+    wx.cloud.callFunction({
+      name: 'removeCertification',
+      data: {
+        targetOpenid: openid
+      }
+    }).then(res => {
+      wx.hideLoading();
+      
+      if (res.result && res.result.success) {
+        wx.showToast({
+          title: '已移除认证',
+          icon: 'success'
+        });
+        
+        // 刷新列表和统计
+        this.setData({ page: 1, applications: [] });
+        this.loadStats();
+        this.loadApplications();
+      } else {
+        wx.showToast({
+          title: res.result?.error || '移除失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('移除失败:', err);
+      wx.showToast({
+        title: '操作失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  /**
    * 加载更多
    */
   loadMore() {
@@ -330,4 +359,3 @@ Page({
     return `${year}-${month}-${day} ${hour}:${minute}`;
   }
 });
-

@@ -1,4 +1,5 @@
 const app = getApp();
+const followUtil = require('../../utils/follow.js');
 
 // 延迟初始化数据库
 let db = null;
@@ -83,6 +84,9 @@ Page({
           avatarUrl: '/images/zhi.png'
         };
         
+        // ✅ 添加 phoneNumber 到 userInfo
+        userInfo.phoneNumber = userData.phoneNumber || '';
+        
         // 🔥 只设置用户信息，不设置 stats（stats 由 loadStats 实时计算）
         this.setData({ 
           userInfo: userInfo,
@@ -120,27 +124,29 @@ Page({
     const openid = app.globalData.openid || wx.getStorageSync('openid');
     if (!openid) return;
 
-    const db = getDB();
-    if (!db) return;
-
-    db.collection('follows').where({
-      followerId: openid,
-      targetId: targetId
-    }).get().then(res => {
-      const isFollowing = res.data.length > 0;
-      const isMutual = res.data[0]?.isMutual || false;
-      
-      this.setData({ 
-        isFollowing: isFollowing,
-        isMutual: isMutual
+    followUtil.checkFollowStatus(targetId)
+      .then(isFollowing => {
+        this.setData({ isFollowing });
+      })
+      .catch(err => {
+        console.error('检查关注状态失败:', err);
       });
-    }).catch(err => {
-      console.error('检查关注状态失败:', err);
-    });
   },
 
   loadStats: function (targetId) {
-    // 🔥 直接使用实时计算，确保数据准确
+    // 使用关注工具类加载统计数据
+    followUtil.getFollowStats(targetId)
+      .then(stats => {
+        this.setData({ 
+          'stats.following': stats.following,
+          'stats.followers': stats.followers
+        });
+      })
+      .catch(err => {
+        console.error('加载统计失败:', err);
+      });
+
+    // 加载获赞数
     this.loadStatsFromCollections(targetId);
   },
 
@@ -149,26 +155,6 @@ Page({
     const db = getDB();
     if (!db) return;
 
-    // Load following count
-    db.collection('follows').where({
-      followerId: targetId
-    }).count().then(res => {
-      console.log('关注数:', res.total);
-      this.setData({ 'stats.following': res.total });
-    }).catch(err => {
-      console.error('加载关注数失败:', err);
-    });
-
-    // Load followers count
-    db.collection('follows').where({
-      targetId: targetId
-    }).count().then(res => {
-      console.log('粉丝数:', res.total);
-      this.setData({ 'stats.followers': res.total });
-    }).catch(err => {
-      console.error('加载粉丝数失败:', err);
-    });
-
     // 🔥 加载获赞数（该用户的帖子被点赞的总数）
     db.collection("posts")
       .where({ _openid: targetId })
@@ -176,16 +162,11 @@ Page({
       .get()
       .then((res) => {
         const posts = res.data || [];
-        console.log('用户帖子数量:', posts.length);
-        console.log('帖子详情:', posts);
-        
         const totalLikes = posts.reduce((sum, post) => {
           const likes = (post.stats && post.stats.like) || 0;
-          console.log(`帖子 ${post._id} 的点赞数:`, likes);
           return sum + likes;
         }, 0);
         
-        console.log('总获赞数:', totalLikes);
         this.setData({ "stats.likes": totalLikes });
       })
       .catch((err) => {
@@ -212,6 +193,7 @@ Page({
             id: item._id,
             title: item.content || item.title || '无标题',
             image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
+            hasImage: item.images && item.images.length > 0,  // ✅ 判断是否有图片
             likes: item.stats ? item.stats.like : 0,
             route: '/pages/post-detail/index'
           }));
@@ -282,6 +264,7 @@ Page({
             id: item._id,
             title: item.content || item.title || '无标题',
             image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
+            hasImage: item.images && item.images.length > 0,  // ✅ 判断是否有图片
             likes: item.stats ? item.stats.like : 0,
             route: '/pages/post-detail/index'
           }));
@@ -341,6 +324,7 @@ Page({
             id: item._id,
             title: item.content || item.title || '无标题',
             image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
+            hasImage: item.images && item.images.length > 0,  // ✅ 判断是否有图片
             likes: item.stats ? item.stats.like : 0,
             route: '/pages/post-detail/index'
           }));
@@ -424,79 +408,34 @@ Page({
       return;
     }
 
-    const db = getDB();
-    if (!db) {
-      wx.showToast({ title: '操作失败', icon: 'none' });
-      return;
-    }
+    const isFollowing = this.data.isFollowing;
+    
+    wx.showLoading({ title: '处理中...' });
+    
+    const promise = isFollowing 
+      ? followUtil.unfollowUser(targetId)
+      : followUtil.followUser(targetId);
 
-    if (this.data.isFollowing) {
-      // Unfollow
-      db.collection('follows').where({
-        followerId: openid,
-        targetId: targetId
-      }).remove().then(() => {
-        this.setData({ 
-          isFollowing: false,
-          isMutual: false
+    promise
+      .then(() => {
+        wx.hideLoading();
+        this.setData({ isFollowing: !isFollowing });
+        wx.showToast({ 
+          title: isFollowing ? '已取消关注' : '关注成功', 
+          icon: 'success' 
         });
-        wx.showToast({ title: '已取消关注', icon: 'success' });
         
-        // 🔥 调用云函数更新统计
-        wx.cloud.callFunction({
-          name: 'updateUserStats',
-          data: {
-            action: 'unfollow',
-            followerId: openid,
-            targetId: targetId
-          }
-        }).then(() => {
-          // 🔥 立即刷新统计数据
-          this.loadStats(targetId);
-        }).catch(err => {
-          console.error('更新统计失败:', err);
-          // 即使云函数失败，也刷新统计
-          this.loadStats(targetId);
+        // 刷新统计数据
+        this.loadStats(targetId);
+      })
+      .catch(err => {
+        wx.hideLoading();
+        console.error('操作失败:', err);
+        wx.showToast({ 
+          title: err.message || '操作失败', 
+          icon: 'none' 
         });
-      }).catch(err => {
-        console.error('取消关注失败:', err);
-        wx.showToast({ title: '操作失败', icon: 'none' });
       });
-    } else {
-      // Follow
-      db.collection('follows').add({
-        data: {
-          followerId: openid,
-          targetId: targetId,
-          isMutual: false,
-          createTime: db.serverDate()
-        }
-      }).then(() => {
-        wx.showToast({ title: '关注成功', icon: 'success' });
-        
-        // 🔥 调用云函数更新统计和检查互关
-        wx.cloud.callFunction({
-          name: 'updateUserStats',
-          data: {
-            action: 'follow',
-            followerId: openid,
-            targetId: targetId
-          }
-        }).then(() => {
-          // 🔥 立即刷新关注状态和统计数据
-          this.checkFollowStatus(targetId);
-          this.loadStats(targetId);
-        }).catch(err => {
-          console.error('更新统计失败:', err);
-          // 即使云函数失败，也刷新数据
-          this.checkFollowStatus(targetId);
-          this.loadStats(targetId);
-        });
-      }).catch(err => {
-        console.error('关注失败:', err);
-        wx.showToast({ title: '操作失败', icon: 'none' });
-      });
-    }
   },
 
   navigateToChat: function () {
@@ -535,5 +474,33 @@ Page({
     
     const url = route.indexOf('?') > -1 ? `${route}&id=${id}` : `${route}?id=${id}`;
     wx.navigateTo({ url });
+  },
+
+  /**
+   * 🆕 拨打电话
+   */
+  makePhoneCall: function (e) {
+    const phone = e.currentTarget.dataset.phone;
+    if (!phone) {
+      wx.showToast({
+        title: '电话号码为空',
+        icon: 'none'
+      });
+      return;
+    }
+
+    wx.makePhoneCall({
+      phoneNumber: phone,
+      success: () => {
+        console.log('拨号成功:', phone);
+      },
+      fail: (err) => {
+        console.error('拨号失败:', err);
+        wx.showToast({
+          title: '拨号失败',
+          icon: 'none'
+        });
+      }
+    });
   }
 });

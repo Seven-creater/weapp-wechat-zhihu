@@ -1,0 +1,145 @@
+<!--pages/route/plan/index.wxml-->
+<view class="container">
+  <!-- 地图 -->
+  <map
+    id="routeMap"
+    class="map-view"
+    longitude="{{longitude}}"
+    latitude="{{latitude}}"
+    scale="{{scale}}"
+    markers="{{markers}}"
+    polyline="{{polyline}}"
+    show-location
+  >
+    <!-- 顶部控制栏 -->
+    <cover-view class="top-controls">
+      <cover-view class="location-inputs">
+        <!-- 起点 -->
+        <cover-view class="input-row" bindtap="chooseStartLocation">
+          <cover-view class="input-icon start-icon">🟢</cover-view>
+          <cover-view class="input-text">{{startAddress}}</cover-view>
+        </cover-view>
+        
+        <!-- 交换按钮 -->
+        <cover-view class="swap-btn" bindtap="swapLocations">
+          <cover-view class="swap-icon">⇅</cover-view>
+        </cover-view>
+        
+        <!-- 终点 -->
+        <cover-view class="input-row" bindtap="chooseEndLocation">
+          <cover-view class="input-icon end-icon">🔴</cover-view>
+          <cover-view class="input-text">{{endAddress || '选择目的地'}}</cover-view>
+        </cover-view>
+      </cover-view>
+      
+      <!-- 规划按钮 -->
+      <cover-view class="plan-btn" bindtap="planRoute">
+        <cover-view class="plan-text">{{planning ? '规划中...' : '开始规划'}}</cover-view>
+      </cover-view>
+    </cover-view>
+  </map>
+
+  <!-- 底部路线方案 -->
+  <view class="bottom-panel" wx:if="{{routes.length > 0}}">
+    <!-- 路线选项卡 -->
+    <scroll-view scroll-x class="route-tabs" enable-flex>
+      <view
+        wx:for="{{routes}}"
+        wx:key="index"
+        class="route-tab {{selectedRouteIndex === index ? 'active' : ''}}"
+        bindtap="selectRoute"
+        data-index="{{index}}"
+      >
+        <view class="tab-name">{{item.name}}</view>
+        <view class="tab-info">
+          <text class="tab-distance">{{formatDistance(item.distance)}}</text>
+          <text class="tab-duration">{{formatDuration(item.duration)}}</text>
+        </view>
+        <view class="tab-score" style="color: {{getScoreColor(item.score)}}">
+          评分: {{item.score}}
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 路线详情 -->
+    <view class="route-detail" wx:if="{{routes[selectedRouteIndex]}}">
+      <view class="detail-header">
+        <view class="header-left">
+          <text class="route-name">{{routes[selectedRouteIndex].name}}</text>
+          <text class="route-type">{{routes[selectedRouteIndex].type === 'recommended' ? '推荐' : routes[selectedRouteIndex].type === 'shortest' ? '最短' : '无障碍'}}</text>
+        </view>
+        <view class="header-right">
+          <text class="route-distance">{{formatDistance(routes[selectedRouteIndex].distance)}}</text>
+          <text class="route-duration">约{{formatDuration(routes[selectedRouteIndex].duration)}}</text>
+        </view>
+      </view>
+
+      <!-- 警告信息 -->
+      <view wx:if="{{routes[selectedRouteIndex].warnings.length > 0}}" class="warnings-section">
+        <view wx:for="{{routes[selectedRouteIndex].warnings}}" wx:key="index" class="warning-item">
+          <text class="warning-icon">⚠️</text>
+          <text class="warning-text">{{item.message}}</text>
+        </view>
+      </view>
+
+      <!-- 途经设施 -->
+      <view wx:if="{{routes[selectedRouteIndex].facilities.length > 0}}" class="facilities-section">
+        <view class="section-title">途经设施 ({{routes[selectedRouteIndex].facilities.length}})</view>
+        <scroll-view scroll-x class="facilities-scroll" enable-flex>
+          <view
+            wx:for="{{routes[selectedRouteIndex].facilities}}"
+            wx:key="id"
+            class="facility-chip {{item.status}}"
+          >
+            <text class="chip-icon">
+              {{item.status === 'accessible' ? '✅' : item.status === 'blocked' ? '🚫' : item.status === 'maintenance' ? '🔧' : '⚠️'}}
+            </text>
+            <text class="chip-name">{{item.name}}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="action-buttons">
+        <button class="action-btn secondary" bindtap="useWechatMap">
+          <text class="btn-icon">🗺️</text>
+          <text>微信地图</text>
+        </button>
+        <button class="action-btn primary" bindtap="startNavigation">
+          <text class="btn-icon">🧭</text>
+          <text>开始导航</text>
+        </button>
+      </view>
+    </view>
+
+    <!-- 设施分析 -->
+    <view wx:if="{{facilityAnalysis}}" class="analysis-section">
+      <view class="analysis-title">路线分析</view>
+      <view class="analysis-stats">
+        <view class="stat-item">
+          <text class="stat-value">{{facilityAnalysis.total}}</text>
+          <text class="stat-label">总设施</text>
+        </view>
+        <view class="stat-item green">
+          <text class="stat-value">{{facilityAnalysis.accessible}}</text>
+          <text class="stat-label">可通行</text>
+        </view>
+        <view class="stat-item red">
+          <text class="stat-value">{{facilityAnalysis.blocked}}</text>
+          <text class="stat-label">障碍点</text>
+        </view>
+        <view class="stat-item yellow">
+          <text class="stat-value">{{facilityAnalysis.maintenance}}</text>
+          <text class="stat-label">维修中</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{routes.length === 0 && !planning}}">
+    <image class="empty-icon" src="/images/icon_route.png" mode="aspectFit" />
+    <text class="empty-text">选择起点和终点，开始规划无障碍路线</text>
+  </view>
+</view>
+

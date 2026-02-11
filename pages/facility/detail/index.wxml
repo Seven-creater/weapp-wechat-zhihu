@@ -1,0 +1,197 @@
+<!--pages/facility/detail/index.wxml-->
+<view class="container">
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 设施详情 -->
+  <view wx:else class="detail-content">
+    <!-- 头部信息 -->
+    <view class="header-section">
+      <view class="status-badge" style="background-color: {{getStatusInfo(facility.status).color}}">
+        <text class="status-icon">{{getStatusInfo(facility.status).icon}}</text>
+        <text class="status-label">{{getStatusInfo(facility.status).label}}</text>
+      </view>
+      
+      <view class="facility-name">{{facility.name}}</view>
+      <view class="facility-address">{{facility.formattedAddress || facility.address}}</view>
+    </view>
+
+    <!-- 照片展示 -->
+    <view wx:if="{{facility.images && facility.images.length > 0}}" class="images-section">
+      <view class="section-title">现场照片</view>
+      <view class="images-grid">
+        <image 
+          wx:for="{{facility.images}}" 
+          wx:key="index"
+          class="facility-image"
+          src="{{item}}" 
+          mode="aspectFill"
+          bindtap="previewImage"
+          data-src="{{item}}"
+        />
+      </view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="info-section">
+      <view class="section-title">基本信息</view>
+      
+      <view class="info-item">
+        <text class="info-label">设施类型</text>
+        <text class="info-value">{{facility.type}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="info-label">当前状态</text>
+        <text class="info-value" style="color: {{getStatusInfo(facility.status).color}}">
+          {{getStatusInfo(facility.status).label}}
+        </text>
+      </view>
+      
+      <view wx:if="{{facility.description}}" class="info-item">
+        <text class="info-label">详细描述</text>
+        <text class="info-value description">{{facility.description}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="info-label">创建时间</text>
+        <text class="info-value">{{facility.createTime}}</text>
+      </view>
+      
+      <view class="info-item">
+        <text class="info-label">最后更新</text>
+        <text class="info-value">{{facility.updateTime}}</text>
+      </view>
+    </view>
+
+    <!-- 状态历史 -->
+    <view wx:if="{{facility.statusHistory && facility.statusHistory.length > 0}}" class="history-section">
+      <view class="section-title">状态历史</view>
+      
+      <view class="history-timeline">
+        <view wx:for="{{facility.statusHistory}}" wx:key="index" class="history-item">
+          <view class="history-dot" style="background-color: {{getStatusInfo(item.status).color}}"></view>
+          <view class="history-line" wx:if="{{index < facility.statusHistory.length - 1}}"></view>
+          
+          <view class="history-content">
+            <view class="history-header">
+              <text class="history-status" style="color: {{getStatusInfo(item.status).color}}">
+                {{getStatusInfo(item.status).icon}} {{getStatusInfo(item.status).label}}
+              </text>
+              <text class="history-time">{{item.updateTime}}</text>
+            </view>
+            
+            <view wx:if="{{item.notes}}" class="history-notes">{{item.notes}}</view>
+            
+            <view wx:if="{{item.images && item.images.length > 0}}" class="history-images">
+              <image 
+                wx:for="{{item.images}}" 
+                wx:for-item="img"
+                wx:key="index"
+                class="history-image"
+                src="{{img}}" 
+                mode="aspectFill"
+                bindtap="previewHistoryImage"
+                data-src="{{img}}"
+                data-images="{{item.images}}"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="actions-section">
+      <button class="action-btn primary" bindtap="navigateToFacility">
+        <text class="btn-icon">📍</text>
+        <text>导航到此</text>
+      </button>
+      
+      <button wx:if="{{canUpdate}}" class="action-btn secondary" bindtap="showUpdateStatusPanel">
+        <text class="btn-icon">🔄</text>
+        <text>更新状态</text>
+      </button>
+      
+      <button class="action-btn danger" bindtap="reportFacility">
+        <text class="btn-icon">⚠️</text>
+        <text>举报</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 更新状态面板 -->
+  <view wx:if="{{showUpdatePanel}}" class="update-panel">
+    <view class="panel-mask" bindtap="closeUpdatePanel"></view>
+    
+    <view class="panel-content">
+      <view class="panel-header">
+        <text class="panel-title">更新设施状态</text>
+        <text class="panel-close" bindtap="closeUpdatePanel">✕</text>
+      </view>
+
+      <view class="panel-body">
+        <!-- 状态选择 -->
+        <view class="form-group">
+          <text class="form-label">选择新状态</text>
+          <view class="status-options">
+            <view 
+              wx:for="{{statusOptions}}" 
+              wx:key="value"
+              class="status-option {{selectedNewStatus === item.value ? 'active' : ''}}"
+              style="border-color: {{item.color}}"
+              bindtap="onNewStatusTap"
+              data-status="{{item.value}}"
+            >
+              <text class="option-icon">{{item.icon}}</text>
+              <text class="option-label">{{item.label}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 备注 -->
+        <view class="form-group">
+          <text class="form-label">备注说明（可选）</text>
+          <textarea 
+            class="form-textarea"
+            placeholder="请描述当前状态的详细情况..."
+            value="{{updateNotes}}"
+            bindinput="onUpdateNotesInput"
+            maxlength="200"
+          />
+        </view>
+
+        <!-- 照片上传 -->
+        <view class="form-group">
+          <text class="form-label">上传照片（可选）</text>
+          <view class="update-images-grid">
+            <view wx:for="{{updateImages}}" wx:key="index" class="update-image-item">
+              <image class="update-image" src="{{item}}" mode="aspectFill" />
+              <view class="remove-image" bindtap="removeUpdateImage" data-index="{{index}}">✕</view>
+            </view>
+            
+            <view wx:if="{{updateImages.length < 9}}" class="add-image-btn" bindtap="chooseUpdateImage">
+              <text class="add-icon">+</text>
+              <text class="add-text">添加照片</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="panel-footer">
+        <button class="cancel-btn" bindtap="closeUpdatePanel">取消</button>
+        <button 
+          class="submit-btn" 
+          bindtap="submitStatusUpdate"
+          disabled="{{updating}}"
+        >
+          {{updating ? '提交中...' : '提交更新'}}
+        </button>
+      </view>
+    </view>
+  </view>
+</view>
+

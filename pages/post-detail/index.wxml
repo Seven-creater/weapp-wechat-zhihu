@@ -3,7 +3,7 @@
   <view class="post-content-section" wx:if="{{post}}">
     <!-- 帖子头部 -->
     <view class="user-info-card">
-      <image class="avatar" src="{{post.userInfo.avatarUrl}}" mode="aspectFill" aria-hidden="true" bindtap="navigateToProfile" data-id="{{post._openid}}"></image>
+      <image class="avatar" src="{{post.userInfo.avatarUrl || '/images/zhi.png'}}" mode="aspectFill" aria-hidden="true" bindtap="navigateToProfile" data-id="{{post._openid}}"></image>
       
       <view class="info-right">
         <!-- 第一行：名字 + 标签 -->
@@ -20,11 +20,11 @@
           </view>
           <view class="tag-badge" wx:if="{{post.type === 'issue'}}">
             <text class="tag-icon">🚧</text>
-            <text>{{post.category || '随手拍'}}</text>
+            <text>{{post.categoryName || '随手拍'}}</text>
           </view>
           <view class="tag-badge" wx:elif="{{post.type === 'case'}}">
             <text class="tag-icon">🏗️</text>
-            <text>{{post.category || '案例'}}</text>
+            <text>{{post.categoryName || '案例'}}</text>
           </view>
           <view class="tag-badge tag-share" wx:elif="{{post.type === 'community'}}">
             <text class="tag-icon">💬</text>
@@ -44,11 +44,11 @@
         <view class="time-row">
           <text class="time">{{post.createTime}}</text>
           
-          <!-- 删除按钮：红色圆角样式 -->
+          <!-- 删除按钮：红色圆角样式（作者或管理员可见） -->
           <view 
             class="delete-btn" 
             bindtap="deletePost" 
-            wx:if="{{post.isOwner}}"
+            wx:if="{{post.canDelete}}"
             data-postid="{{post._id}}"
             aria-role="button"
             aria-label="删除帖子"
@@ -88,11 +88,14 @@
       </view>
 
     <!-- 定位信息 -->
-    <view class="location-card" wx:if="{{post.address}}">
-      <image class="location-icon" src="/images/location.png" aria-hidden="true"></image>
+    <view class="location-card" wx:if="{{post.address || post.formattedAddress}}">
+      <image class="location-icon" src="/images/flag.png" aria-hidden="true"></image>
       <view class="location-info">
-        <text class="location-label">问题位置</text>
-        <text class="location-text">{{post.address}}</text>
+        <view class="location-header">
+          <image class="location-pin-icon" src="/images/flag.png" aria-hidden="true"></image>
+          <text class="location-label">位置</text>
+        </view>
+        <text class="location-text">{{post.formattedAddress || post.address}}</text>
         <text class="detail-address-text" wx:if="{{post.detailAddress}}">{{post.detailAddress}}</text>
       </view>
     </view>
@@ -118,13 +121,13 @@
     <!-- 底部操作栏 -->
     <view class="post-actions">
       <view 
-        class="action-btn like-btn {{post.liked ? 'liked' : ''}}" 
+        class="action-btn like-btn {{isLiked ? 'liked' : ''}}" 
         bindtap="likePost"
         aria-role="button"
-        aria-label="{{post.liked ? '取消点赞' : '点赞'}}，当前{{post.stats.like}}个赞"
+        aria-label="{{isLiked ? '取消点赞' : '点赞'}}，当前{{likeCount}}个赞"
       >
-        <text class="action-icon heart-icon">{{post.liked ? '❤️' : '🤍'}}</text>
-        <text class="action-text {{post.liked ? 'liked-text' : ''}}">{{post.stats.like}}</text>
+        <text class="action-icon heart-icon">{{isLiked ? '❤️' : '🤍'}}</text>
+        <text class="action-text {{isLiked ? 'liked-text' : ''}}">{{likeCount}}</text>
       </view>
 
       <view 
@@ -146,80 +149,137 @@
         <text class="action-icon star-icon">{{isCollected ? '⭐' : '☆'}}</text>
         <text class="action-text">{{collectCount}}</text>
       </view>
-
-      <view 
-        class="action-btn share-btn" 
-        bindtap="sharePost"
-        aria-role="button"
-        aria-label="分享帖子"
-      >
-        <image class="action-icon" src="/images/share.png" aria-hidden="true"></image>
-        <text class="action-text">分享</text>
-      </view>
     </view>
 
-    <!-- 🆕 专业用户操作区 -->
+    <!-- 🆕 专业用户操作区（仅问题帖显示） -->
     <view class="professional-actions" wx:if="{{showProfessionalActions}}">
       <view class="section-divider"></view>
       <view class="professional-title">
         <text class="title-icon">🔧</text>
         <text class="title-text">专业操作</text>
+        <text class="status-badge status-{{post.status}}">
+          {{post.status === 'pending' ? '待处理' : post.status === 'processing' ? '处理中' : '已完成'}}
+        </text>
       </view>
       
+      <!-- 关联内容展示（所有角色都能看到） -->
+      <view class="linked-content">
+        <!-- 设计方案 -->
+        <view class="linked-item" wx:if="{{proposalCount > 0}}" bindtap="viewProposalList">
+          <text class="linked-icon">📐</text>
+          <view class="linked-info">
+            <text class="linked-title">设计方案</text>
+            <text class="linked-desc">已有 {{proposalCount}} 个设计方案</text>
+          </view>
+          <text class="linked-arrow">›</text>
+        </view>
+        
+        <!-- 施工项目（显示施工节点进度） -->
+        <view class="linked-item" wx:if="{{linkedProject}}" bindtap="viewProject">
+          <text class="linked-icon">🏗️</text>
+          <view class="linked-info">
+            <text class="linked-title">施工项目</text>
+            <text class="linked-desc">{{linkedProject.contractorName || '施工方'}} · {{linkedProject.currentStage || '准备阶段'}}</text>
+          </view>
+          <text class="linked-arrow">›</text>
+        </view>
+        
+        <!-- 暂无关联内容提示 -->
+        <view class="no-linked-content" wx:if="{{proposalCount === 0 && !linkedProject}}">
+          <text class="no-content-icon">📋</text>
+          <text class="no-content-text">暂无关联的设计方案或施工项目</text>
+        </view>
+      </view>
+      
+      <!-- 操作按钮区（根据角色显示） -->
       <view class="professional-buttons">
-        <!-- 核实问题按钮（设计者、施工方、政府） -->
-        <view 
-          class="pro-btn verify-btn" 
-          bindtap="verifyIssue"
-          wx:if="{{canVerifyIssue && !post.verified}}"
-        >
-          <text class="pro-icon">✅</text>
-          <text class="pro-text">核实问题</text>
-        </view>
+        <!-- 设计师功能 -->
+        <block wx:if="{{isDesigner}}">
+          <!-- 添加设计方案按钮 -->
+          <view 
+            class="pro-btn design-btn" 
+            bindtap="addDesignSolution"
+            wx:if="{{proposalCount === 0}}"
+          >
+            <text class="pro-icon">📐</text>
+            <text class="pro-text">添加设计方案</text>
+          </view>
+        </block>
         
-        <view class="pro-btn verified-badge" wx:if="{{post.verified}}">
-          <text class="pro-icon">✅</text>
-          <text class="pro-text">已核实</text>
-        </view>
+        <!-- 施工方功能 -->
+        <block wx:if="{{isContractor}}">
+          <!-- 创建项目按钮 -->
+          <view 
+            class="pro-btn project-btn" 
+            bindtap="createProject"
+            wx:if="{{!linkedProject}}"
+          >
+            <text class="pro-icon">🏗️</text>
+            <text class="pro-text">创建项目</text>
+          </view>
+          
+          <!-- 更新施工节点按钮 -->
+          <view 
+            class="pro-btn update-btn" 
+            bindtap="updateProjectNode"
+            wx:if="{{linkedProject && post.status === 'processing'}}"
+          >
+            <text class="pro-icon">📸</text>
+            <text class="pro-text">更新施工节点</text>
+          </view>
+        </block>
         
-        <!-- 设计方案按钮（设计者） -->
-        <view 
-          class="pro-btn design-btn" 
-          bindtap="createDesignSolution"
-          wx:if="{{canDesignSolution}}"
-        >
-          <text class="pro-icon">📐</text>
-          <text class="pro-text">设计方案</text>
-        </view>
+        <!-- 施工方功能 -->
+        <block wx:if="{{isContractor}}">
+          <!-- 查看联系方式按钮 -->
+          <view 
+            class="pro-btn contact-btn" 
+            bindtap="viewContactInfo"
+          >
+            <text class="pro-icon">📞</text>
+            <text class="pro-text">查看联系方式</text>
+          </view>
+        </block>
         
-        <!-- 提交报价按钮（施工方） -->
-        <view 
-          class="pro-btn quote-btn" 
-          bindtap="submitQuote"
-          wx:if="{{canUpdateProgress}}"
-        >
-          <text class="pro-icon">💰</text>
-          <text class="pro-text">提交报价</text>
-        </view>
+        <!-- 社区工作者功能 -->
+        <block wx:if="{{isCommunityWorker}}">
+          <!-- 查看联系方式按钮 -->
+          <view 
+            class="pro-btn contact-btn" 
+            bindtap="viewContactInfo"
+          >
+            <text class="pro-icon">📞</text>
+            <text class="pro-text">查看联系方式</text>
+          </view>
+          
+          <!-- 确认完成按钮 -->
+          <view 
+            class="pro-btn complete-btn" 
+            bindtap="confirmProjectCompletion"
+            wx:if="{{linkedProject && post.status === 'processing'}}"
+          >
+            <text class="pro-icon">✅</text>
+            <text class="pro-text">确认项目完成</text>
+          </view>
+        </block>
         
-        <!-- 创建项目按钮（政府、施工方） -->
-        <view 
-          class="pro-btn project-btn" 
-          bindtap="createProject"
-          wx:if="{{canCreateProject}}"
-        >
-          <text class="pro-icon">🏗️</text>
-          <text class="pro-text">创建项目</text>
-        </view>
+        <!-- 发帖者功能 -->
+        <block wx:if="{{isPostOwner && !isCommunityWorker}}">
+          <!-- 确认完成按钮 -->
+          <view 
+            class="pro-btn complete-btn" 
+            bindtap="confirmProjectCompletion"
+            wx:if="{{linkedProject && post.status === 'processing'}}"
+          >
+            <text class="pro-icon">✅</text>
+            <text class="pro-text">确认项目完成</text>
+          </view>
+        </block>
         
-        <!-- 查看联系方式按钮（政府） -->
-        <view 
-          class="pro-btn contact-btn" 
-          bindtap="viewUserContact"
-          wx:if="{{canViewUserContact}}"
-        >
-          <text class="pro-icon">📞</text>
-          <text class="pro-text">联系用户</text>
+        <!-- 已完成标识（所有角色都能看到） -->
+        <view class="pro-btn completed-badge" wx:if="{{post.status === 'completed'}}">
+          <text class="pro-icon">🎉</text>
+          <text class="pro-text">项目已完成</text>
         </view>
       </view>
     </view>
@@ -237,7 +297,7 @@
       <view class="comment-item" wx:for="{{comments}}" wx:key="_id">
         <!-- 主评论 -->
         <view class="main-comment">
-          <image class="comment-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
+          <image class="comment-avatar" src="{{item.userInfo.avatarUrl || '/images/zhi.png'}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
           <view class="comment-content">
             <view class="comment-header">
               <view class="comment-author-wrapper">
@@ -266,6 +326,7 @@
                 class="comment-action reply-action"
                 bindtap="showCommentInput"
                 data-replyto="{{item._id}}"
+                data-replyname="{{item.userInfo.nickName}}"
                 aria-role="button"
                 aria-label="回复{{item.userInfo.nickName}}的评论"
               >
@@ -273,7 +334,7 @@
               </view>
               <view
                 class="comment-action delete-action"
-                wx:if="{{item.isOwner}}"
+                wx:if="{{item.canDelete}}"
                 bindtap="deleteComment"
                 data-commentid="{{item._id}}"
                 aria-role="button"
@@ -287,50 +348,51 @@
 
         <!-- 回复列表 -->
         <view class="replies-list" wx:if="{{item.replies && item.replies.length > 0}}">
-          <view class="reply-item" wx:for="{{item.replies}}" wx:key="_id">
-            <image class="reply-avatar" src="{{item.userInfo.avatarUrl}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{item._openid}}"></image>
+          <view class="reply-item" wx:for="{{item.replies}}" wx:key="_id" wx:for-item="reply">
+            <image class="reply-avatar" src="{{reply.userInfo.avatarUrl || '/images/zhi.png'}}" aria-hidden="true" bindtap="navigateToUserProfile" data-openid="{{reply._openid}}"></image>
             <view class="reply-content">
               <view class="reply-header">
                 <view class="reply-author-wrapper">
                   <user-name 
-                    nickName="{{item.userInfo.nickName}}" 
-                    userType="{{item.userType}}"
+                    nickName="{{reply.userInfo.nickName}}" 
+                    userType="{{reply.userType}}"
                     inline="{{true}}"
                     vertical="{{true}}"
                   />
                 </view>
-                <text class="reply-time">{{item.createTime}}</text>
+                <text class="reply-time">{{reply.createTime}}</text>
               </view>
-              <text class="reply-text" user-select="true">{{item.content}}</text>
+              <text class="reply-text" user-select="true">{{reply.content}}</text>
               <view class="reply-actions">
                 <view 
-                  class="reply-action like-action {{item.liked ? 'liked' : ''}}" 
+                  class="reply-action like-action {{reply.liked ? 'liked' : ''}}" 
                   bindtap="likeComment" 
-                  data-commentid="{{item._id}}" 
+                  data-commentid="{{reply._id}}" 
                   data-isreply="true" 
-                  data-parentid="{{item.parentId}}"
+                  data-parentid="{{reply.parentId}}"
                   aria-role="button"
-                  aria-label="{{item.liked ? '取消点赞' : '点赞'}}回复，当前{{item.likes}}个赞"
+                  aria-label="{{reply.liked ? '取消点赞' : '点赞'}}回复，当前{{reply.likes}}个赞"
                 >
-                  <text class="action-icon heart-icon">{{item.liked ? '❤️' : '🤍'}}</text>
-                  <text class="action-text">{{item.likes}}</text>
+                  <text class="action-icon heart-icon">{{reply.liked ? '❤️' : '🤍'}}</text>
+                  <text class="action-text">{{reply.likes}}</text>
                 </view>
                 <view
                   class="reply-action reply-action"
                   bindtap="showCommentInput"
-                  data-replyto="{{item._id}}"
+                  data-replyto="{{reply._id}}"
+                  data-replyname="{{reply.userInfo.nickName}}"
                   aria-role="button"
-                  aria-label="回复{{item.userInfo.nickName}}的评论"
+                  aria-label="回复{{reply.userInfo.nickName}}的评论"
                 >
                   <text class="action-text">回复</text>
                 </view>
                 <view
                   class="reply-action delete-action"
-                  wx:if="{{item.isOwner}}"
+                  wx:if="{{reply.canDelete}}"
                   bindtap="deleteComment"
-                  data-commentid="{{item._id}}"
+                  data-commentid="{{reply._id}}"
                   data-isreply="true"
-                  data-parentid="{{item.parentId}}"
+                  data-parentid="{{reply.parentId}}"
                   aria-role="button"
                   aria-label="删除回复"
                 >
@@ -354,7 +416,6 @@
   <!-- 底部评论输入栏 -->
   <view class="footer-input-bar">
     <view class="input-wrapper">
-      <!-- 这里的 placeholder 就是你要的这四个字 -->
       <input 
         id="comment-input"
         class="input-field" 
@@ -365,6 +426,7 @@
         bindblur="onInputBlur"
         value="{{newComment}}"
         confirm-type="send"
+        bindconfirm="submitComment"
         aria-label="评论输入框"
       />
     </view>

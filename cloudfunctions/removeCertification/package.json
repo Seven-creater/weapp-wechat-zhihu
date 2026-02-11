@@ -1,0 +1,10 @@
+{
+  "name": "removeCertification",
+  "version": "1.0.0",
+  "description": "移除用户的认证身份",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

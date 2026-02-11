@@ -1,0 +1,12 @@
+{
+  "name": "getCertificationApplications",
+  "version": "1.0.0",
+  "description": "获取所有角色的认证申请列表",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+
+
+

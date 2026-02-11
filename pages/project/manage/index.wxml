@@ -1,0 +1,82 @@
+<!--pages/project/manage/index.wxml-->
+<view class="container">
+  <!-- 标签切换 -->
+  <view class="tabs">
+    <view 
+      class="tab-item {{activeTab === 'active' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="active"
+    >
+      <text class="tab-text">进行中</text>
+    </view>
+    <view 
+      class="tab-item {{activeTab === 'completed' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="completed"
+    >
+      <text class="tab-text">已完成</text>
+    </view>
+  </view>
+
+  <!-- 项目列表 -->
+  <view class="projects-list">
+    <view 
+      wx:for="{{projects}}" 
+      wx:key="_id"
+      class="project-card"
+      bindtap="viewProject"
+      data-id="{{item._id}}"
+    >
+      <view class="project-header">
+        <text class="project-title">{{item.title}}</text>
+        <view class="category-badge">{{item.category}}</view>
+      </view>
+      
+      <view class="project-info">
+        <text class="info-item">📍 {{item.address}}</text>
+        <text class="info-item">💰 实际消耗: ¥{{item.actualCost || 0}}</text>
+      </view>
+
+      <view class="project-progress">
+        <view class="progress-header">
+          <text class="progress-label">当前进度</text>
+          <text class="progress-percent">{{getProgress(item.currentNode)}}%</text>
+        </view>
+        <view class="progress-bar">
+          <view 
+            class="progress-fill" 
+            style="width: {{getProgress(item.currentNode)}}%"
+          ></view>
+        </view>
+        <text class="progress-node">{{item.nodes[item.currentNode].name}}</text>
+      </view>
+      
+      <view class="project-footer">
+        <text class="project-time">{{formatTime(item.createTime)}}</text>
+        <view 
+          wx:if="{{activeTab === 'active'}}"
+          class="update-btn"
+          catchtap="updateProgress"
+          data-id="{{item._id}}"
+          data-node="{{item.currentNode}}"
+        >
+          更新进度
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:if="{{!loading && projects.length === 0}}" class="empty">
+      <image class="empty-icon" src="/images/empty.png" mode="aspectFit" />
+      <text class="empty-text">{{activeTab === 'active' ? '暂无进行中的项目' : '暂无已完成的项目'}}</text>
+    </view>
+
+    <!-- 加载状态 -->
+    <view wx:if="{{loading}}" class="loading">
+      <text class="loading-text">加载中...</text>
+    </view>
+  </view>
+</view>
+
+
+

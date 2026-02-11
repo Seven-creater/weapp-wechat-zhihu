@@ -83,15 +83,16 @@
     <text class="category-required">*</text>
     <view class="category-grid">
       <view
-        class="category-item {{selectedCategory === item ? 'active' : ''}}"
+        class="category-item {{selectedCategory === item.name ? 'active' : ''}}"
         wx:for="{{categoryOptions}}"
-        wx:key="item"
-        data-category="{{item}}"
+        wx:key="id"
+        data-category="{{item.name}}"
+        data-id="{{item.id}}"
         bindtap="onCategorySelect"
         aria-role="button"
-        aria-label="{{item}}"
+        aria-label="{{item.name}}"
       >
-        <text class="category-text">{{item}}</text>
+        <text class="category-text">{{item.name}}</text>
       </view>
     </view>
   </view>
@@ -149,16 +150,9 @@
       </view>
   </view>
 
-  <view class="section">
-    <view class="switch-row">
-      <text class="switch-label">是否发布社区</text>
-      <switch checked="{{syncToCommunity}}" bindchange="onSyncChange" aria-label="是否发布社区"></switch>
-    </view>
-  </view>
-
   <view class="footer-actions">
-    <button class="submit-btn" bindtap="submitIssue" aria-label="提交">
-      提交并生成无障碍案例库
+    <button class="submit-btn" bindtap="submitIssue" aria-label="发布到社区">
+      发布到社区
     </button>
   </view>
 

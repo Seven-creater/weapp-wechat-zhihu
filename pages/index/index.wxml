@@ -10,6 +10,7 @@
         markers="{{markers}}"
         show-location
         bindmarkertap="handleMarkerTap"
+        bindlongpress="onMapLongPress"
       >
         <cover-view class="top-bar" style="top: {{topInset}}px;">
           <cover-view class="location-selector" bindtap="onCenterTap">
@@ -24,6 +25,15 @@
         </cover-view>
 
         <cover-view class="map-controls">
+          <cover-view class="control-btn" bindtap="openRoutePlanning">
+            <cover-view class="control-icon-text">🧭</cover-view>
+            <cover-view class="control-text">路线</cover-view>
+          </cover-view>
+          <cover-view class="control-btn" bindtap="toggleStatusFilter">
+            <cover-view class="control-icon-text">🔍</cover-view>
+            <cover-view class="control-text">筛选</cover-view>
+            <cover-view wx:if="{{statusFilter.length > 0}}" class="filter-badge">{{statusFilter.length}}</cover-view>
+          </cover-view>
           <cover-view class="control-btn" bindtap="onLayerTap">
             <cover-image class="control-icon" src="/images/icon_layer.png" />
             <cover-view class="control-text">图层</cover-view>
@@ -34,6 +44,56 @@
           </cover-view>
         </cover-view>
 
+        <!-- 状态筛选面板 -->
+        <cover-view wx:if="{{showStatusFilter}}" class="status-filter-panel">
+          <cover-view class="filter-header">
+            <cover-view class="filter-title">设施状态筛选</cover-view>
+            <cover-view class="filter-close" bindtap="toggleStatusFilter">✕</cover-view>
+          </cover-view>
+          
+          <cover-view class="filter-options">
+            <cover-view 
+              class="filter-option {{statusFilter.indexOf('accessible') > -1 ? 'active' : ''}}"
+              bindtap="onStatusFilterTap"
+              data-status="accessible"
+            >
+              <cover-view class="option-icon" style="background-color: #10b981;">✅</cover-view>
+              <cover-view class="option-label">可通行</cover-view>
+            </cover-view>
+            
+            <cover-view 
+              class="filter-option {{statusFilter.indexOf('blocked') > -1 ? 'active' : ''}}"
+              bindtap="onStatusFilterTap"
+              data-status="blocked"
+            >
+              <cover-view class="option-icon" style="background-color: #ef4444;">🚫</cover-view>
+              <cover-view class="option-label">障碍点</cover-view>
+            </cover-view>
+            
+            <cover-view 
+              class="filter-option {{statusFilter.indexOf('maintenance') > -1 ? 'active' : ''}}"
+              bindtap="onStatusFilterTap"
+              data-status="maintenance"
+            >
+              <cover-view class="option-icon" style="background-color: #f59e0b;">🔧</cover-view>
+              <cover-view class="option-label">维修中</cover-view>
+            </cover-view>
+            
+            <cover-view 
+              class="filter-option {{statusFilter.indexOf('occupied') > -1 ? 'active' : ''}}"
+              bindtap="onStatusFilterTap"
+              data-status="occupied"
+            >
+              <cover-view class="option-icon" style="background-color: #f97316;">⚠️</cover-view>
+              <cover-view class="option-label">被占用</cover-view>
+            </cover-view>
+          </cover-view>
+          
+          <cover-view class="filter-actions">
+            <cover-view class="filter-clear" bindtap="clearStatusFilter">清除筛选</cover-view>
+            <cover-view class="filter-confirm" bindtap="toggleStatusFilter">确定</cover-view>
+          </cover-view>
+        </cover-view>
 
       </map>
     </view>
@@ -90,6 +150,10 @@
               <view class="btn-detail" catchtap="onFacilityTap" data-id="{{item.id}}">
                 <image class="btn-icon-small" src="/images/icon_list.png" />
                 <text>查看详情</text>
+              </view>
+              <view class="btn-route" catchtap="planRouteToFacility" data-id="{{item.id}}">
+                <image class="btn-icon-small" src="/images/icon_nav.png" />
+                <text>路线</text>
               </view>
               <view class="btn-go" catchtap="onGoTap" data-id="{{item.id}}">
                 <image class="btn-icon-small" src="/images/icon_nav.png" />

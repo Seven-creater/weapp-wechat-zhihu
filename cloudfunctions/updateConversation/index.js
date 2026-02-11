@@ -27,7 +27,7 @@ exports.main = async (event, context) => {
         targetId: targetId
       }).update({
         data: {
-          unread: 0
+          unreadCount: 0  // 🔧 统一使用 unreadCount
         }
       });
       
@@ -72,7 +72,7 @@ async function updateOrCreateConversation(userId, targetId, lastMessage, targetU
     };
     
     if (isReceiver) {
-      updateData.unread = _.inc(1);
+      updateData.unreadCount = _.inc(1);  // 🔧 统一使用 unreadCount
     }
     
     await db.collection('conversations').doc(conversation.data[0]._id).update({
@@ -86,7 +86,7 @@ async function updateOrCreateConversation(userId, targetId, lastMessage, targetU
         targetId: targetId,
         targetUserInfo: userInfo,
         lastMessage: lastMessage,
-        unread: isReceiver ? 1 : 0,
+        unreadCount: isReceiver ? 1 : 0,  // 🔧 统一使用 unreadCount
         updateTime: db.serverDate()
       }
     });

@@ -1,7 +1,7 @@
 // pages/mine/index.js
 const app = getApp();
+const followUtil = require('../../utils/follow.js');
 
-// 延迟初始化数据库
 let db = null;
 
 const getDB = () => {
@@ -32,7 +32,7 @@ Page({
     hasMore: true,
     loading: false,
     emptyText: "这里空空如也~",
-    isAdmin: false, // 🔐 是否是管理员
+    isAdmin: false,
   },
 
   onLoad: function (options) {
@@ -46,32 +46,33 @@ Page({
   },
 
   onShow: function () {
-    // 更新 tabBar 选中状态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({
         selected: 4
       });
     }
     
-    // 🔧 每次显示时都重新检查登录状态（刷新用户信息）
+    // ✅ 每次显示页面时都重新加载用户信息（确保认证状态实时更新）
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    if (openid) {
+      this.loadFullUserInfo(openid);
+      // 🆕 每次显示页面时都刷新统计数据
+      this.loadStats();
+    }
+    
     this.checkLoginStatus();
   },
 
-  /**
-   * 检查登录状态
-   */
-  checkLoginStatus: function () {
+  checkLoginStatus: async function () {
     const openid = app.globalData.openid || wx.getStorageSync("openid");
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     if (openid && userInfo) {
-      // 🔧 强制检查头像URL有效性
       let avatarUrl = userInfo.avatarUrl;
       if (!avatarUrl || avatarUrl.trim() === '' || avatarUrl === 'undefined' || avatarUrl === 'null') {
         console.warn('⚠️ 头像URL无效:', avatarUrl, '使用默认头像');
         avatarUrl = '/images/zhi.png';
         userInfo.avatarUrl = avatarUrl;
-        // 更新缓存
         app.globalData.userInfo = userInfo;
         wx.setStorageSync('userInfo', userInfo);
       }
@@ -82,20 +83,19 @@ Page({
         userType: userInfo.userType
       });
       
-      // 已登录 - 先显示缓存数据
+      // 异步检查管理员权限
+      const isAdmin = await this.checkIsAdmin(openid);
+      
       this.setData({
         isLoggedIn: true,
         userInfo: userInfo,
-        isAdmin: this.checkIsAdmin(openid), // 🔐 检查是否是管理员
+        isAdmin: isAdmin,
       });
       
-      // 🔧 从数据库重新加载完整的用户信息（包含 badge 和 profile）
       this.loadFullUserInfo(openid);
-      
       this.loadStats();
       this.loadPosts(true);
     } else {
-      // 未登录
       this.setData({
         isLoggedIn: false,
         userInfo: {},
@@ -110,21 +110,47 @@ Page({
     }
   },
 
-  /**
-   * 🔐 检查是否是管理员
-   */
-  checkIsAdmin: function(openid) {
-    const ADMIN_OPENIDS = [
-      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ'  // 你的管理员账号（正确的 openid）
+  checkIsAdmin: async function(openid) {
+    // 🔐 超级管理员列表（硬编码）
+    const SUPER_ADMIN_OPENIDS = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',
+      'oOJhu3T9Us9TAnibhfctmyRw2Urc'
     ];
-    const isAdmin = ADMIN_OPENIDS.includes(openid);
-    console.log('🔐 检查管理员权限:', openid, '是否是管理员:', isAdmin);
-    return isAdmin;
+    
+    // 1. 首先检查是否是超级管理员
+    if (SUPER_ADMIN_OPENIDS.includes(openid)) {
+      console.log('✅ 超级管理员权限验证通过:', openid);
+      return true;
+    }
+    
+    // 2. 检查数据库中的管理员标识
+    try {
+      const db = getDB();
+      if (!db) return false;
+      
+      const userQuery = await db.collection('users')
+        .where({ _openid: openid })
+        .limit(1)
+        .get();
+      
+      if (userQuery.data && userQuery.data.length > 0) {
+        const user = userQuery.data[0];
+        
+        // 检查是否有管理员标识或管理员权限
+        if (user.isAdmin === true || 
+            (user.permissions && user.permissions.canManageUsers === true)) {
+          console.log('✅ 数据库管理员权限验证通过:', openid);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error('查询管理员权限失败:', err);
+    }
+    
+    console.log('❌ 管理员权限验证失败:', openid);
+    return false;
   },
 
-  /**
-   * 🔐 跳转到认证审核页面（仅管理员）
-   */
   navigateToAdminCertification: function() {
     if (!this.data.isAdmin) {
       wx.showToast({
@@ -139,10 +165,9 @@ Page({
     });
   },
 
-  /**
-   * 🆕 从数据库加载完整的用户信息
-   */
   loadFullUserInfo: function (openid) {
+    console.log('🔄 开始加载完整用户信息, openid:', openid);
+    
     wx.cloud.callFunction({
       name: 'getUserInfo',
       data: {
@@ -152,35 +177,45 @@ Page({
       if (res.result && res.result.success) {
         const userData = res.result.data;
         
-        // 🔧 确保头像URL有效，否则使用默认头像
+        console.log('📊 从数据库获取的用户数据:', {
+          userType: userData.userType,
+          badge: userData.badge,
+          profile: userData.profile,
+          phoneNumber: userData.phoneNumber
+        });
+        
         let avatarUrl = userData.userInfo.avatarUrl;
         if (!avatarUrl || avatarUrl.trim() === '') {
           avatarUrl = '/images/zhi.png';
           console.warn('⚠️ 头像URL为空，使用默认头像');
         }
         
+        // ✅ 使用数据库中的最新数据，包含 phoneNumber
         const fullUserInfo = {
           nickName: userData.userInfo.nickName || '無界用户',
           avatarUrl: avatarUrl,
           userType: userData.userType || 'normal',
           badge: userData.badge || null,
-          profile: userData.profile || {}
+          profile: userData.profile || {},
+          phoneNumber: userData.phoneNumber || ''  // ✅ 添加 phoneNumber
         };
         
-        // 更新页面显示
+        console.log('✅ 构建的完整用户信息:', fullUserInfo);
+        console.log('✅ 认证状态:', fullUserInfo.profile.certificationStatus);
+        
         this.setData({
           userInfo: fullUserInfo
         });
         
-        // 更新全局缓存
         app.globalData.userInfo = fullUserInfo;
+        app.globalData.userType = fullUserInfo.userType;
         wx.setStorageSync('userInfo', fullUserInfo);
+        wx.setStorageSync('userType', fullUserInfo.userType);
         
-        console.log('✅ 完整用户信息已加载:', fullUserInfo);
+        console.log('✅ 完整用户信息已加载并保存');
       }
     }).catch(err => {
       console.error('❌ 加载用户信息失败:', err);
-      // 🔧 加载失败时，确保使用默认头像
       const currentUserInfo = this.data.userInfo;
       if (!currentUserInfo.avatarUrl || currentUserInfo.avatarUrl.trim() === '') {
         this.setData({
@@ -190,28 +225,20 @@ Page({
     });
   },
 
-  /**
-   * 跳转到编辑资料页面
-   */
   navigateToEditProfile: function () {
     wx.navigateTo({
       url: '/pages/edit-profile/index',
     });
   },
 
-  /**
-   * 🔧 头像加载失败时使用默认头像
-   */
   onAvatarError: function (e) {
     console.error('⚠️ 头像加载失败:', e.detail);
     console.error('⚠️ 当前头像URL:', this.data.userInfo.avatarUrl);
     
-    // 立即设置默认头像
     this.setData({
       'userInfo.avatarUrl': '/images/zhi.png'
     });
     
-    // 同时更新缓存
     const userInfo = this.data.userInfo;
     userInfo.avatarUrl = '/images/zhi.png';
     app.globalData.userInfo = userInfo;
@@ -220,49 +247,35 @@ Page({
     console.log('✅ 已切换到默认头像');
   },
 
-  /**
-   * 🆕 跳转到身份切换页面
-   */
-  navigateToSwitchIdentity: function () {
-    wx.navigateTo({
-      url: '/pages/switch-identity/index',
-    });
-  },
-
-  /**
-   * 处理登录
-   */
   handleLogin: function () {
     wx.navigateTo({
       url: '/pages/login/index',
     });
   },
 
-  /**
-   * 退出登录
-   */
   handleLogout: function () {
     wx.showModal({
       title: '提示',
-      content: '确定要退出登录吗？下次登录将自动恢复您的资料。',
+      content: '确定要退出登录吗？',
       confirmText: '退出',
       confirmColor: '#ef4444',
       success: (res) => {
         if (res.confirm) {
-          // 🔧 只清除登录状态（openid），保留用户信息
+          // ✅ 清除所有登录相关数据
           wx.removeStorageSync('openid');
+          wx.removeStorageSync('userInfo');
+          wx.removeStorageSync('userType');
+          
           app.globalData.openid = null;
+          app.globalData.userInfo = null;
+          app.globalData.userType = null;
           app.globalData.hasLogin = false;
-
-          // ✅ 保留 userInfo（头像、昵称、身份、简介等），下次登录自动恢复
-          // 不删除 userInfo 和 openid 之外的数据
 
           wx.showToast({
             title: '已退出登录',
             icon: 'success',
           });
 
-          // 清空页面显示
           this.setData({
             isLoggedIn: false,
             userInfo: {},
@@ -293,76 +306,50 @@ Page({
       return;
     }
 
-    // 🔥 直接使用实时计算，确保数据准确
-    this.loadStatsFromCollections(openid);
+    // 使用关注工具类加载统计数据
+    followUtil.getFollowStats(openid)
+      .then(stats => {
+        console.log('✅ 关注统计:', stats);
+        this.setData({
+          'stats.following': stats.following,
+          'stats.followers': stats.followers
+        });
+      })
+      .catch(err => {
+        console.error('❌ 加载关注统计失败:', err);
+        this.setData({
+          'stats.following': 0,
+          'stats.followers': 0
+        });
+      });
+
+    // 加载获赞数
+    this.loadLikesCount(openid);
   },
 
-  // 🔥 降级方案：从各个集合实时查询统计数据
-  loadStatsFromCollections: function(openid) {
+  loadLikesCount: function(openid) {
     const db = getDB();
     if (!db) {
-      console.error('数据库未初始化');
-      this.setData({
-        stats: {
-          following: 0,
-          followers: 0,
-          likes: 0,
-        },
-      });
+      this.setData({ 'stats.likes': 0 });
       return;
     }
 
-    // 加载关注数
-    db.collection("follows")
-      .where({
-        followerId: openid,
-      })
-      .count()
-      .then((res) => {
-        console.log('关注数:', res.total);
-        this.setData({ "stats.following": res.total || 0 });
-      })
-      .catch((err) => {
-        console.error('加载关注数失败:', err);
-        this.setData({ "stats.following": 0 });
-      });
-
-    // 加载粉丝数
-    db.collection("follows")
-      .where({
-        targetId: openid,
-      })
-      .count()
-      .then((res) => {
-        console.log('粉丝数:', res.total);
-        this.setData({ "stats.followers": res.total || 0 });
-      })
-      .catch((err) => {
-        console.error('加载粉丝数失败:', err);
-        this.setData({ "stats.followers": 0 });
-      });
-
-    // 🔥 加载获赞数（我的帖子被点赞的总数）
     db.collection("posts")
       .where({ _openid: openid })
       .field({ stats: true, _id: true })
       .get()
       .then((res) => {
         const posts = res.data || [];
-        console.log('我的帖子数量:', posts.length);
-        console.log('帖子详情:', posts);
-        
         const totalLikes = posts.reduce((sum, post) => {
           const likes = (post.stats && post.stats.like) || 0;
-          console.log(`帖子 ${post._id} 的点赞数:`, likes);
           return sum + likes;
         }, 0);
         
-        console.log('总获赞数:', totalLikes);
+        console.log('✅ 总获赞数:', totalLikes);
         this.setData({ "stats.likes": totalLikes });
       })
       .catch((err) => {
-        console.error('加载获赞数失败:', err);
+        console.error('❌ 加载获赞数失败:', err);
         this.setData({ "stats.likes": 0 });
       });
   },
@@ -438,32 +425,30 @@ Page({
   },
 
   loadCollectedPosts: function (page, refresh) {
-    return wx.cloud
-      .callFunction({
-        name: "getPublicData",
-        data: {
-          collection: "actions",
-          page: page,
-          pageSize: this.data.pageSize,
-          orderBy: "createTime",
-          order: "desc",
-        },
+    const db = getDB();
+    if (!db) {
+      console.error('数据库未初始化');
+      this.setData({ loading: false });
+      return Promise.reject(new Error('数据库未初始化'));
+    }
+
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    const types = ["collect_post", "collect_solution", "collect"];
+    
+    return db
+      .collection("actions")
+      .where({
+        _openid: openid,
+        type: db.command.in(types),
       })
-      .then((res) => {
-        if (!res.result || !res.result.success) {
-          throw new Error(res.result?.error || "加载失败");
-        }
-        const raw = res.result.data || [];
-        const hasMore = !!(
-          res.result.pagination && res.result.pagination.hasMore
-        );
-        return this.hydrateActionItems(raw).then((mapped) => ({
-          mapped,
-          hasMore,
-        }));
-      })
-      .then(({ mapped, hasMore }) => {
+      .orderBy("createTime", "desc")
+      .skip((page - 1) * this.data.pageSize)
+      .limit(this.data.pageSize)
+      .get()
+      .then((res) => this.hydrateActionItems(res.data || []))
+      .then((mapped) => {
         const posts = refresh ? mapped : (this.data.posts || []).concat(mapped);
+        const hasMore = mapped.length >= this.data.pageSize;
         this.setData({
           posts,
           page: page,
@@ -573,7 +558,6 @@ Page({
             ? solutionMap.get(targetId)
             : postMap.get(targetId);
         
-        // 🔥 只返回能查到详情的帖子，过滤掉已删除的
         if (!doc) {
           return null;
         }
@@ -591,7 +575,7 @@ Page({
           collection,
         };
       })
-      .filter(Boolean); // 过滤掉 null 值
+      .filter(Boolean);
 
     return this.convertCloudImages(items);
   },
@@ -599,32 +583,21 @@ Page({
   buildPostItemFromDoc: function (doc, collection) {
     const titleSource = doc.title || doc.description || doc.content || "";
     const title = this.normalizeTitle(titleSource);
-    const image = this.pickImage(doc) || "/images/24213.jpg";
+    const image = this.pickImage(doc);
+    const hasImage = !!image;  // ✅ 判断是否有图片
     const stats = doc.stats || {};
     const likes = typeof stats.like === "number" ? stats.like : 0;
     return {
       id: doc._id,
       title,
-      image,
+      image: image || "/images/24213.jpg",
+      hasImage: hasImage,  // ✅ 添加 hasImage 字段
       likes,
       route:
         collection === "solutions"
           ? "/pages/solution-detail/index"
           : "/pages/post-detail/index",
       collection,
-    };
-  },
-
-  buildPostItemFromAction: function (action) {
-    const title = this.normalizeTitle(action.title || "");
-    const image = action.image || "/images/24213.jpg";
-    const route = action.targetRoute || "/pages/post-detail/index";
-    return {
-      id: action.targetId || action.postId,
-      title: title || "已收藏",
-      image,
-      likes: 0,
-      route,
     };
   },
 
@@ -702,6 +675,34 @@ Page({
     const url =
       route.indexOf("?") > -1 ? `${route}&id=${id}` : `${route}?id=${id}`;
     wx.navigateTo({ url });
+  },
+
+  /**
+   * 🆕 拨打电话
+   */
+  makePhoneCall: function (e) {
+    const phone = e.currentTarget.dataset.phone;
+    if (!phone) {
+      wx.showToast({
+        title: '电话号码为空',
+        icon: 'none'
+      });
+      return;
+    }
+
+    wx.makePhoneCall({
+      phoneNumber: phone,
+      success: () => {
+        console.log('拨号成功:', phone);
+      },
+      fail: (err) => {
+        console.error('拨号失败:', err);
+        wx.showToast({
+          title: '拨号失败',
+          icon: 'none'
+        });
+      }
+    });
   },
 
   onPullDownRefresh: function () {

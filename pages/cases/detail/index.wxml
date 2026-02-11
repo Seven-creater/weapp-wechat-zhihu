@@ -1,0 +1,100 @@
+<!-- pages/cases/detail/index.wxml -->
+<view class="container" wx:if="{{!loading && caseData}}">
+  <view class="header">
+    <view class="header-badge" wx:if="{{caseData.isFeatured}}">
+      <text class="badge-icon">⭐</text>
+      <text class="badge-text">精选案例</text>
+    </view>
+    <view class="header-title">{{caseData.title}}</view>
+    <view class="header-meta">
+      <text class="meta-item">{{caseData.category}}</text>
+      <text class="meta-divider">·</text>
+      <text class="meta-item">工期 {{caseData.duration}} 天</text>
+      <text class="meta-divider">·</text>
+      <text class="meta-item">{{caseData.completedDate}}</text>
+    </view>
+  </view>
+
+  <view class="info-section">
+    <view class="section-title">项目信息</view>
+    <view class="info-grid">
+      <view class="info-item">
+        <text class="info-label">预算金额</text>
+        <text class="info-value">¥{{caseData.budget}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">实际费用</text>
+        <text class="info-value">¥{{caseData.actualCost}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">工程类型</text>
+        <text class="info-value">{{caseData.category}}</text>
+      </view>
+      <view class="info-item">
+        <text class="info-label">施工工期</text>
+        <text class="info-value">{{caseData.duration}}天</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="nodes-section">
+    <view class="section-title">施工过程</view>
+    <block wx:for="{{caseData.nodes}}" wx:key="index">
+      <view class="node-card">
+        <view class="node-header">
+          <view class="node-name">{{item.name}}</view>
+          <view class="node-date">{{item.completedAt}}</view>
+        </view>
+        
+        <view class="node-images" wx:if="{{item.images && item.images.length > 0}}">
+          <block wx:for="{{item.images}}" wx:for-item="img" wx:key="*this">
+            <image 
+              class="node-image" 
+              src="{{img}}" 
+              mode="aspectFill"
+              bindtap="previewImage"
+              data-src="{{img}}"
+              data-urls="{{item.images}}"
+            />
+          </block>
+        </view>
+
+        <view class="node-desc" wx:if="{{item.description}}">
+          {{item.description}}
+        </view>
+
+        <view class="node-cost" wx:if="{{item.actualCost}}">
+          <text class="cost-label">实际费用：</text>
+          <text class="cost-value">¥{{item.actualCost}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="contractor-section">
+    <view class="section-title">承包商信息</view>
+    <view class="contractor-card" bindtap="viewContractor">
+      <image class="contractor-avatar" src="{{caseData.contractorAvatar}}" />
+      <view class="contractor-info">
+        <view class="contractor-name">{{caseData.contractorName}}</view>
+        <view class="contractor-stats">
+          <text class="stat-item">完成项目 {{caseData.contractorProjects || 0}}</text>
+          <text class="stat-divider">·</text>
+          <text class="stat-item">好评率 {{caseData.contractorRating || 0}}%</text>
+        </view>
+      </view>
+      <view class="contractor-arrow">›</view>
+    </view>
+  </view>
+
+  <view class="action-section">
+    <button class="contact-btn" bindtap="contactContractor">
+      <text class="btn-icon">💬</text>
+      <text class="btn-text">联系承包商</text>
+    </button>
+  </view>
+</view>
+
+<view wx:if="{{loading}}" class="loading">
+  <text>加载中...</text>
+</view>

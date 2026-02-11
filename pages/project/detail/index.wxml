@@ -1,0 +1,95 @@
+<!--pages/project/detail/index.wxml-->
+<view class="container">
+  <view wx:if="{{project}}">
+    <!-- 项目信息 -->
+    <view class="project-header">
+      <view class="header-title">{{project.title}}</view>
+      <view class="header-badge">{{project.category}}</view>
+    </view>
+
+    <view class="project-info">
+      <text class="info-item">📍 {{project.formattedAddress || project.address}}</text>
+      <text class="info-item">💰 实际消耗: ¥{{project.actualCost || 0}}</text>
+      <text class="info-item">📞 {{project.contactPhone}}</text>
+    </view>
+
+    <!-- 施工方信息卡片 -->
+    <view class="contractor-card" bindtap="navigateToContractor">
+      <image 
+        class="contractor-avatar" 
+        src="{{project.contractorAvatar || '/images/zhi.png'}}" 
+        mode="aspectFill"
+      ></image>
+      <view class="contractor-info">
+        <text class="contractor-name">{{project.contractorName || '施工方'}}</text>
+        <view class="contractor-badge">
+          <text class="badge-icon">🏗️</text>
+          <text class="badge-text">施工方</text>
+        </view>
+      </view>
+      <text class="arrow-icon">›</text>
+    </view>
+
+    <!-- 节点进度 -->
+    <view class="nodes-section">
+      <view class="section-title">施工进度</view>
+      <view class="nodes-timeline">
+        <view 
+          wx:for="{{project.stages}}" 
+          wx:key="index"
+          class="node-item {{item.status}}"
+        >
+          <view class="node-left">
+            <view class="node-dot {{item.status}}"></view>
+            <view wx:if="{{index < project.stages.length - 1}}" class="node-line {{item.status}}"></view>
+          </view>
+          
+          <view class="node-content">
+            <view class="node-header">
+              <text class="node-name">{{item.name}}</text>
+              <text class="node-status">{{item.status === 'completed' ? '已完成' : '待完成'}}</text>
+            </view>
+            
+            <view wx:if="{{item.status === 'completed'}}">
+              <view wx:if="{{item.images && item.images.length > 0}}" class="node-images">
+                <image 
+                  wx:for="{{item.images}}" 
+                  wx:for-item="img"
+                  wx:key="index"
+                  class="node-image"
+                  src="{{img}}" 
+                  mode="aspectFill"
+                  bindtap="previewImage"
+                  data-src="{{img}}"
+                  data-images="{{item.images}}"
+                />
+              </view>
+              <view wx:if="{{item.description}}" class="node-desc">{{item.description}}</view>
+              <view wx:if="{{item.completedAt}}" class="node-time">完成时间: {{item.completedAtFormatted}}</view>
+              <view wx:if="{{item.actualCost}}" class="node-cost">费用: ¥{{item.actualCost}}</view>
+            </view>
+            
+            <view wx:elif="{{item.status === 'in_progress'}}" class="node-action">
+              <button 
+                class="update-node-btn"
+                bindtap="updateNode"
+                data-index="{{index}}"
+              >
+                更新此节点
+              </button>
+            </view>
+            
+            <view wx:else class="node-action">
+              <text class="node-pending-text">待完成</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+</view>
+
+
+

@@ -1,335 +1,198 @@
-// 無界营造 - 权限管理模块
 // utils/permission.js
-
+// 权限检查工具模块
 const app = getApp();
-
-/**
- * 权限类型枚举
- */
-const PERMISSION_TYPES = {
-  LOCATION: 'scope.userLocation',
-  CAMERA: 'scope.camera',
-  ALBUM: 'scope.album',
-  RECORD: 'scope.record',
-  WRITE_PHOTOS_ALBUM: 'scope.writePhotosAlbum',
-};
-
-/**
- * 检查权限
- * @param {string} scope - 权限类型
- * @returns {Promise<boolean>}
- */
-function checkPermission(scope) {
-  return new Promise((resolve) => {
-    wx.getSetting({
-      success: (res) => {
-        resolve(!!res.authSetting[scope]);
-      },
-      fail: () => {
-        resolve(false);
-      }
-    });
-  });
-}
-
-/**
- * 请求权限
- * @param {string} scope - 权限类型
- * @returns {Promise<boolean>}
- */
-function requestPermission(scope) {
-  return new Promise((resolve, reject) => {
-    wx.authorize({
-      scope: scope,
-      success: () => {
-        resolve(true);
-      },
-      fail: () => {
-        // 用户拒绝授权，引导用户打开设置
-        wx.showModal({
-          title: '需要授权',
-          content: '请在设置中开启相关权限',
-          confirmText: '去设置',
-          success: (res) => {
-            if (res.confirm) {
-              wx.openSetting({
-                success: (settingRes) => {
-                  resolve(!!settingRes.authSetting[scope]);
-                },
-                fail: () => {
-                  resolve(false);
-                }
-              });
-            } else {
-              resolve(false);
-            }
-          }
-        });
-      }
-    });
-  });
-}
-
-/**
- * 确保有权限（检查并请求）
- * @param {string} scope - 权限类型
- * @returns {Promise<boolean>}
- */
-async function ensurePermission(scope) {
-  const hasPermission = await checkPermission(scope);
-  if (hasPermission) {
-    return true;
-  }
-  return await requestPermission(scope);
-}
-
-/**
- * 检查位置权限
- * @returns {Promise<boolean>}
- */
-function checkLocationPermission() {
-  return checkPermission(PERMISSION_TYPES.LOCATION);
-}
-
-/**
- * 请求位置权限
- * @returns {Promise<boolean>}
- */
-function requestLocationPermission() {
-  return ensurePermission(PERMISSION_TYPES.LOCATION);
-}
-
-/**
- * 检查相机权限
- * @returns {Promise<boolean>}
- */
-function checkCameraPermission() {
-  return checkPermission(PERMISSION_TYPES.CAMERA);
-}
-
-/**
- * 请求相机权限
- * @returns {Promise<boolean>}
- */
-function requestCameraPermission() {
-  return ensurePermission(PERMISSION_TYPES.CAMERA);
-}
-
-/**
- * 检查相册权限
- * @returns {Promise<boolean>}
- */
-function checkAlbumPermission() {
-  return checkPermission(PERMISSION_TYPES.ALBUM);
-}
-
-/**
- * 请求相册权限
- * @returns {Promise<boolean>}
- */
-function requestAlbumPermission() {
-  return ensurePermission(PERMISSION_TYPES.ALBUM);
-}
-
-/**
- * 检查录音权限
- * @returns {Promise<boolean>}
- */
-function checkRecordPermission() {
-  return checkPermission(PERMISSION_TYPES.RECORD);
-}
-
-/**
- * 请求录音权限
- * @returns {Promise<boolean>}
- */
-function requestRecordPermission() {
-  return ensurePermission(PERMISSION_TYPES.RECORD);
-}
-
-// ========================================
-// 🆕 用户角色权限管理
-// ========================================
-
-/**
- * 用户角色权限配置
- */
-const USER_PERMISSIONS = {
-  // 核实问题
-  canVerifyIssue: ['designer', 'contractor', 'government'],
-  // 创建项目
-  canCreateProject: ['contractor', 'government'],
-  // 发布政策
-  canPublishPolicy: ['government'],
-  // 提供咨询
-  canProvideConsultation: ['designer', 'contractor', 'government'],
-  // 设计方案
-  canDesignSolution: ['designer'],
-  // 更新施工进度
-  canUpdateProgress: ['contractor'],
-  // 查看用户联系方式
-  canViewUserContact: ['government']
-};
+const { hasPermission: checkPermission } = require('./userTypes.js');
 
 /**
  * 获取当前用户类型
- * @returns {string} 用户类型 ID
  */
-function getCurrentUserType() {
+function getUserType() {
   const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
   return userInfo?.userType || 'normal';
 }
 
 /**
- * 检查当前用户是否有某个权限
+ * 获取当前用户 openid
+ */
+function getOpenid() {
+  return app.globalData.openid || wx.getStorageSync('openid');
+}
+
+/**
+ * 检查是否有某个权限
  * @param {string} permission - 权限名称
  * @returns {boolean}
  */
 function hasPermission(permission) {
-  const userType = getCurrentUserType();
-  const allowedTypes = USER_PERMISSIONS[permission] || [];
-  return allowedTypes.includes(userType);
-}
-
-/**
- * 检查当前用户是否为设计者
- * @returns {boolean}
- */
-function isDesigner() {
-  return getCurrentUserType() === 'designer';
-}
-
-/**
- * 检查当前用户是否为施工方
- * @returns {boolean}
- */
-function isContractor() {
-  return getCurrentUserType() === 'contractor';
-}
-
-/**
- * 检查当前用户是否为政府
- * @returns {boolean}
- */
-function isGovernment() {
-  return getCurrentUserType() === 'government';
-}
-
-/**
- * 检查当前用户是否为普通用户
- * @returns {boolean}
- */
-function isNormalUser() {
-  return getCurrentUserType() === 'normal';
-}
-
-/**
- * 检查当前用户是否为专业用户（设计者、施工方、政府）
- * @returns {boolean}
- */
-function isProfessionalUser() {
-  const userType = getCurrentUserType();
-  return ['designer', 'contractor', 'government'].includes(userType);
-}
-
-/**
- * 权限检查失败时的提示
- * @param {string} permission - 权限名称
- */
-function showPermissionDenied(permission) {
-  const messages = {
-    canVerifyIssue: '只有设计者、施工方或政府可以核实问题',
-    canCreateProject: '只有施工方或政府可以创建项目',
-    canPublishPolicy: '只有政府可以发布政策',
-    canProvideConsultation: '只有专业用户可以提供咨询',
-    canDesignSolution: '只有设计者可以设计方案',
-    canUpdateProgress: '只有施工方可以更新施工进度',
-    canViewUserContact: '只有政府可以查看用户联系方式'
-  };
-  
-  const message = messages[permission] || '您没有此操作权限';
-  
-  wx.showModal({
-    title: '权限不足',
-    content: message + '\n\n您可以在"我的-切换身份"中切换身份',
-    confirmText: '去切换',
-    cancelText: '取消',
-    success: (res) => {
-      if (res.confirm) {
-        wx.navigateTo({
-          url: '/pages/switch-identity/index'
-        });
-      }
-    }
-  });
+  const userType = getUserType();
+  return checkPermission(userType, permission);
 }
 
 /**
  * 检查权限并执行操作
  * @param {string} permission - 权限名称
- * @param {Function} callback - 有权限时执行的回调
- * @returns {boolean} 是否有权限
+ * @param {function} callback - 有权限时执行的回调函数
  */
 function checkAndExecute(permission, callback) {
   if (hasPermission(permission)) {
-    if (typeof callback === 'function') {
-      callback();
-    }
-    return true;
+    callback();
   } else {
-    showPermissionDenied(permission);
-    return false;
+    wx.showToast({
+      title: '您没有此操作权限',
+      icon: 'none'
+    });
   }
 }
 
 /**
- * 获取用户类型的显示名称
- * @param {string} userType - 用户类型 ID
+ * 检查是否可以添加设计方案
+ * @param {object} post - 帖子对象
+ * @returns {boolean}
+ */
+function canAddDesignSolution(post) {
+  const userType = getUserType();
+  
+  // 必须是设计者
+  if (userType !== 'designer') {
+    return false;
+}
+
+  // 帖子必须是待处理状态
+  if (post.status !== 'pending') {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * 检查是否可以创建施工项目
+ * @param {object} post - 帖子对象
+ * @returns {boolean}
+ */
+function canCreateProject(post) {
+  const userType = getUserType();
+  
+  // 必须是施工方
+  if (userType !== 'contractor') {
+    return false;
+  }
+  
+  // 帖子必须是待处理状态
+  if (post.status !== 'pending') {
+    return false;
+  }
+  
+  // 不能已有施工项目
+  if (post.constructionProject && post.constructionProject.projectId) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * 检查是否可以更新施工进度
+ * @param {object} project - 项目对象
+ * @returns {boolean}
+ */
+function canUpdateProgress(project) {
+  const userType = getUserType();
+  const openid = getOpenid();
+  
+  // 社区工作者可以更新任何项目
+  if (userType === 'communityWorker') {
+    return true;
+  }
+  
+  // 必须是该项目的施工方
+  if (userType === 'contractor' && project.constructorId === openid) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * 检查是否可以确认完工
+ * @param {object} post - 帖子对象
+ * @returns {boolean}
+ */
+function canConfirmCompletion(post) {
+  const userType = getUserType();
+  const openid = getOpenid();
+  
+  // 社区工作者可以确认任何项目
+  if (userType === 'communityWorker') {
+    return true;
+  }
+  
+  // 发帖者可以确认自己的项目
+  if (post._openid === openid) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * 检查是否可以查看联系方式
+ * @returns {boolean}
+ */
+function canViewContact() {
+  const userType = getUserType();
+  return userType === 'communityWorker';
+}
+
+/**
+ * 检查是否是当前用户
+ * @param {string} targetOpenid - 目标用户的 openid
+ * @returns {boolean}
+ */
+function isCurrentUser(targetOpenid) {
+  const openid = getOpenid();
+  return openid && openid === targetOpenid;
+}
+
+/**
+ * 获取帖子状态的中文描述
+ * @param {string} status - 状态
  * @returns {string}
  */
-function getUserTypeLabel(userType) {
-  const labels = {
-    normal: '普通用户',
-    designer: '设计者',
-    contractor: '施工方',
-    government: '政府'
+function getStatusText(status) {
+  const statusMap = {
+    'pending': '待处理',
+    'in_progress': '处理中',
+    'completed': '已完成'
   };
-  return labels[userType] || '未知';
+  return statusMap[status] || '未知';
+}
+
+/**
+ * 获取帖子状态的颜色
+ * @param {string} status - 状态
+ * @returns {string}
+ */
+function getStatusColor(status) {
+  const colorMap = {
+    'pending': '#F59E0B',      // 橙色
+    'in_progress': '#3B82F6',  // 蓝色
+    'completed': '#10B981'     // 绿色
+  };
+  return colorMap[status] || '#6B7280';
 }
 
 module.exports = {
-  PERMISSION_TYPES,
-  checkPermission,
-  requestPermission,
-  ensurePermission,
-  checkLocationPermission,
-  requestLocationPermission,
-  checkCameraPermission,
-  requestCameraPermission,
-  checkAlbumPermission,
-  requestAlbumPermission,
-  checkRecordPermission,
-  requestRecordPermission,
-  
-  // 🆕 用户角色权限
-  USER_PERMISSIONS,
-  getCurrentUserType,
+  getUserType,
+  getOpenid,
   hasPermission,
-  isDesigner,
-  isContractor,
-  isGovernment,
-  isNormalUser,
-  isProfessionalUser,
-  showPermissionDenied,
   checkAndExecute,
-  getUserTypeLabel
+  canAddDesignSolution,
+  canCreateProject,
+  canUpdateProgress,
+  canConfirmCompletion,
+  canViewContact,
+  isCurrentUser,
+  getStatusText,
+  getStatusColor
 };
-
-
-
-
-
-
-
-
-

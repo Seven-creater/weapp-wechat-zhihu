@@ -18,10 +18,18 @@ exports.main = async (event, context) => {
   }
 
   try {
+    // 检查是否是管理员
+    const adminOpenids = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
+      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
+    ];
+    const isAdmin = adminOpenids.includes(openid);
+
     const commentRes = await db.collection('comments').doc(commentId).get();
     const comment = commentRes.data;
 
-    if (!comment || comment._openid !== openid) {
+    // 管理员可以删除任何评论，普通用户只能删除自己的评论
+    if (!comment || (!isAdmin && comment._openid !== openid)) {
       return { success: false, error: 'permission denied' };
     }
 

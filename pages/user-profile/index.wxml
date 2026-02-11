@@ -28,6 +28,30 @@
             <text class="cert-icon">🆔</text>
             <text class="cert-text">{{profile.workId}}</text>
           </view>
+          <view class="cert-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
+            <text class="cert-icon">📞</text>
+            <text class="cert-text phone-link">{{userInfo.phoneNumber}}</text>
+          </view>
+        </view>
+        
+        <!-- 🆕 施工方认证信息 -->
+        <view class="gov-cert-info" wx:if="{{userType === 'contractor' && profile.companyName}}">
+          <view class="cert-item">
+            <text class="cert-icon">🏢</text>
+            <text class="cert-text">{{profile.companyName}}</text>
+          </view>
+          <view class="cert-item" wx:if="{{profile.contactPerson}}">
+            <text class="cert-icon">👤</text>
+            <text class="cert-text">{{profile.contactPerson}}</text>
+          </view>
+          <view class="cert-item" wx:if="{{profile.serviceArea}}">
+            <text class="cert-icon">📍</text>
+            <text class="cert-text">{{profile.serviceArea}}</text>
+          </view>
+          <view class="cert-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
+            <text class="cert-icon">📞</text>
+            <text class="cert-text phone-link">{{userInfo.phoneNumber}}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -86,7 +110,7 @@
     <view class="post-grid">
       <block wx:for="{{posts}}" wx:key="id">
         <view class="post-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
-          <image class="post-cover" src="{{item.image}}" mode="aspectFill"></image>
+          <image class="post-cover" src="{{item.image}}" mode="aspectFill" wx:if="{{item.hasImage}}"></image>
           <view class="post-title">{{item.title}}</view>
           <view class="post-footer">
             <view class="like-info">

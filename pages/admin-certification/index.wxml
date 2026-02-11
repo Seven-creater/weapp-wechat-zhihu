@@ -56,25 +56,69 @@
           <image class="user-avatar" src="{{item.avatarUrl}}" mode="aspectFill" />
           <view class="user-details">
             <text class="user-name">{{item.nickName}}</text>
-            <text class="user-phone">{{item.phoneNumber}}</text>
             <text class="apply-time">申请时间：{{item.applyTime}}</text>
           </view>
         </view>
 
         <!-- 认证信息 -->
         <view class="cert-info">
+          <!-- 联系电话（所有角色都有） -->
           <view class="cert-item">
-            <text class="cert-label">🏘️ 所属社区：</text>
-            <text class="cert-value">{{item.community}}</text>
+            <text class="cert-label">📱 联系电话：</text>
+            <text class="cert-value">{{item.phoneNumber}}</text>
           </view>
-          <view class="cert-item">
-            <text class="cert-label">👔 职位：</text>
-            <text class="cert-value">{{item.position}}</text>
-          </view>
-          <view class="cert-item">
-            <text class="cert-label">🆔 工作证号：</text>
-            <text class="cert-value">{{item.workId}}</text>
-          </view>
+          
+          <!-- 社区工作者认证信息 -->
+          <block wx:if="{{item.userType === 'communityWorker'}}">
+            <view class="cert-item">
+              <text class="cert-label">🏘️ 所属社区：</text>
+              <text class="cert-value">{{item.community}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">👔 职位：</text>
+              <text class="cert-value">{{item.position}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">🆔 工作证号：</text>
+              <text class="cert-value">{{item.workId}}</text>
+            </view>
+          </block>
+          
+          <!-- 施工方认证信息 -->
+          <block wx:if="{{item.userType === 'contractor'}}">
+            <view class="cert-item">
+              <text class="cert-label">🏢 公司名称：</text>
+              <text class="cert-value">{{item.companyName}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">👤 联系人：</text>
+              <text class="cert-value">{{item.contactPerson}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">📍 服务区域：</text>
+              <text class="cert-value">{{item.serviceArea}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">🔧 擅长领域：</text>
+              <text class="cert-value">{{item.specialties}}</text>
+            </view>
+          </block>
+          
+          <!-- 设计者认证信息 -->
+          <block wx:if="{{item.userType === 'designer'}}">
+            <view class="cert-item">
+              <text class="cert-label">🏛️ 所属机构：</text>
+              <text class="cert-value">{{item.organization}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">👔 职称/职位：</text>
+              <text class="cert-value">{{item.title}}</text>
+            </view>
+            <view class="cert-item">
+              <text class="cert-label">💡 专业领域：</text>
+              <text class="cert-value">{{item.expertise}}</text>
+            </view>
+          </block>
         </view>
 
         <!-- 状态标签 -->
@@ -101,6 +145,7 @@
             class="action-btn approve-btn" 
             bindtap="handleApprove"
             data-id="{{item._id}}"
+            data-label="{{item.userTypeLabel}}"
           >
             ✅ 通过
           </button>
@@ -120,8 +165,9 @@
             bindtap="handleRemove"
             data-openid="{{item.openid}}"
             data-name="{{item.nickName}}"
+            data-label="{{item.userTypeLabel}}"
           >
-            🗑️ 移除社区工作者身份
+            🗑️ 移除{{item.userTypeLabel}}身份
           </button>
         </view>
       </view>

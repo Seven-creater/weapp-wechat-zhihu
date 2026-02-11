@@ -33,7 +33,21 @@
     "pages/user-profile/index",
     "pages/switch-identity/index",
     "pages/admin-certification/index",
-    "pages/gov-certification/index"
+    "pages/facility/mark/index",
+    "pages/facility/detail/index",
+    "pages/route/plan/index",
+    "pages/route/navigate/index",
+    "pages/post/daily/index",
+    "pages/design/proposal/index",
+    "pages/project/create/index",
+    "pages/project/manage/index",
+    "pages/project/detail/index",
+    "pages/project/update/index",
+    "pages/cases/index/index",
+    "pages/cases/detail/index",
+    "pages/design/solution/create",
+    "pages/design/proposal-list/index",
+    "pages/design/proposal-detail/index"
   ],
   "plugins": {
     "WeChatSI": {

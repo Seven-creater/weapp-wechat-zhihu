@@ -1,0 +1,72 @@
+<view class="container" wx:if="{{!loading && proposal}}">
+  <!-- 设计师信息卡片 -->
+  <view class="designer-card">
+    <image 
+      class="designer-avatar" 
+      src="{{proposal.designerAvatar || '/images/default-avatar.png'}}" 
+      mode="aspectFill"
+      bindtap="navigateToDesigner"
+    ></image>
+    <view class="designer-info">
+      <text class="designer-name">{{proposal.designerName || '设计师'}}</text>
+      <view class="designer-badge">
+        <text class="badge-icon">📐</text>
+        <text class="badge-text">专业设计师</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交时间 -->
+  <view class="time-info">
+    <text class="time-label">提交时间：</text>
+    <text class="time-value">{{proposal.createTime}}</text>
+  </view>
+
+  <!-- 方案描述 -->
+  <view class="section">
+    <view class="section-title">
+      <text class="title-icon">📝</text>
+      <text class="title-text">设计方案</text>
+    </view>
+    <view class="section-content">
+      <text class="proposal-desc">{{proposal.description}}</text>
+    </view>
+  </view>
+
+  <!-- 设计图纸 -->
+  <view class="section" wx:if="{{proposal.images && proposal.images.length > 0}}">
+    <view class="section-title">
+      <text class="title-icon">🖼️</text>
+      <text class="title-text">设计图纸</text>
+    </view>
+    <view class="images-grid">
+      <image 
+        class="design-image" 
+        wx:for="{{proposal.images}}" 
+        wx:key="index"
+        src="{{item}}" 
+        mode="aspectFill"
+        bindtap="previewImage"
+        data-src="{{item}}"
+      ></image>
+    </view>
+  </view>
+
+  <!-- 预算调整 -->
+  <view class="section" wx:if="{{proposal.budgetAdjustment}}">
+    <view class="section-title">
+      <text class="title-icon">💰</text>
+      <text class="title-text">预算调整</text>
+    </view>
+    <view class="budget-card">
+      <text class="budget-amount">¥{{proposal.budgetAdjustment}}</text>
+      <text class="budget-note">如需调整预算，可在此基础上协商</text>
+    </view>
+  </view>
+</view>
+
+<!-- 加载状态 -->
+<view class="loading-state" wx:if="{{loading}}">
+  <text class="loading-text">加载中...</text>
+</view>
+

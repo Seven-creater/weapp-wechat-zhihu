@@ -34,21 +34,6 @@ Page({
   },
 
   /**
-   * 发布社区帖子
-   */
-  onCommunityTap: function() {
-    // 检查登录状态
-    if (!this.isLoggedIn()) {
-      this.showLoginPrompt('发布帖子');
-      return;
-    }
-
-    wx.navigateTo({
-      url: '/pages/post/new-post/index'
-    });
-  },
-
-  /**
    * 发布无障碍问题
    */
   onIssueTap: function() {
@@ -60,6 +45,21 @@ Page({
 
     wx.navigateTo({
       url: '/pages/issue-edit/index'
+    });
+  },
+
+  /**
+   * 发布日常分享
+   */
+  onDailyTap: function() {
+    // 检查登录状态
+    if (!this.isLoggedIn()) {
+      this.showLoginPrompt('发布日常分享');
+      return;
+    }
+
+    wx.navigateTo({
+      url: '/pages/post/daily/index'
     });
   },
 

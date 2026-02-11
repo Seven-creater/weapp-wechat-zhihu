@@ -55,11 +55,7 @@ Page({
         const profile = res.result.data.profile || {};
         this.setData({
           bio: profile.bio || '',
-          customFields: {
-            community: profile.community || '',
-            position: profile.position || '',
-            workId: profile.workId || ''
-          }
+          customFields: profile
         });
       }
     }).catch(err => {
@@ -75,11 +71,11 @@ Page({
     const typeId = e.currentTarget.dataset.type;
     const typeConfig = getUserTypeConfig(typeId);
     
-    // 🔧 允许选择社区工作者，显示认证信息表单
+    // 显示认证信息表单（如果需要认证）
     this.setData({
       selectedType: typeId,
       selectedTypeConfig: typeConfig,
-      showProfileFields: typeId !== 'normal'
+      showProfileFields: typeConfig.needCertification || false
     });
   },
 
@@ -91,7 +87,7 @@ Page({
   },
 
   /**
-   * 输入自定义字段（政府认证信息）
+   * 输入自定义字段（认证信息）
    */
   onCustomFieldInput: function (e) {
     const key = e.currentTarget.dataset.key;
@@ -107,7 +103,7 @@ Page({
   saveIdentity: function () {
     const { selectedType, bio, customFields, currentType } = this.data;
     
-    // 🔧 获取当前用户信息
+    // 获取当前用户信息
     const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
     if (!userInfo || !userInfo.nickName) {
       wx.showToast({
@@ -117,19 +113,21 @@ Page({
       return;
     }
     
-    // 🆕 如果选择社区工作者，提交认证申请
-    if (selectedType === 'communityWorker' && currentType !== 'communityWorker') {
-      this.submitCommunityWorkerCertification();
+    // 🆕 如果选择需要认证的角色，提交认证申请
+    const selectedTypeConfig = getUserTypeConfig(selectedType);
+    if (selectedTypeConfig.needCertification && currentType !== selectedType) {
+      this.submitCertificationApplication();
       return;
     }
     
+    // 普通用户切换，直接保存
     wx.showLoading({ title: '保存中...', mask: true });
     
     wx.cloud.callFunction({
       name: 'updateUserInfo',
       data: {
-        nickName: userInfo.nickName,      // 🔧 添加昵称
-        avatarUrl: userInfo.avatarUrl,    // 🔧 添加头像
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl,
         userType: selectedType,
         profile: {
           bio,
@@ -173,17 +171,39 @@ Page({
   },
 
   /**
-   * 🆕 提交社区工作者认证申请
+   * 🆕 提交角色认证申请（统一方法）
    */
-  submitCommunityWorkerCertification: function () {
-    const { bio, customFields } = this.data;
-    const { community, position, workId } = customFields;
+  submitCertificationApplication: function () {
+    const { selectedType, bio, customFields } = this.data;
     const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
 
-    // 验证认证信息
+    // 根据不同角色验证必填字段
+    let isValid = true;
+    let errorMsg = '';
+
+    if (selectedType === 'communityWorker') {
+      const { community, position, workId } = customFields;
     if (!community || !position || !workId) {
+        isValid = false;
+        errorMsg = '请填写完整的社区工作者认证信息';
+      }
+    } else if (selectedType === 'designer') {
+      const { organization, title, expertise } = customFields;
+      if (!organization || !title || !expertise) {
+        isValid = false;
+        errorMsg = '请填写完整的设计者认证信息';
+      }
+    } else if (selectedType === 'contractor') {
+      const { companyName, contactPerson, contactPhone, serviceArea, specialties } = customFields;
+      if (!companyName || !contactPerson || !contactPhone || !serviceArea || !specialties) {
+        isValid = false;
+        errorMsg = '请填写完整的施工方认证信息';
+      }
+    }
+
+    if (!isValid) {
       wx.showToast({
-        title: '请填写完整的认证信息',
+        title: errorMsg,
         icon: 'none',
       });
       return;
@@ -194,23 +214,24 @@ Page({
       mask: true,
     });
 
+    // 调用统一的认证申请云函数
     wx.cloud.callFunction({
-      name: 'applyCommunityWorkerCertification',
+      name: 'applyCertification',
       data: {
         nickName: userInfo.nickName,
         avatarUrl: userInfo.avatarUrl,
-        phoneNumber: '', // 从数据库获取
-        community: community,
-        position: position,
-        workId: workId
+        userType: selectedType,
+        certificationInfo: customFields
       }
     }).then(res => {
       wx.hideLoading();
       
       if (res.result && res.result.success) {
+        const typeLabel = selectedType === 'communityWorker' ? '社区工作者' :
+                         selectedType === 'designer' ? '设计者' : '施工方';
         wx.showModal({
           title: '认证申请已提交',
-          content: '您的社区工作者认证申请已提交，请等待管理员审核。审核通过后将自动升级为社区工作者。',
+          content: `您的${typeLabel}认证申请已提交，请等待管理员审核。审核通过后将自动升级为${typeLabel}。`,
           showCancel: false,
           success: () => {
             wx.navigateBack();
@@ -232,4 +253,3 @@ Page({
     });
   }
 });
-

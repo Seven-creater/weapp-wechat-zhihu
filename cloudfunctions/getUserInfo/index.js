@@ -35,22 +35,11 @@ exports.main = async (event, context) => {
     if (res.data.length > 0) {
       const userData = res.data[0];
       
-      // 🔥 转换云存储 URL
-      if (userData.userInfo && userData.userInfo.avatarUrl && userData.userInfo.avatarUrl.startsWith('cloud://')) {
-        try {
-          const fileList = [userData.userInfo.avatarUrl];
-          const tempURLRes = await cloud.getTempFileURL({
-            fileList: fileList
-          });
-          
-          if (tempURLRes.fileList && tempURLRes.fileList.length > 0) {
-            userData.userInfo.avatarUrl = tempURLRes.fileList[0].tempFileURL;
-          }
-        } catch (err) {
-          console.error('转换云存储 URL 失败:', err);
-          // 转换失败时使用默认头像
-          userData.userInfo.avatarUrl = '/images/zhi.png';
-        }
+      // ✅ 不转换云存储 URL，直接返回 cloud:// 地址
+      // 小程序会自动处理云存储地址的显示，无需转换为临时链接
+      // 如果头像URL为空或无效，使用默认头像
+      if (userData.userInfo && (!userData.userInfo.avatarUrl || userData.userInfo.avatarUrl.trim() === '')) {
+        userData.userInfo.avatarUrl = '/images/zhi.png';
       }
       
       return {
@@ -58,11 +47,11 @@ exports.main = async (event, context) => {
         data: {
           userInfo: userData.userInfo,
           stats: userData.stats,
-          userType: userData.userType || 'normal',     // 🔧 返回用户类型
-          badge: userData.badge || null,               // 🔧 返回徽章
-          profile: userData.profile || {},             // 🔧 返回补充信息
-          reputation: userData.reputation || null,     // 🔧 返回信誉信息
-          phoneNumber: userData.phoneNumber || null,   // 🔧 返回手机号
+          userType: userData.userType || 'normal',
+          badge: userData.badge || null,
+          profile: userData.profile || {},
+          reputation: userData.reputation || null,
+          phoneNumber: userData.phoneNumber || null,
           _openid: userData._openid
         },
         // 兼容旧代码

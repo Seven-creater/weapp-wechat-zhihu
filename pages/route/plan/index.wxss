@@ -1,0 +1,403 @@
+/* pages/route/plan/index.wxss */
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+/* 地图 */
+.map-view {
+  flex: 1;
+  width: 100%;
+}
+
+/* 顶部控制栏 */
+.top-controls {
+  position: absolute;
+  top: 20rpx;
+  left: 20rpx;
+  right: 20rpx;
+  z-index: 10;
+}
+
+.location-inputs {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  position: relative;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx;
+  background: #f8f9fa;
+  border-radius: 16rpx;
+}
+
+.input-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.input-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1a1a1a;
+}
+
+.swap-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56rpx;
+  height: 56rpx;
+  background: #667eea;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(102, 126, 234, 0.4);
+}
+
+.swap-icon {
+  font-size: 32rpx;
+  color: #fff;
+  font-weight: bold;
+}
+
+.plan-btn {
+  margin-top: 16rpx;
+  height: 88rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.4);
+}
+
+.plan-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* 底部面板 */
+.bottom-panel {
+  background: #fff;
+  border-top-left-radius: 32rpx;
+  border-top-right-radius: 32rpx;
+  box-shadow: 0 -8rpx 32rpx rgba(0, 0, 0, 0.08);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 路线选项卡 */
+.route-tabs {
+  white-space: nowrap;
+  padding: 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.route-tab {
+  display: inline-flex;
+  flex-direction: column;
+  padding: 24rpx 32rpx;
+  margin-right: 16rpx;
+  background: #f8f9fa;
+  border-radius: 16rpx;
+  border: 2rpx solid transparent;
+  min-width: 200rpx;
+}
+
+.route-tab.active {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+}
+
+.tab-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 12rpx;
+}
+
+.tab-info {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.tab-distance {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.tab-duration {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.tab-score {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+/* 路线详情 */
+.route-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24rpx;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.route-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.route-type {
+  font-size: 24rpx;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  align-self: flex-start;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+}
+
+.route-distance {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.route-duration {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 警告信息 */
+.warnings-section {
+  margin-bottom: 24rpx;
+}
+
+.warning-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx;
+  background: #fef3c7;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.warning-icon {
+  font-size: 32rpx;
+}
+
+.warning-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: #92400e;
+}
+
+/* 途经设施 */
+.facilities-section {
+  margin-bottom: 24rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+}
+
+.facilities-scroll {
+  white-space: nowrap;
+}
+
+.facility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 20rpx;
+  border-radius: 40rpx;
+  margin-right: 12rpx;
+  font-size: 24rpx;
+}
+
+.facility-chip.accessible {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.facility-chip.blocked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.facility-chip.maintenance {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.facility-chip.occupied {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.chip-icon {
+  font-size: 28rpx;
+}
+
+.chip-name {
+  font-weight: 500;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 24rpx;
+}
+
+.action-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border: none;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.action-btn.secondary {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-icon {
+  font-size: 32rpx;
+}
+
+/* 设施分析 */
+.analysis-section {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.analysis-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+}
+
+.analysis-stats {
+  display: flex;
+  gap: 16rpx;
+}
+
+.stat-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+}
+
+.stat-item.green {
+  background: #d1fae5;
+}
+
+.stat-item.red {
+  background: #fee2e2;
+}
+
+.stat-item.yellow {
+  background: #fef3c7;
+}
+
+.stat-value {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4rpx;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  color: #666;
+}
+
+/* 空状态 */
+.empty-state {
+  position: absolute;
+  bottom: 100rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 40rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #666;
+  text-align: center;
+  max-width: 400rpx;
+}
+

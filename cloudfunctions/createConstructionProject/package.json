@@ -1,0 +1,12 @@
+{
+  "name": "createConstructionProject",
+  "version": "1.0.0",
+  "description": "施工方创建施工项目",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+
+
+

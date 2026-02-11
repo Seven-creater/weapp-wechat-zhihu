@@ -1,0 +1,68 @@
+<!--pages/route/navigate/index.wxml-->
+<view class="container">
+  <!-- 地图 -->
+  <map
+    id="navMap"
+    class="map-view"
+    longitude="{{longitude}}"
+    latitude="{{latitude}}"
+    scale="{{scale}}"
+    markers="{{markers}}"
+    polyline="{{polyline}}"
+    show-location
+    enable-rotate
+    enable-overlooking
+  >
+    <!-- 顶部信息栏 -->
+    <cover-view class="top-info">
+      <cover-view class="info-card {{offRoute ? 'warning' : ''}}">
+        <cover-view class="info-main">
+          <cover-view class="distance-large">{{formatDistance(distanceToNext)}}</cover-view>
+          <cover-view class="direction-text">{{direction}}方向</cover-view>
+        </cover-view>
+        <cover-view class="info-sub">
+          <cover-view class="next-waypoint">
+            {{route && route.waypoints[currentWaypointIndex + 1] ? route.waypoints[currentWaypointIndex + 1].name : '终点'}}
+          </cover-view>
+          <cover-view class="total-distance">剩余 {{formatDistance(distanceToEnd)}}</cover-view>
+        </cover-view>
+      </cover-view>
+      
+      <!-- 偏离提示 -->
+      <cover-view wx:if="{{offRoute}}" class="off-route-alert">
+        <cover-view class="alert-icon">⚠️</cover-view>
+        <cover-view class="alert-text">您已偏离路线，请返回</cover-view>
+      </cover-view>
+    </cover-view>
+
+    <!-- 右侧控制按钮 -->
+    <cover-view class="side-controls">
+      <cover-view class="control-btn" bindtap="toggleVoice">
+        <cover-view class="control-icon">{{voiceEnabled ? '🔊' : '🔇'}}</cover-view>
+      </cover-view>
+    </cover-view>
+  </map>
+
+  <!-- 底部控制栏 -->
+  <view class="bottom-controls">
+    <button wx:if="{{!navigating}}" class="nav-btn start" bindtap="startNavigation">
+      <text class="btn-icon">▶️</text>
+      <text class="btn-text">开始导航</text>
+    </button>
+    
+    <button wx:if="{{navigating}}" class="nav-btn stop" bindtap="stopNavigation">
+      <text class="btn-icon">⏹️</text>
+      <text class="btn-text">结束导航</text>
+    </button>
+  </view>
+
+  <!-- 到达提示 -->
+  <view wx:if="{{arrived}}" class="arrival-overlay">
+    <view class="arrival-card">
+      <view class="arrival-icon">🎉</view>
+      <view class="arrival-title">已到达目的地</view>
+      <view class="arrival-text">感谢使用无障碍导航</view>
+    </view>
+  </view>
+</view>
+

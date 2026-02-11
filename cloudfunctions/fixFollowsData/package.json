@@ -1,0 +1,10 @@
+{
+  "name": "fixFollowsData",
+  "version": "1.0.0",
+  "description": "修复旧的关注记录数据",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
+

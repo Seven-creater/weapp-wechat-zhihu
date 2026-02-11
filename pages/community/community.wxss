@@ -19,6 +19,61 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
+/* Post Type Filter */
+.post-type-filter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fff;
+  gap: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.filter-item {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+  background: #f5f7fa;
+  transition: all 0.3s ease;
+}
+
+.filter-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Category Filter (案例分类) */
+.category-filter {
+  display: flex;
+  padding: 12px 16px;
+  background: #fff;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.category-item {
+  display: inline-block;
+  padding: 8px 20px;
+  margin-right: 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #666;
+  background: #f5f7fa;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.category-item.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
 .tab-item {
   font-size: 16px;
   color: #999;
@@ -49,29 +104,35 @@
 /* Waterfall Layout */
 .content-scroll {
   flex: 1;
-  padding: 12px 8px;
+  padding: 12rpx;
+  box-sizing: border-box;
 }
 
 .waterfall {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .waterfall-column {
-  width: calc(50% - 4px);
+  width: calc(50% - 6rpx);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Post Card */
 .post-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 12rpx;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  margin-bottom: 8px;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: 12rpx;
   transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .post-card:active {

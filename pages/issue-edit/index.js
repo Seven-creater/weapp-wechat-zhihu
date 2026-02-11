@@ -1,7 +1,8 @@
+// pages/issue-edit/index.js
 const app = getApp();
-const costEstimate = require("../../utils/cost-estimate.js");
+const { getAllCategories } = require('../../utils/categories.js');
 
-// 延迟初始化数据库，避免在云开发初始化前调用
+// 延迟初始化数据库
 let db = null;
 
 const getDB = () => {
@@ -11,915 +12,464 @@ const getDB = () => {
   return db;
 };
 
-const ISSUE_DRAFT_KEY = "issueDraft";
-const ISSUE_DRAFT_TEMP_KEY = "issueDraftTemp";
+const recorderManager = wx.getRecorderManager();
 
 Page({
   data: {
-    description: "",
-    userSuggestion: "",
+    description: '',
+    userSuggestion: '',
     images: [],
-    categoryOptions: [
-      "无障碍停车位",
-      "无障碍卫生间",
-      "无障碍坡道",
-      "无障碍电梯",
-      "无障碍升降台",
-    ],
-    selectedCategory: "",
-    contactPhone: "",
-    detailAddress: "",
-    aiSolution: "",
-    location: null,
-    address: "",
-    formattedAddress: "",
-    syncToCommunity: true,
+    selectedCategory: '',
+    selectedCategoryId: '',  // 新增：保存分类ID
+    categoryOptions: [],  // 将在onLoad中初始化
+    contactPhone: '',
+    latitude: null,
+    longitude: null,
+    address: '',
+    formattedAddress: '',
+    detailAddress: '',
+    aiSolution: '',
     generatingAI: false,
     submitting: false,
     isRecording: false,
-    // 新增：造价估算相关
-    showCostEstimate: false,
-    costEstimateData: null,
-    projectParams: {
-      area: 0,      // 面积（平方米）
-      length: 0,    // 长度（米）
-      width: 0,     // 宽度（米）
-      height: 0,    // 高度（米）
-    },
+    tempAudioPath: ''
   },
 
   onLoad: function (options) {
-    this.initVoiceInput();
-    const fromCapture = options.fromCapture === "1";
-    if (fromCapture) {
-      this.initFromCapture();
-      return;
-    }
-    this.checkDraftOnLoad();
-  },
-
-  onUnload: function () {
-    if (this.skipDraftSave) return;
-    if (this.draftDirty && !this.data.submitting) {
-      this.saveDraft(true);
-    }
-    if (this.recognitionManager) {
-      this.recognitionManager.stop();
-    }
-  },
-
-  initVoiceInput: function () {
-    try {
-      const plugin = requirePlugin("WeChatSI");
-      this.recognitionManager = plugin.getRecordRecognitionManager();
-
-      this.recognitionManager.onStart = () => {
-        console.log("开始录音");
-        this.setData({ isRecording: true });
-      };
-
-      this.recognitionManager.onStop = (res) => {
-        console.log("录音结束", res);
-        this.setData({ isRecording: false });
-        const result = res.result;
-
-        if (result && result.trim()) {
-          const currentDescription = this.data.description;
-          const newDescription = currentDescription
-            ? currentDescription + result
-            : result;
-          this.setData({ description: newDescription });
-          this.draftDirty = true;
-        } else {
-          wx.vibrateShort();
-          wx.showToast({
-            title: "未识别到语音，请重试",
-            icon: "none",
-          });
-        }
-      };
-
-      this.recognitionManager.onError = (err) => {
-        console.error("语音识别错误:", err);
-        this.setData({ isRecording: false });
-        wx.vibrateShort();
-        wx.showToast({
-          title: "语音识别失败，请重试",
-          icon: "none",
-        });
-      };
-    } catch (err) {
-      console.error("初始化语音插件失败:", err);
-    }
-  },
-
-  streamRecord: function () {
-    if (!this.recognitionManager) {
-      wx.showToast({
-        title: "语音功能初始化失败",
-        icon: "none",
-      });
-      return;
-    }
-    wx.vibrateShort();
-    this.recognitionManager.start({
-      lang: "zh_CN",
-      duration: 60000,
-    });
-    wx.showToast({
-      title: "正在听...",
-      icon: "none",
-      duration: 1000,
-    });
-  },
-
-  endStreamRecord: function () {
-    if (this.recognitionManager) {
-      this.recognitionManager.stop();
-    }
-  },
-
-  initFromCapture: function () {
-    const tempDraft = wx.getStorageSync(ISSUE_DRAFT_TEMP_KEY);
-    wx.removeStorageSync(ISSUE_DRAFT_TEMP_KEY);
-
-    if (!tempDraft || !Array.isArray(tempDraft.images)) {
-      this.checkDraftOnLoad();
-      return;
-    }
-
-    const location = this.normalizeLocation(tempDraft.location);
-
-    this.persistImages(tempDraft.images)
-      .then((savedPaths) => {
-        const images = savedPaths.map((path) => ({
-          path,
-          isSaved: true,
-        }));
-
-        this.setData({
-          description: tempDraft.description || "",
-          images,
-          location,
-          address: location ? location.address : "",
-          formattedAddress: location ? location.formattedAddress : "",
-          syncToCommunity: true,
-          selectedCategory: tempDraft.selectedCategory || "",
-          contactPhone: tempDraft.contactPhone || "",
-        });
-
-        this.draftDirty = true;
-        this.saveDraft(true);
-      })
-      .catch(() => {
-        wx.showToast({
-          title: "图片保存失败",
-          icon: "none",
-        });
-      });
-  },
-
-  checkDraftOnLoad: function () {
-    const draft = wx.getStorageSync(ISSUE_DRAFT_KEY);
-    if (!draft || !this.hasDraftContent(draft)) {
-      return;
-    }
-
-    wx.showModal({
-      title: "发现草稿",
-      content: "是否恢复上次编辑内容？",
-      confirmText: "恢复",
-      cancelText: "放弃",
-      success: (res) => {
-        if (res.confirm) {
-          this.restoreDraft(draft);
-        } else {
-          this.clearDraftFiles(draft.images || []);
-          wx.removeStorageSync(ISSUE_DRAFT_KEY);
-        }
-      },
-    });
-  },
-
-  hasDraftContent: function (draft) {
-    return (
-      (draft.description && draft.description.trim()) ||
-      (draft.images && draft.images.length > 0) ||
-      (draft.aiSolution && draft.aiSolution.trim())
-    );
-  },
-
-  restoreDraft: function (draft) {
-    const location = this.normalizeLocation(draft.location);
-    const images = (draft.images || []).map((path) => ({
-      path,
-      isSaved: true,
-    }));
-
+    // 初始化分类选项
+    const categories = getAllCategories();
     this.setData({
-      description: draft.description || "",
-      images,
-      aiSolution: draft.aiSolution || "",
-      location,
-      address: draft.address || (location ? location.address : ""),
-      formattedAddress:
-        draft.formattedAddress || (location ? location.formattedAddress : ""),
-      syncToCommunity:
-        typeof draft.syncToCommunity === "boolean"
-          ? draft.syncToCommunity
-          : true,
-      selectedCategory: draft.selectedCategory || "",
-      contactPhone: draft.contactPhone || "",
-      detailAddress: draft.detailAddress || "",
+      categoryOptions: categories
     });
-
-    this.draftDirty = false;
-  },
-
-  normalizeLocation: function (location) {
-    if (!location) return null;
-    return {
-      latitude: Number(location.latitude) || 0,
-      longitude: Number(location.longitude) || 0,
-      address: location.address || "",
-      formattedAddress: location.formattedAddress || "",
-    };
+    
+    // 如果从其他页面传入了图片
+    if (options && options.image) {
+      this.setData({
+        images: [{
+          path: decodeURIComponent(options.image)
+        }]
+      });
+    }
+    
+    // 自动获取位置
+    this.chooseLocation();
+    
+    // 录音监听
+    recorderManager.onStop((res) => {
+      this.setData({
+        tempAudioPath: res.tempFilePath,
+        isRecording: false
+      });
+      this.recognizeSpeech(res.tempFilePath);
+    });
   },
 
   onDescriptionInput: function (e) {
-    this.setData({
-      description: e.detail.value,
-    });
-    this.draftDirty = true;
+    this.setData({ description: e.detail.value });
   },
 
   onSuggestionInput: function (e) {
-    this.setData({
-      userSuggestion: e.detail.value,
-    });
-    this.draftDirty = true;
-  },
-
-  onCategorySelect: function (e) {
-    const category = e.currentTarget.dataset.category;
-    if (!category) return;
-    this.setData({ selectedCategory: category });
-    this.draftDirty = true;
+    this.setData({ userSuggestion: e.detail.value });
   },
 
   onContactPhoneInput: function (e) {
     this.setData({ contactPhone: e.detail.value });
-    this.draftDirty = true;
   },
 
   onContactPhoneBlur: function (e) {
-    const value = (e.detail.value || "").trim();
-    if (!value) return;
-    if (!/^\+?[0-9\-\s]{7,20}$/.test(value)) {
-      wx.showToast({ title: "联系电话格式不正确", icon: "none" });
+    const phone = e.detail.value;
+    // 简单的手机号验证
+    if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+      wx.showToast({
+        title: '请输入正确的手机号',
+        icon: 'none'
+      });
     }
   },
 
   onDetailAddressInput: function (e) {
     this.setData({ detailAddress: e.detail.value });
-    this.draftDirty = true;
   },
 
   onAiSolutionInput: function (e) {
-    const newValue = e.detail.value;
-    console.log("AI方案输入变化:", newValue);
-
-    this.setData({
-      aiSolution: newValue,
-    });
-    this.draftDirty = true;
-
-    // 验证数据是否更新成功
-    console.log("当前aiSolution值:", this.data.aiSolution);
+    this.setData({ aiSolution: e.detail.value });
   },
 
-  onSyncChange: function (e) {
-    this.setData({
-      syncToCommunity: e.detail.value,
+  onCategorySelect: function (e) {
+    const category = e.currentTarget.dataset.category;
+    const categoryId = e.currentTarget.dataset.id;
+    this.setData({ 
+      selectedCategory: category,
+      selectedCategoryId: categoryId
     });
-    this.draftDirty = true;
   },
 
+  // 选择图片
   chooseImage: function () {
-    const remain = 9 - this.data.images.length;
-    if (remain <= 0) return;
+    const currentCount = this.data.images.length;
+    if (currentCount >= 9) {
+      wx.showToast({
+        title: '最多上传9张图片',
+        icon: 'none'
+      });
+      return;
+    }
 
-    wx.chooseImage({
-      count: remain,
-      sizeType: ["compressed"],
-      sourceType: ["album", "camera"],
+    wx.chooseMedia({
+      count: 9 - currentCount,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
       success: (res) => {
-        const tempFilePaths = res.tempFilePaths || [];
-        if (tempFilePaths.length === 0) return;
-
-        this.persistImages(tempFilePaths).then((savedPaths) => {
-          const images = this.data.images.concat(
-            savedPaths.map((path) => ({
-              path,
-              isSaved: true,
-            })),
-          );
-          this.setData({ images });
-          this.draftDirty = true;
+        const newImages = res.tempFiles.map(file => ({
+          path: file.tempFilePath
+        }));
+        this.setData({
+          images: [...this.data.images, ...newImages]
         });
-      },
-      fail: (err) => {
-        console.error("选择图片失败:", err);
-        wx.showToast({
-          title: "选择图片失败",
-          icon: "none",
-        });
-      },
+      }
     });
   },
 
+  // 预览图片
+  previewImage: function (e) {
+    const src = e.currentTarget.dataset.src;
+    const urls = this.data.images.map(img => img.path);
+    wx.previewImage({
+      current: src,
+      urls: urls
+    });
+  },
+
+  // 删除图片
   removeImage: function (e) {
     const index = e.currentTarget.dataset.index;
     const images = [...this.data.images];
-    const removed = images.splice(index, 1)[0];
+    images.splice(index, 1);
     this.setData({ images });
-
-    if (removed && removed.isSaved) {
-      this.removeSavedFile(removed.path);
-    }
-
-    this.draftDirty = true;
   },
 
-  previewImage: function (e) {
-    const current = e.currentTarget.dataset.src;
-    const urls = this.data.images.map((item) => item.path);
-    if (!current || urls.length === 0) return;
-
-    wx.previewImage({
-      current,
-      urls,
-    });
-  },
-
+  // 选择位置
   chooseLocation: function () {
     wx.chooseLocation({
       success: (res) => {
-        const location = {
+        this.setData({
           latitude: res.latitude,
           longitude: res.longitude,
-          address: res.address || res.name || "",
-          formattedAddress: res.address || res.name || "",
-        };
-        this.setData({
-          location,
-          address: location.address,
-          formattedAddress: location.formattedAddress,
+          address: res.address,
+          formattedAddress: res.name || res.address
         });
-        this.draftDirty = true;
       },
       fail: (err) => {
-        console.error("选择位置失败:", err);
-        wx.showToast({
-          title: "选点失败",
-          icon: "none",
+        console.log('选择位置失败:', err);
+        // 如果用户拒绝授权，尝试获取当前位置
+        wx.getLocation({
+          type: 'gcj02',
+          success: (res) => {
+            this.setData({
+              latitude: res.latitude,
+              longitude: res.longitude
+            });
+            // 逆地理编码获取地址
+            this.reverseGeocoder(res.latitude, res.longitude);
+          }
         });
-      },
+      }
     });
   },
 
+  // 逆地理编码
+  reverseGeocoder: function (latitude, longitude) {
+    // 这里可以调用腾讯地图API进行逆地理编码
+    // 暂时先设置一个默认值
+    this.setData({
+      formattedAddress: `位置: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+    });
+  },
+
+  // 开始录音
+  streamRecord: function () {
+    this.setData({ isRecording: true });
+    
+    recorderManager.start({
+      duration: 60000,
+      format: 'mp3'
+    });
+  },
+
+  // 结束录音
+  endStreamRecord: function () {
+    if (this.data.isRecording) {
+      recorderManager.stop();
+    }
+  },
+
+  // 语音识别
+  recognizeSpeech: function (audioPath) {
+    wx.showLoading({ title: '识别中...' });
+    
+    // 调用语音识别云函数
+    wx.cloud.callFunction({
+      name: 'recognizeSpeech',
+      data: {
+        audioPath: audioPath
+      }
+    }).then(res => {
+      wx.hideLoading();
+      if (res.result && res.result.success) {
+        const text = res.result.text || '';
+        this.setData({
+          description: this.data.description + text
+        });
+      } else {
+        wx.showToast({
+          title: '识别失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('语音识别失败:', err);
+      wx.showToast({
+        title: '识别失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  // 生成AI方案
   generateAISolution: function () {
-    if (this.data.generatingAI) return;
     if (this.data.images.length === 0) {
       wx.showToast({
-        title: "请先添加图片",
-        icon: "none",
+        title: '请先上传现场照片',
+        icon: 'none'
       });
       return;
     }
 
-    const imagePath = this.data.images[0].path;
-    const location = this.data.location || null;
-    const category = this.data.selectedCategory;
+    if (!this.data.description.trim()) {
+      wx.showToast({
+        title: '请先填写问题描述',
+        icon: 'none'
+      });
+      return;
+    }
 
     this.setData({ generatingAI: true });
-    wx.showLoading({
-      title: "AI诊断中...",
-      mask: true,
-    });
+    wx.showLoading({ title: 'AI分析中...' });
 
-    this.uploadSingleImage(imagePath, "issues/ai")
-      .then((fileID) => {
-        console.log("上传成功，fileID:", fileID);
+    // 先上传图片到云存储
+    this.uploadImages().then(fileIDs => {
+      // TODO: 调用团队训练的AI大模型接口
+      // 接口预留位置
+      // return wx.cloud.callFunction({
+      //   name: 'callAIModel',
+      //   data: {
+      //     imageUrl: fileIDs[0],
+      //     description: this.data.description,
+      //     location: {
+      //       latitude: this.data.latitude,
+      //       longitude: this.data.longitude,
+      //       address: this.data.address
+      //     }
+      //   }
+      // });
 
-        return wx.cloud.callFunction({
-          name: "analyzeIssue",
-          data: {
-            fileID,
-            location,
-            category,
-          },
-        });
-      })
-      .then((res) => {
-        const aiSolution =
-          (res.result && res.result.aiSolution) ||
-          (res.result && res.result.aiAnalysis) ||
-          "";
-        if (!aiSolution) {
-          throw new Error("AI未返回方案");
+      // 暂时返回假数据模拟AI分析结果
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            result: {
+              success: true,
+              // 使用用户选择的分类，而不是硬编码
+              category: this.data.selectedCategory || '无障碍坡道',
+              budget: 5000,  // AI估算的预算
+              description: `根据图片分析，建议安装坡度为1:12的${this.data.selectedCategory || '无障碍设施'}，长度约6米，配备防滑材料和扶手。`
+            }
+          });
+        }, 2000);
+      });
+    }).then(res => {
+      wx.hideLoading();
+      this.setData({ generatingAI: false });
+      
+      if (res.result && res.result.success) {
+        const aiResult = res.result;
+        
+        // 只在用户没有选择分类时，才使用AI识别的分类
+        if (aiResult.category && !this.data.selectedCategory) {
+          this.setData({
+            selectedCategory: aiResult.category
+          });
         }
         
-        this.setData({ aiSolution });
-        this.draftDirty = true;
-        this.saveDraft(true);
-
-        // 自动生成造价估算
-        if (category) {
-          this.generateCostEstimate();
-        }
-      })
-      .catch((err) => {
-        console.error("生成AI方案失败:", err);
-        wx.showToast({
-          title: "生成失败，请重试",
-          icon: "none",
+        // 设置AI生成的方案描述
+        this.setData({
+          aiSolution: aiResult.description || '暂无AI分析结果'
         });
-      })
-      .finally(() => {
-        wx.hideLoading();
-        this.setData({ generatingAI: false });
-      });
-  },
 
-  // 新增：生成造价估算
-  generateCostEstimate: function () {
-    const { selectedCategory, projectParams } = this.data;
-    
-    if (!selectedCategory) {
+        // TODO: 调用淘宝开放平台API获取预算
+        // 接口预留位置
+        // this.getBudgetEstimate(aiResult.category);
+
+        wx.showToast({
+          title: 'AI分析完成',
+          icon: 'success'
+        });
+      } else {
+        wx.showToast({
+          title: 'AI分析失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      this.setData({ generatingAI: false });
+      console.error('AI分析失败:', err);
       wx.showToast({
-        title: "请先选择分类",
-        icon: "none",
+        title: 'AI分析失败',
+        icon: 'none'
       });
-      return;
-    }
-
-    try {
-      // 生成造价估算
-      const estimate = costEstimate.generateCostEstimate(
-        selectedCategory,
-        projectParams,
-        { description: this.data.description }
-      );
-
-      this.setData({
-        costEstimateData: estimate,
-        showCostEstimate: true,
-      });
-
-      wx.showToast({
-        title: "造价估算已生成",
-        icon: "success",
-      });
-    } catch (error) {
-      console.error("生成造价估算失败:", error);
-      wx.showToast({
-        title: "估算生成失败",
-        icon: "none",
-      });
-    }
-  },
-
-  // 新增：更新项目参数
-  onProjectParamInput: function (e) {
-    const { field } = e.currentTarget.dataset;
-    const value = parseFloat(e.detail.value) || 0;
-    
-    this.setData({
-      [`projectParams.${field}`]: value,
     });
   },
 
-  // 新增：查看造价详情
-  viewCostDetails: function () {
-    if (!this.data.costEstimateData) {
-      this.generateCostEstimate();
-    } else {
-      this.setData({ showCostEstimate: true });
-    }
+  // 获取预算估算（淘宝开放平台API）
+  getBudgetEstimate: function (category) {
+    // TODO: 调用淘宝开放平台API
+    // 接口预留位置
+    // wx.request({
+    //   url: 'https://eco.taobao.com/router/rest',
+    //   data: {
+    //     method: 'taobao.item.price.get',
+    //     app_key: 'YOUR_APP_KEY',
+    //     category: category,
+    //     location: this.data.address
+    //   },
+    //   success: (res) => {
+    //     const budget = res.data.estimatedCost;
+    //     // 更新预算显示
+    //   }
+    // });
+
+    // 暂时使用假数据
+    console.log('预算API预留位置，分类:', category);
   },
 
-  // 新增：关闭造价估算
-  closeCostEstimate: function () {
-    this.setData({ showCostEstimate: false });
+  // 上传图片到云存储
+  uploadImages: function () {
+    const uploadPromises = this.data.images.map((img, index) => {
+      const cloudPath = `issues/${Date.now()}-${index}.jpg`;
+      return wx.cloud.uploadFile({
+        cloudPath: cloudPath,
+        filePath: img.path
+      }).then(res => res.fileID);
+    });
+
+    return Promise.all(uploadPromises);
   },
 
-  submitIssue: async function () {
-    const {
-      description,
-      images,
-      aiSolution,
-      location,
-      syncToCommunity,
-      selectedCategory,
-    } = this.data;
-
-    if (this.data.submitting) return;
-
-    if (!description.trim()) {
+  // 提交问题
+  submitIssue: function () {
+    // 验证必填项
+    if (!this.data.description.trim()) {
       wx.showToast({
-        title: "请填写问题说明",
-        icon: "none",
+        title: '请填写问题说明',
+        icon: 'none'
       });
       return;
     }
 
-    if (!selectedCategory) {
+    if (!this.data.selectedCategory) {
       wx.showToast({
-        title: "请选择分类",
-        icon: "none",
+        title: '请选择分类',
+        icon: 'none'
       });
       return;
     }
 
-    if (!aiSolution.trim()) {
+    if (this.data.images.length === 0) {
       wx.showToast({
-        title: "请先生成材料报告",
-        icon: "none",
+        title: '请上传至少一张现场照片',
+        icon: 'none'
       });
       return;
     }
 
-    if (!location) {
+    if (!this.data.latitude || !this.data.longitude) {
       wx.showToast({
-        title: "请先定位",
-        icon: "none",
-      });
-      return;
-    }
-
-    if (!images || images.length === 0) {
-      wx.showToast({
-        title: "请添加图片",
-        icon: "none",
+        title: '请选择位置信息',
+        icon: 'none'
       });
       return;
     }
 
     this.setData({ submitting: true });
-    // 1. 开启 Loading (防止用户重复点击)
-    wx.showLoading({ title: "正在安全检测...", mask: true });
+    wx.showLoading({ title: '发布中...' });
 
-    try {
-      // ==========================================
-      // 🛑 第一道关卡：登录检查
-      // ==========================================
-      await app.checkLogin().catch(() => {
-        return new Promise((resolve, reject) => {
-          wx.showModal({
-            title: "提示",
-            content: "请先登录",
-            confirmText: "去登录",
-            cancelText: "取消",
-            success: (res) => {
-              if (res.confirm) {
-                app
-                  .login()
-                  .then(() => resolve())
-                  .catch((err) => reject(err));
-              } else {
-                reject(new Error("未登录"));
-              }
-            },
-          });
-        });
-      });
+    // 直接创建帖子，不需要先创建issues记录
+    this.uploadImages().then(fileIDs => {
+      const db = getDB();
+      
+      // 从缓存获取用户信息
+      const cachedUserInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
+      const cachedUserType = app.globalData.userType || wx.getStorageSync('userType') || 'resident';
+      
+      const postData = {
+        type: 'issue',  // 问题帖类型
+        status: 'pending',  // 待处理状态
+        title: this.data.description.substring(0, 30),
+        content: this.data.description,
+        images: fileIDs,
+        category: this.data.selectedCategoryId,  // 保存分类ID
+        categoryName: this.data.selectedCategory,  // 保存分类名称
+        location: new db.Geo.Point(this.data.longitude, this.data.latitude),
+        address: this.data.address,
+        formattedAddress: this.data.formattedAddress,
+        detailAddress: this.data.detailAddress,
+        userSuggestion: this.data.userSuggestion,
+        aiSolution: this.data.aiSolution,  // AI生成的方案
+        contactPhone: this.data.contactPhone,
+        userInfo: {
+          nickName: cachedUserInfo.nickName || '微信用户',
+          avatarUrl: cachedUserInfo.avatarUrl || '/images/zhi.png'
+        },
+        userType: cachedUserType,
+        stats: {
+          like: 0,
+          comment: 0,
+          collect: 0,
+          view: 0
+        },
+        createTime: db.serverDate(),
+        updateTime: db.serverDate()
+      };
 
-      // ==========================================
-      // 🛑 第二道关卡：调用云函数检测问题描述
-      // ==========================================
-      const descSecRes = await wx.cloud.callFunction({
-        name: "checkContent",
-        data: { type: "text", value: description.trim() },
-      });
-
-      // 调试日志：看看云函数到底返回了什么
-      console.log("问题描述安全检测结果:", descSecRes);
-
-      // 🛑 检查检测结果
-      if (descSecRes.result.code !== 0) {
-        throw new Error("问题描述含有违法违规信息，禁止发布！");
-      }
-
-      // ==========================================
-      // 🛑 第三道关卡：调用云函数检测AI方案
-      // ==========================================
-      const aiSecRes = await wx.cloud.callFunction({
-        name: "checkContent",
-        data: { type: "text", value: aiSolution.trim() },
-      });
-
-      // 调试日志：看看云函数到底返回了什么
-      console.log("AI方案安全检测结果:", aiSecRes);
-
-      // 🛑 检查检测结果
-      if (aiSecRes.result.code !== 0) {
-        throw new Error("AI方案含有违法违规信息，禁止发布！");
-      }
-
-      // ==========================================
-      // ✅ 只有通过了上面三关，才能执行下面的代码！
-      // ==========================================
-
-      // 上传图片到云存储
-      const fileIDs = await this.uploadImagesToCloud(
-        images.map((item) => item.path),
-      );
-
-      // 保存问题和解决方案到数据库
-      const issueId = await this.saveIssueAndSolution(
-        fileIDs,
-        description.trim(),
-        aiSolution.trim(),
-        location,
-        syncToCommunity,
-      );
-
-      this.clearDraft();
+      return db.collection('posts').add({ data: postData });
+    }).then(() => {
       wx.hideLoading();
-      wx.showToast({
-        title: "提交成功",
-        icon: "success",
-      });
-      wx.navigateTo({
-        url: "/pages/issue-detail/issue-detail?id=" + issueId,
-      });
-    } catch (err) {
-      // ❌ 失败处理
-      wx.hideLoading();
-      console.error("拦截成功或出错:", err);
-
-      if (err && err.message === "未登录") {
-        this.setData({ submitting: false });
-        return;
-      }
-
-      // 弹出红色警告，且**不清空输入框**（方便用户修改）
-      wx.showModal({
-        title: "发布失败",
-        content: err.message || "内容包含敏感信息",
-        showCancel: false,
-        confirmText: "我知道了",
-      });
-    } finally {
       this.setData({ submitting: false });
-    }
-  },
-
-  saveIssueAndSolution: function (
-    fileIDs,
-    description,
-    aiSolution,
-    location,
-    syncToCommunity,
-  ) {
-    const { userSuggestion, selectedCategory, contactPhone, detailAddress } = this.data;
-    const coverImage = fileIDs[0];
-    const rawUserInfo =
-      app.globalData.userInfo || wx.getStorageSync("userInfo") || {};
-    const normalizedUserInfo = {
-      nickName: rawUserInfo.nickName || "匿名用户",
-      avatarUrl: rawUserInfo.avatarUrl || "/images/zhi.png",
-    };
-
-    const db = getDB();
-
-    const issueData = {
-      imageUrl: coverImage,
-      images: fileIDs,
-      description,
-      userSuggestion,
-      category: selectedCategory || "",
-      contactPhone: contactPhone || "",
-      detailAddress: detailAddress || "",
-      location: new db.Geo.Point(location.longitude, location.latitude),
-      address: location.address,
-      formattedAddress: location.formattedAddress,
-      aiSolution,
-      status: "pending",
-      createTime: db.serverDate(),
-      userInfo: normalizedUserInfo,
-    };
-
-    return db
-      .collection("issues")
-      .add({ data: issueData })
-      .then((res) => {
-        const issueId = res._id;
-        const title = description
-          ? description.substring(0, 30)
-          : `发现${location.address || "无障碍问题"}`;
-
-        const locationPoint = new db.Geo.Point(
-          location.longitude,
-          location.latitude,
-        );
-
-        const solutionData = {
-          title,
-          category: selectedCategory || "",
-          status: "跟进中",
-          beforeImg: coverImage,
-          aiAnalysis: aiSolution,
-          userSuggestion,
-          viewCount: 0,
-          collectCount: 0,
-          createTime: db.serverDate(),
-          sourceIssueId: issueId,
-          address: location.address,
-          formattedAddress: location.formattedAddress,
-          detailAddress: detailAddress || "",
-          location: locationPoint,
-          userInfo: normalizedUserInfo,
-        };
-
-        const tasks = [db.collection("solutions").add({ data: solutionData })];
-
-        if (syncToCommunity) {
-          tasks.push(
-            this.createCommunityPost(
-              issueId,
-              fileIDs,
-              location,
-              aiSolution,
-              description,
-              selectedCategory || "",
-              normalizedUserInfo,
-              userSuggestion,
-              detailAddress,
-            ),
-          );
-        }
-
-        return Promise.all(tasks).then(() => issueId);
-      });
-  },
-
-  createCommunityPost: function (
-    issueId,
-    images,
-    location,
-    aiSolution,
-    description,
-    category,
-    userInfo,
-    userSuggestion,
-    detailAddress,
-  ) {
-    const safeUserInfo = userInfo || {};
-    const normalizedUserInfo = {
-      nickName: safeUserInfo.nickName || "匿名用户",
-      avatarUrl: safeUserInfo.avatarUrl || "/images/zhi.png",
-    };
-    
-    const db = getDB();
-    
-    const postData = {
-      issueId,
-      content: `${description}\nAI诊断：${aiSolution}`,
-      images,
-      type: "issue",
-      category: category || "",
-      userSuggestion,
-      detailAddress: detailAddress || "",
-      location: new db.Geo.Point(location.longitude, location.latitude),
-      address: location.address,
-      formattedAddress: location.formattedAddress,
-      stats: { view: 0, like: 0, comment: 0 },
-      createTime: db.serverDate(),
-      updateTime: db.serverDate(),
-      userInfo: normalizedUserInfo,
-    };
-
-    return db.collection("posts").add({ data: postData });
-  },
-
-  uploadImagesToCloud: function (paths) {
-    const uploads = paths.map((filePath, index) => {
-      const fileExt = this.getFileExt(filePath);
-      const cloudPath = `issues/${Date.now()}-${index}.${fileExt}`;
-      return wx.cloud
-        .uploadFile({
-          cloudPath,
-          filePath,
-        })
-        .then((res) => res.fileID);
-    });
-
-    return Promise.all(uploads);
-  },
-
-  uploadSingleImage: function (filePath, prefix) {
-    const fileExt = this.getFileExt(filePath);
-    const cloudPath = `${prefix}/${Date.now()}.${fileExt}`;
-    return wx.cloud
-      .uploadFile({
-        cloudPath,
-        filePath,
-      })
-      .then((res) => res.fileID);
-  },
-
-  getFileExt: function (filePath) {
-    const parts = filePath.split(".");
-    const ext = parts[parts.length - 1];
-    return ext || "jpg";
-  },
-
-  persistImages: function (tempPaths) {
-    return Promise.all(
-      tempPaths.map((path) => {
-        return new Promise((resolve) => {
-          wx.saveFile({
-            tempFilePath: path,
-            success: (res) => resolve(res.savedFilePath),
-            fail: () => resolve(path),
-          });
-        });
-      }),
-    );
-  },
-
-  removeSavedFile: function (path) {
-    wx.removeSavedFile({
-      filePath: path,
-      fail: () => {},
-    });
-  },
-
-  clearDraftFiles: function (paths) {
-    (paths || []).forEach((path) => {
-      this.removeSavedFile(path);
-    });
-  },
-
-  saveDraft: function (silent) {
-    const draft = {
-      description: this.data.description,
-      images: this.data.images.map((item) => item.path),
-      aiSolution: this.data.aiSolution,
-      location: this.data.location,
-      address: this.data.address,
-      formattedAddress: this.data.formattedAddress,
-      syncToCommunity: this.data.syncToCommunity,
-      selectedCategory: this.data.selectedCategory,
-      contactPhone: this.data.contactPhone,
-      detailAddress: this.data.detailAddress,
-      updatedAt: Date.now(),
-    };
-
-    wx.setStorageSync(ISSUE_DRAFT_KEY, draft);
-
-    if (!silent) {
+      
       wx.showToast({
-        title: "草稿已保存",
-        icon: "success",
+        title: '发布成功',
+        icon: 'success'
       });
-    }
-  },
 
-  clearDraft: function () {
-    const paths = this.data.images.map((item) => item.path);
-    this.clearDraftFiles(paths);
-    wx.removeStorageSync(ISSUE_DRAFT_KEY);
-    this.skipDraftSave = true;
-    this.draftDirty = false;
-  },
-
-  handleCancel: function () {
-    if (
-      !this.hasDraftContent({
-        description: this.data.description,
-        images: this.data.images.map((item) => item.path),
-        aiSolution: this.data.aiSolution,
-      })
-    ) {
-      wx.navigateBack();
-      return;
-    }
-
-    wx.showActionSheet({
-      itemList: ["保存草稿并退出", "放弃草稿"],
-      success: (res) => {
-        if (res.tapIndex === 0) {
-          this.saveDraft(false);
-          this.skipDraftSave = true;
-          wx.navigateBack();
-        } else if (res.tapIndex === 1) {
-          this.clearDraft();
-          wx.navigateBack();
-        }
-      },
+      setTimeout(() => {
+        wx.navigateBack();
+      }, 1500);
+    }).catch(err => {
+      wx.hideLoading();
+      this.setData({ submitting: false });
+      console.error('发布失败:', err);
+      wx.showToast({
+        title: err.message || '发布失败',
+        icon: 'none'
+      });
     });
   },
+
+  // 取消
+  handleCancel: function () {
+    wx.navigateBack();
+  }
 });
+

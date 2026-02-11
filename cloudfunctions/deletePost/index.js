@@ -18,10 +18,18 @@ exports.main = async (event, context) => {
   }
 
   try {
+    // 检查是否是管理员
+    const adminOpenids = [
+      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
+      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
+    ];
+    const isAdmin = adminOpenids.includes(openid);
+
     const postRes = await db.collection('posts').doc(postId).get();
     const post = postRes.data;
 
-    if (!post || post._openid !== openid) {
+    // 管理员可以删除任何帖子，普通用户只能删除自己的帖子
+    if (!post || (!isAdmin && post._openid !== openid)) {
       return { success: false, error: 'permission denied' };
     }
 

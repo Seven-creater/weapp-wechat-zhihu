@@ -44,16 +44,18 @@ exports.main = async (event, context) => {
       };
     }
 
-    // 更新用户记录，添加认证申请信息
+    // ✅ 更新用户记录，添加认证申请信息（统一数据结构）
     await db.collection('users')
       .doc(user._id)
       .update({
         data: {
           certificationApplication: {
             type: 'communityWorker',
-            community: community,
-            position: position,
-            workId: workId,
+            info: {  // ✅ 将认证信息放在 info 对象中
+              community: community,
+              position: position,
+              workId: workId
+            },
             status: 'pending', // pending, approved, rejected
             applyTime: Date.now(),
             reviewTime: null,

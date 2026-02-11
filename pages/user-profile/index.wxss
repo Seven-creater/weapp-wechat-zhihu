@@ -94,6 +94,22 @@
   font-weight: 500;
 }
 
+/* 🆕 电话号码可点击样式 */
+.phone-item {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.phone-item:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+.phone-link {
+  color: #3B82F6;
+  text-decoration: underline;
+}
+
 /* 🆕 所属组织 */
 .organization {
   font-size: 24rpx;

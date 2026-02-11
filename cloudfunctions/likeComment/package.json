@@ -1,0 +1,9 @@
+{
+  "name": "likeComment",
+  "version": "1.0.0",
+  "description": "已废弃 - 占位文件",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

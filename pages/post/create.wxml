@@ -1,18 +1,18 @@
 <view class="publish-selection-container">
-  <view class="selection-card community" bindtap="onCommunityTap">
-    <image class="card-icon" src="/images/discovery.png" mode="aspectFit" />
-    <view class="card-content">
-      <text class="card-title">发布社区动态</text>
-      <text class="card-desc">分享生活，交流想法</text>
-    </view>
-    <view class="arrow-icon">></view>
-  </view>
-
   <view class="selection-card issue" bindtap="onIssueTap">
     <image class="card-icon" src="/images/write.png" mode="aspectFit" />
     <view class="card-content">
       <text class="card-title">发布无障碍随手拍</text>
       <text class="card-desc">上报问题，生成改造方案</text>
+    </view>
+    <view class="arrow-icon">></view>
+  </view>
+
+  <view class="selection-card daily" bindtap="onDailyTap">
+    <image class="card-icon" src="/images/write.png" mode="aspectFit" />
+    <view class="card-content">
+      <text class="card-title">日常分享</text>
+      <text class="card-desc">分享生活点滴</text>
     </view>
     <view class="arrow-icon">></view>
   </view>

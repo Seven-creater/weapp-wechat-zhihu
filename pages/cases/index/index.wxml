@@ -1,0 +1,82 @@
+<!-- pages/cases/index/index.wxml -->
+<view class="container">
+  <view class="header">
+    <view class="header-title">优质案例</view>
+    <view class="header-subtitle">精选社区优秀施工案例</view>
+  </view>
+
+  <view class="categories">
+    <scroll-view class="categories-scroll" scroll-x>
+      <view class="categories-list">
+        <block wx:for="{{categories}}" wx:key="id">
+          <view 
+            class="category-item {{currentCategory === item.id ? 'active' : ''}}"
+            bindtap="switchCategory"
+            data-category="{{item.id}}"
+          >
+            {{item.name}}
+          </view>
+        </block>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="cases-list">
+    <block wx:for="{{cases}}" wx:key="_id">
+      <view class="case-card" bindtap="viewCase" data-id="{{item._id}}">
+        <view class="case-images">
+          <image 
+            class="case-cover" 
+            src="{{item.coverImage}}" 
+            mode="aspectFill"
+          />
+          <view wx:if="{{item.isFeatured}}" class="featured-badge">
+            <text class="badge-icon">⭐</text>
+            <text class="badge-text">精选</text>
+          </view>
+        </view>
+
+        <view class="case-content">
+          <view class="case-title">{{item.title}}</view>
+          
+          <view class="case-info">
+            <view class="info-item">
+              <text class="info-label">类型：</text>
+              <text class="info-value">{{item.category}}</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">工期：</text>
+              <text class="info-value">{{item.duration}}天</text>
+            </view>
+            <view class="info-item">
+              <text class="info-label">费用：</text>
+              <text class="info-value">¥{{item.actualCost}}</text>
+            </view>
+          </view>
+
+          <view class="case-footer">
+            <view class="contractor-info">
+              <image class="contractor-avatar" src="{{item.contractorAvatar}}" />
+              <text class="contractor-name">{{item.contractorName}}</text>
+            </view>
+            <view class="case-date">{{item.completedDate}}</view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:if="{{!loading && cases.length === 0}}" class="empty">
+    <text class="empty-icon">📦</text>
+    <text class="empty-text">暂无案例</text>
+  </view>
+
+  <view wx:if="{{!loading && !hasMore && cases.length > 0}}" class="no-more">
+    <text>没有更多了</text>
+  </view>
+</view>
+

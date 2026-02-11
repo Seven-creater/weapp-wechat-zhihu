@@ -44,6 +44,13 @@ Component({
     this.loadUnreadCount();  // 🆕 加载未读消息数量
   },
 
+  pageLifetimes: {
+    show() {
+      this.setSelected();
+      this.loadUnreadCount();  // 🆕 页面显示时刷新未读消息数量
+    }
+  },
+
   methods: {
     switchTab(e) {
       const data = e.currentTarget.dataset;

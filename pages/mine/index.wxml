@@ -56,6 +56,30 @@
           <text class="extra-icon">🆔</text>
           <text class="extra-text">{{userInfo.profile.workId}}</text>
         </view>
+        <view class="extra-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
+          <text class="extra-icon">📞</text>
+          <text class="extra-text phone-link">{{userInfo.phoneNumber}}</text>
+        </view>
+      </view>
+      
+      <!-- 🆕 施工方认证信息 -->
+      <view class="user-extra-grid" wx:if="{{userInfo.userType === 'contractor'}}">
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.companyName}}">
+          <text class="extra-icon">🏢</text>
+          <text class="extra-text">{{userInfo.profile.companyName}}</text>
+        </view>
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.contactPerson}}">
+          <text class="extra-icon">👤</text>
+          <text class="extra-text">{{userInfo.profile.contactPerson}}</text>
+        </view>
+        <view class="extra-item" wx:if="{{userInfo.profile && userInfo.profile.serviceArea}}">
+          <text class="extra-icon">📍</text>
+          <text class="extra-text">{{userInfo.profile.serviceArea}}</text>
+        </view>
+        <view class="extra-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
+          <text class="extra-icon">📞</text>
+          <text class="extra-text phone-link">{{userInfo.phoneNumber}}</text>
+        </view>
       </view>
       
       <!-- 🆕 认证状态提示 -->
@@ -72,7 +96,6 @@
         🔐 认证审核
       </button>
       <button class="action-btn-right logout-btn" bindtap="handleLogout">退出登录</button>
-      <button class="action-btn-right switch-btn" bindtap="navigateToSwitchIdentity">切换身份</button>
     </view>
   </view>
 
@@ -103,7 +126,7 @@
   <view class="content-grid" wx:if="{{isLoggedIn}}">
     <block wx:for="{{posts}}" wx:key="id">
       <view class="grid-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
-        <image class="post-img" src="{{item.image}}" mode="aspectFill" />
+        <image class="post-img" src="{{item.image}}" mode="aspectFill" wx:if="{{item.hasImage}}" />
         <view class="post-title">{{item.title}}</view>
         <view class="post-likes">❤️ {{item.likes}}</view>
       </view>

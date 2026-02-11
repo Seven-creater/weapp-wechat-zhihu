@@ -1,0 +1,128 @@
+<view class="mark-container">
+  <!-- 头部 -->
+  <view class="header">
+    <view class="back-btn" bindtap="handleCancel">
+      <text>取消</text>
+    </view>
+    <text class="title">标注设施</text>
+    <view class="header-right"></view>
+  </view>
+
+  <scroll-view scroll-y class="content">
+    <!-- 位置信息 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">📍 位置信息</text>
+        <view class="reselect-btn" bindtap="chooseLocation">
+          <text>重新选点</text>
+        </view>
+      </view>
+      <text class="location-text">{{formattedAddress || '暂未选择位置'}}</text>
+      <input
+        class="detail-address-input"
+        placeholder="请输入详细地址（如：3号楼东侧入口）"
+        value="{{detailAddress}}"
+        bindinput="onDetailAddressInput"
+      />
+    </view>
+
+    <!-- 设施类型 -->
+    <view class="section">
+      <text class="section-title">🏗️ 设施类型</text>
+      <text class="required">*</text>
+      <picker
+        mode="selector"
+        range="{{facilityTypes}}"
+        bindchange="onFacilityTypeChange"
+      >
+        <view class="picker">
+          <text class="{{selectedFacilityType ? 'selected' : 'placeholder'}}">
+            {{selectedFacilityType || '请选择设施类型'}}
+          </text>
+          <text class="arrow">></text>
+        </view>
+      </picker>
+    </view>
+
+    <!-- 设施名称 -->
+    <view class="section">
+      <text class="section-title">📝 设施名称（选填）</text>
+      <input
+        class="name-input"
+        placeholder="如：XX小区1号楼无障碍坡道"
+        value="{{facilityName}}"
+        bindinput="onNameInput"
+      />
+    </view>
+
+    <!-- 设施状态 -->
+    <view class="section">
+      <text class="section-title">🚦 设施状态</text>
+      <text class="required">*</text>
+      <view class="status-grid">
+        <view
+          class="status-item {{selectedStatus === item.value ? 'active' : ''}}"
+          wx:for="{{statusOptions}}"
+          wx:key="value"
+          data-status="{{item.value}}"
+          bindtap="onStatusTap"
+          style="border-color: {{selectedStatus === item.value ? item.color : '#e5e7eb'}}"
+        >
+          <text class="status-icon">{{item.icon}}</text>
+          <text class="status-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 现场照片 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">📷 现场照片</text>
+        <text class="section-subtitle">{{images.length}}/9</text>
+      </view>
+      <view class="image-list">
+        <view
+          class="image-item"
+          wx:for="{{images}}"
+          wx:key="index"
+        >
+          <image
+            class="uploaded-image"
+            src="{{item}}"
+            mode="aspectFill"
+            bindtap="previewImage"
+            data-src="{{item}}"
+          ></image>
+          <view class="remove-btn" bindtap="removeImage" data-index="{{index}}">
+            <text class="remove-icon">×</text>
+          </view>
+        </view>
+        <view class="add-image-btn" wx:if="{{images.length < 9}}" bindtap="chooseImage">
+          <text class="add-icon">+</text>
+          <text class="add-text">添加照片</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 描述/备注 -->
+    <view class="section">
+      <text class="section-title">💬 描述/备注（选填）</text>
+      <textarea
+        class="description-input"
+        placeholder="请描述设施的具体情况..."
+        value="{{description}}"
+        maxlength="500"
+        bindinput="onDescriptionInput"
+      ></textarea>
+      <view class="word-count">{{description.length}}/500</view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部按钮 -->
+  <view class="footer">
+    <button class="submit-btn" bindtap="submitMark" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : '提交标注'}}
+    </button>
+  </view>
+</view>
+

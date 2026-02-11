@@ -83,6 +83,11 @@ Page({
     
     this.setData({ userInfo });
     this.initChatWatcher();
+    this.markConversationRead();  // 🔧 标记会话为已读
+  },
+
+  onShow: function () {
+    // 🆕 每次显示页面时标记为已读
     this.markConversationRead();
   },
 
@@ -270,6 +275,12 @@ Page({
       data: {
         action: 'read',
         targetId: targetOpenId
+      }
+    }).then(() => {
+      // 🆕 标记已读后，刷新全局未读消息数量
+      const app = getApp();
+      if (app && typeof app.updateUnreadCount === 'function') {
+        app.updateUnreadCount();
       }
     }).catch(err => {
       console.error('标记已读失败:', err);
