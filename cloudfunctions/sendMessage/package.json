@@ -1,0 +1,8 @@
+{
+  "name": "sendMessage",
+  "version": "1.0.0",
+  "description": "Send chat message with server-side validation",
+  "dependencies": {
+    "wx-server-sdk": "^3.0.1"
+  }
+}

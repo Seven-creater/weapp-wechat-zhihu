@@ -1,1110 +1,1369 @@
-const QQMapWX = require("../../utils/qqmap-wx-jssdk.js");
+const mapService = require('../../utils/map.js');
+const config = require('../../config/index.js');
 
-// 延迟初始化数据库，避免在云开发初始化前调用
-let db = null;
-let _ = null;
+const DEFAULT_CENTER = (config && config.defaultLocation) || {
+  latitude: 28.2282,
+  longitude: 112.9388
+};
 
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-    _ = db.command;
+const BASE_FETCH_RADIUS_M = 10000;
+const BASE_FETCH_PAGE_SIZE = 200;
+const BASE_FETCH_MAX_PAGES = 3;
+const BASE_CENTER_SHIFT_THRESHOLD_M = 500;
+
+const ROUTE_FETCH_EXTRA_RADIUS_M = 1200;
+const ROUTE_FETCH_PAGE_SIZE = 300;
+const ROUTE_FETCH_MAX_PAGES = 3;
+const ROUTE_HIT_THRESHOLD_M = 80;
+
+const SEARCH_DEBOUNCE_MS = 260;
+const REGION_REFRESH_DEBOUNCE_MS = 350;
+const COMMUNITY_POST_PAGE_SIZE = 20;
+const COMMUNITY_SHEET_COLLAPSED_BASE = 156;
+const COMMUNITY_OPTIONS = [
+  {
+    id: 'nanzhu',
+    title: '楠竹社区',
+    address: '查询楠竹社区障碍信息',
+    center: { latitude: 28.06862, longitude: 113.00689 }
+  },
+  {
+    id: 'hemei',
+    title: '和美社区',
+    address: '查询和美社区障碍信息',
+    center: { latitude: 28.0678, longitude: 113.0082 }
   }
-  return { db, _ };
-};
-
-const TENCENT_MAP_KEY = "QTABZ-SI5CL-JMMPF-MJMVG-AND33-UHFCE";
-let qqmapsdk = null;
-
-const facilityCategories = [
-  {
-    id: "accessible_parking",
-    name: "无障碍停车位",
-    shortName: "停车位",
-    keyword: "无障碍停车位",
-    icon: "/images/category_parking.png",
-  },
-  {
-    id: "accessible_toilet",
-    name: "无障碍卫生间",
-    shortName: "卫生间",
-    keyword: "无障碍卫生间",
-    icon: "/images/category_restroom.png",
-  },
-  {
-    id: "ramp",
-    name: "无障碍坡道",
-    shortName: "坡道",
-    keyword: "无障碍坡道",
-    icon: "/images/category_slope.png",
-  },
-  {
-    id: "lift",
-    name: "无障碍电梯",
-    shortName: "电梯",
-    keyword: "无障碍电梯",
-    icon: "/images/category_elevator.png",
-  },
-  {
-    id: "stairs",
-    name: "无障碍升降台",
-    shortName: "升降台",
-    keyword: "无障碍升降台",
-    icon: "/images/category_lift.png",
-  },
 ];
-
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-
-const formatDistance = (meters) => {
-  const m = Number(meters);
-  if (!Number.isFinite(m) || m < 0) return "";
-  if (m < 1000) return `${Math.round(m)}m`;
-  return `${(m / 1000).toFixed(m < 10000 ? 1 : 0)}km`;
-};
-
-const toRad = (deg) => (Number(deg) * Math.PI) / 180;
-const distanceMeters = (aLat, aLng, bLat, bLng) => {
-  const R = 6371000;
-  const lat1 = toRad(aLat);
-  const lat2 = toRad(bLat);
-  const dLat = lat2 - lat1;
-  const dLng = toRad(bLng) - toRad(aLng);
-  const sinLat = Math.sin(dLat / 2);
-  const sinLng = Math.sin(dLng / 2);
-  const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
-  return 2 * R * Math.asin(Math.sqrt(h));
-};
-
-const toStars = (rating) => {
-  const n = clamp(Math.round(Number(rating) || 0), 0, 5);
-  return Array.from({ length: 5 }).map((_, idx) => idx < n);
-};
-
-const findCategoryById = (categoryId) =>
-  facilityCategories.find((c) => c.id === categoryId) || facilityCategories[0];
-
-const findCategoryByName = (name) =>
-  facilityCategories.find((c) => c.name === name) || null;
 
 Page({
   data: {
-    latitude: 23.099994,
-    longitude: 113.32452,
+    latitude: DEFAULT_CENTER.latitude,
+    longitude: DEFAULT_CENTER.longitude,
     scale: 14,
     markers: [],
-    categories: facilityCategories,
-    currentCategoryId: "accessible_toilet",
-    chips: [],
-    currentChipId: "all",
-    facilities: [],
-    userFacilities: [], // 用户标注的设施
-    issues: [],
-    selectedFacility: null,
-    nearbyOfSelected: [],
-    loading: false,
-    sheetMode: "list",
-    sheetHeights: { collapsed: 170, list: 420, detail: 380 },
-    sheetHeight: 170,
-    dragging: false,
-    topInset: 40,
-    safeBottom: 0,
+    polyline: [],
+
+    loadingObstacles: false,
+    routeLoading: false,
+    routeActive: false,
+    routeSummary: '',
+    routeObstacles: [],
+
     searchVisible: false,
-    searchKeyword: "",
+    searchKeyword: '',
     searchResults: [],
     searchLoading: false,
-    // 设施状态筛选
-    statusFilter: [], // 可选值：accessible, blocked, maintenance, occupied
-    showStatusFilter: false,
+    mapQuotaExceeded: false,
+
+    destination: null,
+    destinationLabel: '',
+    selectedCommunity: '',
+    communitySummary: {},
+    communitySummaryVisible: false,
+    communitySummaryLoading: false,
+    communitySheetExpanded: false,
+    communitySheetDragging: false,
+    communitySheetHeight: COMMUNITY_SHEET_COLLAPSED_BASE,
+    communityPostRows: [],
+    communityPostPagination: { page: 1, pageSize: COMMUNITY_POST_PAGE_SIZE, hasMore: false },
+    communityPostLoadingMore: false,
+    hasLocationPermission: true,
+
+    topInset: 20,
+    safeBottom: 0
   },
 
-  onLoad: function () {
-    if (!qqmapsdk) {
-      qqmapsdk = new QQMapWX({ key: TENCENT_MAP_KEY });
+  onLoad() {
+    this.baseObstaclePosts = [];
+    this.routeObstaclePosts = [];
+    this.activeRoutePoints = [];
+    this.markerPostIdMap = Object.create(null);
+
+    this.baseObstacleInflight = null;
+    this.routePlanInflight = null;
+    this.lastBaseCenter = null;
+    this.lastRouteFetchSignature = '';
+
+    this.searchTimer = null;
+    this.regionRefreshTimer = null;
+    this.searchRequestToken = 0;
+    this.lastQuotaTipAt = 0;
+    this.communitySheetCollapsedHeight = COMMUNITY_SHEET_COLLAPSED_BASE;
+    this.communitySheetExpandedHeight = 520;
+    this.communitySheetDrag = null;
+
+    this.currentLocation = null;
+    this.mapCtx = null;
+
+    this.initSafeArea();
+    this.requestUserLocation({ silent: true }).finally(() => {
+      this.loadBaseObstaclesByCenter(
+        {
+          latitude: this.data.latitude,
+          longitude: this.data.longitude
+        },
+        { force: true }
+      );
+    });
+  },
+
+  onReady() {
+    this.mapCtx = wx.createMapContext('mainMap', this);
+  },
+
+  onShow() {
+    this.syncTabSelection();
+  },
+
+  onHide() {
+    this.clearTimers();
+  },
+
+  onUnload() {
+    this.clearTimers();
+  },
+
+  onPullDownRefresh() {
+    if (this.data.selectedCommunity) {
+      this.loadCommunitySummary(this.data.selectedCommunity, { keepViewport: true }).finally(() => {
+        wx.stopPullDownRefresh();
+      });
+      return;
+    }
+    Promise.resolve()
+      .then(() => this.requestUserLocation({ silent: true }))
+      .then(() =>
+        this.loadBaseObstaclesByCenter(
+          {
+            latitude: this.data.latitude,
+            longitude: this.data.longitude
+          },
+          { force: true }
+        )
+      )
+      .finally(() => {
+        wx.stopPullDownRefresh();
+      });
+  },
+
+  initSafeArea() {
+    try {
+      const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const topInset = Number(info.statusBarHeight) || 20;
+      const safeBottom = Math.max(0, (info.safeAreaInsets && info.safeAreaInsets.bottom) || 0);
+      const windowHeight = Number(info.windowHeight) || 760;
+      this.communitySheetCollapsedHeight = COMMUNITY_SHEET_COLLAPSED_BASE + safeBottom;
+      this.communitySheetExpandedHeight = Math.round(windowHeight * 0.7);
+      this.setData({
+        topInset,
+        safeBottom,
+        communitySheetHeight: this.communitySheetCollapsedHeight
+      });
+    } catch (err) {
+      this.communitySheetCollapsedHeight = COMMUNITY_SHEET_COLLAPSED_BASE;
+      this.communitySheetExpandedHeight = 520;
+      this.setData({
+        topInset: 20,
+        safeBottom: 0,
+        communitySheetHeight: this.communitySheetCollapsedHeight
+      });
+    }
+  },
+
+  clearTimers() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+    if (this.regionRefreshTimer) {
+      clearTimeout(this.regionRefreshTimer);
+      this.regionRefreshTimer = null;
+    }
+  },
+
+  syncTabSelection() {
+    if (typeof this.getTabBar !== 'function') return;
+    const tabBar = this.getTabBar();
+    if (!tabBar || typeof tabBar.setData !== 'function') return;
+    tabBar.setData({ selected: 0 });
+  },
+
+  requestUserLocation({ silent = false } = {}) {
+    return new Promise((resolve) => {
+      wx.getLocation({
+        type: 'gcj02',
+        success: (res) => {
+          const latitude = Number(res.latitude);
+          const longitude = Number(res.longitude);
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            resolve(null);
+            return;
+          }
+          this.currentLocation = { latitude, longitude };
+          this.setData({
+            latitude,
+            longitude,
+            hasLocationPermission: true
+          });
+          resolve(this.currentLocation);
+        },
+        fail: () => {
+          this.currentLocation = null;
+          this.setData({ hasLocationPermission: false });
+          if (!silent) {
+            wx.showToast({
+              title: '未授权定位，可手动选目的地',
+              icon: 'none'
+            });
+          }
+          resolve(null);
+        }
+      });
+    });
+  },
+
+  onCenterTap() {
+    if (this.data.selectedCommunity && this.data.communitySummary && this.data.communitySummary.center) {
+      this.includeCommunityPoints(this.data.communitySummary.points || [], this.data.communitySummary.center);
+      return;
+    }
+    if (!this.currentLocation) {
+      this.requestUserLocation();
+      return;
+    }
+    const center = {
+      latitude: this.currentLocation.latitude,
+      longitude: this.currentLocation.longitude
+    };
+    this.setData({
+      latitude: center.latitude,
+      longitude: center.longitude,
+      scale: 15
+    });
+    this.loadBaseObstaclesByCenter(center, { force: true, silent: true });
+  },
+
+  onRegionChange(e) {
+    if (!e || e.type !== 'end') return;
+    if (this.data.selectedCommunity) return;
+    if (this.regionRefreshTimer) {
+      clearTimeout(this.regionRefreshTimer);
+    }
+    this.regionRefreshTimer = setTimeout(() => {
+      this.reloadObstaclesByMapCenter();
+    }, REGION_REFRESH_DEBOUNCE_MS);
+  },
+
+  reloadObstaclesByMapCenter() {
+    if (!this.mapCtx || this.baseObstacleInflight) return;
+    this.mapCtx.getCenterLocation({
+      success: (res) => {
+        const center = {
+          latitude: Number(res.latitude),
+          longitude: Number(res.longitude)
+        };
+        if (!this.isValidCoord(center.latitude, center.longitude)) return;
+        this.loadBaseObstaclesByCenter(center, { silent: true });
+      }
+    });
+  },
+
+  loadBaseObstaclesByCenter(center, { force = false, silent = false } = {}) {
+    if (!center || !this.isValidCoord(center.latitude, center.longitude)) {
+      return Promise.resolve();
     }
 
-    const system = wx.getSystemInfoSync();
-    const topInset = (system.statusBarHeight || 24) + 10;
-    const safeBottom = system.safeArea
-      ? system.screenHeight - system.safeArea.bottom
-      : 0;
+    if (!force && this.lastBaseCenter) {
+      const centerShift = this.haversineDistance(this.lastBaseCenter, center);
+      if (centerShift < BASE_CENTER_SHIFT_THRESHOLD_M) {
+        return Promise.resolve();
+      }
+    }
+
+    if (this.baseObstacleInflight) {
+      return this.baseObstacleInflight;
+    }
+
+    if (!silent) {
+      this.setData({ loadingObstacles: true });
+    }
+
+    const request = this.fetchIssuePostsNear(center, BASE_FETCH_RADIUS_M, BASE_FETCH_PAGE_SIZE, BASE_FETCH_MAX_PAGES)
+      .then((rows) => {
+        this.baseObstaclePosts = rows;
+        this.lastBaseCenter = center;
+        const markers = this.buildDisplayMarkers(this.baseObstaclePosts, this.routeObstaclePosts);
+        this.setData({
+          markers,
+          loadingObstacles: false
+        });
+      })
+      .catch((err) => {
+        console.error('[index] loadBaseObstaclesByCenter failed:', err);
+        this.setData({ loadingObstacles: false });
+        wx.showToast({
+          title: '障碍点加载失败',
+          icon: 'none'
+        });
+      })
+      .finally(() => {
+        this.baseObstacleInflight = null;
+      });
+
+    this.baseObstacleInflight = request;
+    return request;
+  },
+
+  fetchIssuePostsNear(center, maxDistance, pageSize, maxPages) {
+    const allRows = [];
+    const safePageSize = Math.max(1, Number(pageSize) || BASE_FETCH_PAGE_SIZE);
+    const safeMaxPages = Math.max(1, Number(maxPages) || 1);
+    const safeRadius = Math.max(100, Number(maxDistance) || BASE_FETCH_RADIUS_M);
+
+    const loop = (page) => {
+      if (page > safeMaxPages) {
+        return Promise.resolve();
+      }
+      return wx.cloud.callFunction({
+        name: 'getPublicData',
+        data: {
+          collection: 'posts',
+          type: 'issue',
+          fieldMode: 'list',
+          page,
+          pageSize: safePageSize,
+          orderBy: 'createTime',
+          order: 'desc',
+          near: {
+            latitude: center.latitude,
+            longitude: center.longitude,
+            maxDistance: safeRadius
+          }
+        }
+      }).then((res) => {
+        const result = res && res.result;
+        if (!result || !result.success) {
+          throw new Error((result && result.error) || 'query failed');
+        }
+
+        const normalized = (result.data || [])
+          .map((item) => this.normalizeIssuePost(item))
+          .filter(Boolean);
+        allRows.push(...normalized);
+
+        if (result.pagination && result.pagination.hasMore) {
+          return loop(page + 1);
+        }
+        return null;
+      });
+    };
+
+    return loop(1).then(() => {
+      const deduped = [];
+      const seen = new Set();
+      for (const row of allRows) {
+        if (!row || seen.has(row._id)) continue;
+        seen.add(row._id);
+        deduped.push(row);
+      }
+      return deduped;
+    });
+  },
+
+  normalizeIssuePost(raw) {
+    if (!raw || !raw._id) return null;
+    const location = this.extractPostLocation(raw);
+    if (!location) return null;
+    return {
+      ...raw,
+      _id: String(raw._id),
+      _mapLocation: location
+    };
+  },
+
+  extractPostLocation(post) {
+    if (!post || !post.location) return null;
+    const location = post.location;
+
+    if (Array.isArray(location.coordinates) && location.coordinates.length >= 2) {
+      const longitude = Number(location.coordinates[0]);
+      const latitude = Number(location.coordinates[1]);
+      if (this.isValidCoord(latitude, longitude)) {
+        return { latitude, longitude };
+      }
+    }
+
+    const latitude = Number(location.latitude);
+    const longitude = Number(location.longitude);
+    if (this.isValidCoord(latitude, longitude)) {
+      return { latitude, longitude };
+    }
+
+    return null;
+  },
+
+  isValidCoord(latitude, longitude) {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return false;
+    return true;
+  },
+
+  buildDisplayMarkers(basePosts, routePosts) {
+    const merged = new Map();
+    const routeDistanceMap = new Map();
+
+    (basePosts || []).forEach((item) => {
+      merged.set(item._id, item);
+    });
+
+    (routePosts || []).forEach((item) => {
+      merged.set(item._id, item);
+      if (Number.isFinite(item._distanceToRoute)) {
+        routeDistanceMap.set(item._id, item._distanceToRoute);
+      }
+    });
+
+    const markerPostIdMap = Object.create(null);
+    const markers = [];
+    let markerId = 1;
+
+    merged.forEach((item, postId) => {
+      const loc = item._mapLocation || this.extractPostLocation(item);
+      if (!loc) return;
+
+      const isRouteHit = routeDistanceMap.has(postId);
+      const marker = {
+        id: markerId,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        iconPath: '/images/marker_alert.svg',
+        width: isRouteHit ? 34 : 28,
+        height: isRouteHit ? 34 : 28,
+        callout: {
+          content: this.buildMarkerLabel(item, isRouteHit, routeDistanceMap.get(postId)),
+          color: '#111827',
+          fontSize: 11,
+          borderRadius: 8,
+          padding: 6,
+          bgColor: isRouteHit ? '#fee2e2' : '#ffffff',
+          display: 'BYCLICK'
+        }
+      };
+      markers.push(marker);
+      markerPostIdMap[markerId] = postId;
+      markerId += 1;
+    });
+
+    this.markerPostIdMap = markerPostIdMap;
+    return markers;
+  },
+
+  buildMarkerLabel(post, isRouteHit, routeDistance) {
+    const title = this.trimText(post.title || post.content || '障碍点', 14);
+    if (!isRouteHit || !Number.isFinite(routeDistance)) {
+      return title;
+    }
+    return `沿线 ${Math.round(routeDistance)}m: ${title}`;
+  },
+
+  trimText(text, maxLen) {
+    const value = String(text || '').trim();
+    if (!value) return '障碍点';
+    if (value.length <= maxLen) return value;
+    return `${value.slice(0, maxLen)}...`;
+  },
+
+  handleMarkerTap(e) {
+    const markerId = Number((e && e.detail && e.detail.markerId) || (e && e.markerId));
+    if (!Number.isFinite(markerId)) return;
+    const postId = this.markerPostIdMap[markerId];
+    if (!postId) return;
+    this.openPostDetail(postId);
+  },
+
+  openPostDetail(postId) {
+    if (!postId) return;
+    wx.navigateTo({
+      url: `/pages/post-detail/index?id=${encodeURIComponent(postId)}`
+    });
+  },
+
+  onSearchTap() {
+    this.setData({
+      searchVisible: true,
+      searchKeyword: '',
+      searchResults: COMMUNITY_OPTIONS,
+      searchLoading: false
+    });
+  },
+
+  onSearchClose() {
+    this.setData({
+      searchVisible: false,
+      searchKeyword: '',
+      searchResults: [],
+      searchLoading: false
+    });
+  },
+
+  onSearchInput(e) {
+    const keyword = String((e && e.detail && e.detail.value) || '').trim();
+    this.setData({ searchKeyword: keyword });
+
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
+
+    if (!keyword) {
+      this.setData({
+        searchResults: COMMUNITY_OPTIONS,
+        searchLoading: false
+      });
+      return;
+    }
+
+    this.searchTimer = setTimeout(() => {
+      this.queryCommunitySuggestion(keyword);
+    }, SEARCH_DEBOUNCE_MS);
+  },
+
+  queryCommunitySuggestion(keyword) {
+    const requestToken = ++this.searchRequestToken;
+    this.setData({ searchLoading: true });
+    return Promise.resolve(this.filterCommunityOptions(keyword))
+      .then((rows) => {
+        if (requestToken !== this.searchRequestToken) return;
+        this.setData({
+          searchResults: rows,
+          searchLoading: false
+        });
+      });
+  },
+
+  filterCommunityOptions(keyword) {
+    const value = String(keyword || '').trim();
+    if (!value) return COMMUNITY_OPTIONS;
+    return COMMUNITY_OPTIONS.filter((item) => (
+      item.title.indexOf(value) !== -1 ||
+      item.address.indexOf(value) !== -1
+    ));
+  },
+
+  onSearchSelect(e) {
+    const index = Number(e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.index);
+    if (!Number.isFinite(index) || index < 0) return;
+
+    const selected = this.data.searchResults[index];
+    if (!selected) return;
+
+    this.selectCommunity(selected.title);
+  },
+
+  selectCommunity(community) {
+    this.setData({
+      destination: null,
+      destinationLabel: community,
+      selectedCommunity: community,
+      communitySheetExpanded: false,
+      communitySheetHeight: this.communitySheetCollapsedHeight,
+      communityPostRows: [],
+      communityPostPagination: { page: 1, pageSize: COMMUNITY_POST_PAGE_SIZE, hasMore: false },
+      communityPostLoadingMore: false,
+      polyline: [],
+      routeActive: false,
+      routeSummary: '',
+      routeObstacles: [],
+      searchVisible: false,
+      searchKeyword: '',
+      searchResults: [],
+      searchLoading: false
+    });
+
+    this.loadCommunitySummary(community);
+  },
+
+  onManualPickTap() {
+    wx.chooseLocation({
+      success: (res) => {
+        const latitude = Number(res && res.latitude);
+        const longitude = Number(res && res.longitude);
+        if (!this.isValidCoord(latitude, longitude)) {
+          wx.showToast({
+            title: '选点无效，请重试',
+            icon: 'none'
+          });
+          return;
+        }
+
+        const label = String((res && (res.name || res.address)) || '目的地').trim();
+        this.setData({
+          destination: { latitude, longitude },
+          destinationLabel: label || '目的地',
+          latitude,
+          longitude,
+          scale: 15,
+          searchVisible: false,
+          searchKeyword: '',
+          searchResults: [],
+          searchLoading: false
+        });
+        this.planWalkingRoute();
+      },
+      fail: () => {}
+    });
+  },
+
+  loadCommunitySummary(community, { keepViewport = false } = {}) {
+    const matched = COMMUNITY_OPTIONS.find((item) => item.title === community);
+    if (!matched) {
+      wx.showToast({ title: '暂无匹配社区', icon: 'none' });
+      return Promise.resolve();
+    }
 
     this.setData({
-      topInset,
-      safeBottom: Math.max(0, safeBottom),
+      communitySummaryLoading: true,
+      communitySummaryVisible: true,
+      communityPostLoadingMore: false
     });
 
-    this.syncChips();
-    this.setSheetMode("collapsed");
-    this.getLocationAndLoad();
-  },
+    return wx.cloud.callFunction({
+      name: 'getCommunityObstacleSummary',
+      data: {
+        community,
+        includePostRows: true,
+        postPage: 1,
+        postPageSize: COMMUNITY_POST_PAGE_SIZE
+      }
+    }).then((res) => {
+      const result = res && res.result;
+      if (!result || !result.success) {
+        throw new Error((result && result.error) || '社区障碍信息加载失败');
+      }
 
-  onShow: function () {
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({
-        selected: 0
+      const summary = this.normalizeCommunitySummary(result, matched.center);
+      this.baseObstaclePosts = summary.points.map((point) => this.normalizeCommunityPointAsPost(point)).filter(Boolean);
+      this.routeObstaclePosts = [];
+      const markers = this.buildCommunityMarkers(summary.points);
+      this.setData({
+        communitySummary: summary,
+        communitySummaryLoading: false,
+        communitySummaryVisible: true,
+        communityPostRows: summary.postRows,
+        communityPostPagination: summary.postPagination,
+        markers,
+        latitude: keepViewport ? this.data.latitude : summary.center.latitude,
+        longitude: keepViewport ? this.data.longitude : summary.center.longitude,
+        scale: summary.points.length > 1 ? 15 : 16
       });
-    }
-  },
 
-  syncChips: function () {
-    const chips = [
-      { id: "all", name: "全部" },
-      ...this.data.categories.map((c) => ({
-        id: c.id,
-        name: c.shortName || c.name,
-      })),
-    ];
-    this.setData({ chips });
-  },
-
-  setSheetMode: function (mode) {
-    const sheetHeights = this.data.sheetHeights || {};
-    const nextHeight = sheetHeights[mode] || sheetHeights.list || 380;
-    this.setData({ sheetMode: mode, sheetHeight: nextHeight });
-  },
-
-  onSheetTouchStart: function (e) {
-    const touch = e.touches && e.touches[0];
-    if (!touch) return;
-    this._sheetDragStartY = touch.clientY;
-    this._sheetDragStartHeight = Number(this.data.sheetHeight) || 0;
-    this._sheetDragStartTime = Date.now();
-    this._sheetDragLastY = touch.clientY;
-    this._sheetDragLastTime = this._sheetDragStartTime;
-    this._sheetDragRafLock = false;
-    this.setData({ dragging: true });
-  },
-
-  onSheetTouchMove: function (e) {
-    if (!this.data.dragging) return;
-    const touch = e.touches && e.touches[0];
-    if (!touch) return;
-
-    const startY = Number(this._sheetDragStartY);
-    const startHeight = Number(this._sheetDragStartHeight);
-    if (!Number.isFinite(startY) || !Number.isFinite(startHeight)) return;
-
-    const delta = startY - touch.clientY;
-    const heights = this.data.sheetHeights || {};
-    const minH = Number(heights.collapsed) || 120;
-    const listH = Number(heights.list) || 380;
-    const detailH = Number(heights.detail) || listH;
-    const maxH = Math.max(listH, this.data.selectedFacility ? detailH : listH);
-    const nextHeight = clamp(startHeight + delta, minH, maxH);
-
-    const now = Date.now();
-    this._sheetDragLastY = touch.clientY;
-    this._sheetDragLastTime = now;
-
-    if (this._sheetDragRafLock) return;
-    this._sheetDragRafLock = true;
-    setTimeout(() => {
-      this._sheetDragRafLock = false;
-      if (!this.data.dragging) return;
-      this.setData({ sheetHeight: nextHeight });
-    }, 16);
-  },
-
-  onSheetTouchEnd: function () {
-    if (!this.data.dragging) return;
-
-    const heights = this.data.sheetHeights || {};
-    const collapsedH = Number(heights.collapsed) || 120;
-    const listH = Number(heights.list) || 380;
-    const detailH = Number(heights.detail) || listH;
-    const currentH = Number(this.data.sheetHeight) || collapsedH;
-
-    const now = Date.now();
-    const lastY = Number(this._sheetDragLastY);
-    const lastT = Number(this._sheetDragLastTime);
-    const startY = Number(this._sheetDragStartY);
-    const startT = Number(this._sheetDragStartTime);
-
-    const dt = Math.max(1, now - (Number.isFinite(lastT) ? lastT : now));
-    const dy =
-      Number.isFinite(lastY) && Number.isFinite(startY) ? lastY - startY : 0;
-    const totalDt = Math.max(1, now - (Number.isFinite(startT) ? startT : now));
-    const velocity = dy / totalDt;
-
-    const candidates = [
-      { mode: "collapsed", height: collapsedH },
-      { mode: "list", height: listH },
-    ];
-    if (this.data.selectedFacility) {
-      candidates.push({ mode: "detail", height: detailH });
-    }
-
-    const absV = Math.abs(velocity);
-    let targetMode = "list";
-    if (absV > 0.55) {
-      if (velocity > 0) {
-        targetMode =
-          currentH <= (collapsedH + listH) / 2 ? "collapsed" : "list";
-      } else {
-        targetMode = this.data.selectedFacility ? "detail" : "list";
+      if (!keepViewport) {
+        this.includeCommunityPoints(summary.points, summary.center);
       }
-    } else {
-      let best = candidates[0];
-      let bestDist = Math.abs(currentH - best.height);
-      candidates.slice(1).forEach((c) => {
-        const dist = Math.abs(currentH - c.height);
-        if (dist < bestDist) {
-          best = c;
-          bestDist = dist;
-        }
+    }).catch((err) => {
+      console.error('[index] loadCommunitySummary failed:', err);
+      this.setData({
+        communitySummaryLoading: false,
+        communitySummaryVisible: false,
+        communitySummary: {},
+        communityPostRows: [],
+        communityPostPagination: { page: 1, pageSize: COMMUNITY_POST_PAGE_SIZE, hasMore: false }
       });
-      targetMode = best.mode;
-    }
-
-    this.setData({ dragging: false }, () => {
-      if (this.data.sheetMode === "detail" && targetMode !== "detail") {
-        if (targetMode === "collapsed") {
-          this.closeDetailToList();
-          this.setSheetMode("collapsed");
-          return;
-        }
-        this.closeDetailToList();
-        return;
-      }
-      if (targetMode === "detail" && !this.data.selectedFacility) {
-        this.setSheetMode("list");
-        return;
-      }
-      this.setSheetMode(targetMode);
+      wx.showToast({
+        title: err && err.message ? err.message : '社区障碍信息加载失败',
+        icon: 'none'
+      });
     });
   },
 
-  getLocationAndLoad: function () {
-    this.setData({ loading: true });
-    wx.getLocation({
-      type: "gcj02",
-      success: (res) => {
-        this.setData(
-          {
-            latitude: res.latitude,
-            longitude: res.longitude,
-          },
-          () => {
-            this.loadFacilitiesAroundCenter();
-            this.loadUserFacilities(); // 加载用户标注的设施
-            this.loadIssuesAroundCenter();
-          },
-        );
-      },
-      fail: () => {
-        this.setData({ loading: false });
-        this.loadFacilitiesAroundCenter();
-        this.loadIssuesAroundCenter();
-      },
-    });
-  },
-
-  loadFacilitiesAroundCenter: function () {
-    const category = findCategoryById(this.data.currentCategoryId);
-    const keyword = category ? category.keyword : "无障碍设施";
-    const location = {
-      latitude: this.data.latitude,
-      longitude: this.data.longitude,
-    };
-
-    this.setData({ loading: true });
-
-    qqmapsdk.search({
-      keyword,
-      location,
-      page_size: 20,
-      success: (res) => {
-        const items = (res.data || [])
-          .map((poi, index) => {
-            const lat = poi.location?.lat;
-            const lng = poi.location?.lng;
-            const meters = poi._distance;
-            const rating = poi?.ad_info?.rating || poi?.rating || 0;
-            return {
-              id: poi.id || `${category.id}-${index}`,
-              name: poi.title || poi.name || "未命名地点",
-              address: poi.address || poi?.ad_info?.address || "",
-              categoryId: category.id,
-              categoryName: category.shortName || category.name,
-              icon: category.icon,
-              latitude: lat,
-              longitude: lng,
-              distanceMeters: typeof meters === "number" ? meters : null,
-              distanceText:
-                typeof meters === "number" ? formatDistance(meters) : "",
-              rating: rating,
-              stars: toStars(rating),
-            };
-          })
-          .filter(
-            (x) =>
-              typeof x.latitude === "number" && typeof x.longitude === "number",
-          );
-
-        if (items.length === 0) {
-          this.loadSolutionsAsFacilities();
-          return;
-        }
-
-        this.setData({ facilities: items }, () => {
-          this.updateMarkers();
-          if (this.data.sheetMode === "detail" && this.data.selectedFacility) {
-            const selected =
-              items.find((it) => it.id === this.data.selectedFacility.id) ||
-              this.data.selectedFacility;
-            this.setData({ selectedFacility: selected });
-          }
-        });
-      },
-      fail: (err) => {
-        console.error("加载点位失败，回退到案例库数据", err);
-        this.loadSolutionsAsFacilities().finally(() => {
-          this.setData({ loading: false });
-        });
-      },
-      complete: () => {
-        this.setData({ loading: false });
-      },
-    });
-  },
-
-  loadSolutionsAsFacilities: async function () {
-    const latitude = Number(this.data.latitude);
-    const longitude = Number(this.data.longitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      this.setData({ facilities: [] }, () => this.updateMarkers());
-      return;
-    }
-
-    const category = findCategoryById(this.data.currentCategoryId);
-    const near = { latitude, longitude, maxDistance: 10000 };
-
-    const fetch = async (options) => {
-      const res = await wx.cloud.callFunction({
-        name: "getPublicData",
-        data: {
-          collection: "solutions",
-          page: 1,
-          pageSize: 30,
-          orderBy: "createTime",
-          order: "desc",
-          category: options.category || undefined,
-          status: options.status || undefined,
-          near: options.useNear ? near : undefined,
-        },
-      });
-      if (!res.result || !res.result.success) {
-        throw new Error(res.result?.error || "加载失败");
-      }
-      return res.result.data || [];
-    };
-
-    let list = [];
-    try {
-      list = await fetch({
-        category: category?.name,
-        status: "已完成",
-        useNear: true,
-      });
-      if (list.length === 0) {
-        list = await fetch({ status: "已完成", useNear: true });
-      }
-      if (list.length === 0) {
-        list = await fetch({ status: "已完成", useNear: false });
-      }
-      if (list.length === 0) {
-        list = await fetch({ useNear: false });
-      }
-    } catch (err) {
-      console.error("加载案例库失败", err);
-      this.setData({ facilities: [] }, () => this.updateMarkers());
-      return;
-    }
-
-    const items = list
-      .map((item) => {
-        const coords = item.location?.coordinates;
-        const lng = Array.isArray(coords)
-          ? Number(coords[0])
-          : Number(item.location?.longitude);
-        const lat = Array.isArray(coords)
-          ? Number(coords[1])
-          : Number(item.location?.latitude);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-        const dist = distanceMeters(latitude, longitude, lat, lng);
-        const matched = item.category
-          ? findCategoryByName(item.category)
-          : null;
-        const icon = matched
-          ? matched.icon
-          : category?.icon || "/images/flag.png";
-        const catId = matched ? matched.id : category?.id || "all";
-
+  normalizeCommunitySummary(result, fallbackCenter) {
+    const center = result.center || fallbackCenter;
+    const safeCenter = this.isValidCoord(Number(center.latitude), Number(center.longitude))
+      ? { latitude: Number(center.latitude), longitude: Number(center.longitude) }
+      : fallbackCenter;
+    const points = (Array.isArray(result.points) ? result.points : [])
+      .map((point) => {
+        const latitude = Number(point.latitude);
+        const longitude = Number(point.longitude);
+        if (!this.isValidCoord(latitude, longitude)) return null;
         return {
-          id: item._id,
-          name: item.title || "无障碍案例",
-          address: item.formattedAddress || item.address || "",
-          categoryId: catId,
-          categoryName: item.category || category?.name || "案例",
-          icon,
-          latitude: lat,
-          longitude: lng,
-          distanceMeters: dist,
-          distanceText: formatDistance(dist),
-          rating: 0,
-          stars: toStars(0),
-          source: "solutions",
+          postId: String(point.postId || ''),
+          latitude,
+          longitude,
+          title: this.trimText(point.title || '障碍信息', 24)
         };
       })
       .filter(Boolean);
-
-    this.setData({ facilities: items }, () => this.updateMarkers());
-  },
-
-  loadIssuesAroundCenter: function () {
-    const latitude = Number(this.data.latitude);
-    const longitude = Number(this.data.longitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-
-    const { db, _ } = getDB();
-    const center = new db.Geo.Point(longitude, latitude);
-
-    db.collection("issues")
-      .where({
-        location: _.geoNear({
-          geometry: center,
-          maxDistance: 5000,
-          minDistance: 0,
-        }),
-      })
-      .limit(50)
-      .get()
-      .then((res) => {
-        const items = (res.data || [])
-          .map((it) => {
-            const p = it.location;
-            const lat = p && typeof p.latitude === "number" ? p.latitude : null;
-            const lng =
-              p && typeof p.longitude === "number" ? p.longitude : null;
-            const meters =
-              typeof lat === "number" && typeof lng === "number"
-                ? distanceMeters(latitude, longitude, lat, lng)
-                : null;
-            return {
-              id: it._id,
-              category: it.category || "障碍点",
-              description: it.description || "",
-              status: it.status || "pending",
-              address: it.formattedAddress || it.address || "",
-              latitude: lat,
-              longitude: lng,
-              distanceMeters: meters,
-              distanceText:
-                typeof meters === "number" ? formatDistance(meters) : "",
-            };
-          })
-          .filter(
-            (x) =>
-              typeof x.latitude === "number" && typeof x.longitude === "number",
-          );
-
-        this.setData({ issues: items }, () => {
-          this.updateMarkers();
-        });
-      })
-      .catch(() => {
-        const { db } = getDB();
-        db.collection("issues")
-          .orderBy("createTime", "desc")
-          .limit(50)
-          .get()
-          .then((res) => {
-            const items = (res.data || [])
-              .map((it) => {
-                const p = it.location;
-                const lat =
-                  p && typeof p.latitude === "number" ? p.latitude : null;
-                const lng =
-                  p && typeof p.longitude === "number" ? p.longitude : null;
-                const meters =
-                  typeof lat === "number" && typeof lng === "number"
-                    ? distanceMeters(latitude, longitude, lat, lng)
-                    : null;
-                return {
-                  id: it._id,
-                  category: it.category || "障碍点",
-                  description: it.description || "",
-                  status: it.status || "pending",
-                  address: it.formattedAddress || it.address || "",
-                  latitude: lat,
-                  longitude: lng,
-                  distanceMeters: meters,
-                  distanceText:
-                    typeof meters === "number" ? formatDistance(meters) : "",
-                };
-              })
-              .filter(
-                (x) =>
-                  typeof x.latitude === "number" &&
-                  typeof x.longitude === "number",
-              );
-            this.setData({ issues: items }, () => this.updateMarkers());
-          })
-          .catch(() => {
-            this.setData({ issues: [] }, () => this.updateMarkers());
-          });
-      });
-  },
-
-  // 加载用户标注的设施
-  loadUserFacilities: function () {
-    const latitude = Number(this.data.latitude);
-    const longitude = Number(this.data.longitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
-
-    const category = findCategoryById(this.data.currentCategoryId);
-    
-    // 调用 getFacilities 云函数
-    wx.cloud.callFunction({
-      name: 'getFacilities',
-      data: {
-        latitude: latitude,
-        longitude: longitude,
-        radius: 5000, // 5公里范围
-        facilityType: category ? category.name : undefined,
-        status: this.data.statusFilter.length > 0 ? this.data.statusFilter : undefined,
-        page: 1,
-        pageSize: 50
+    return {
+      community: result.community,
+      total: Number(result.total) || 0,
+      updatedAt: result.updatedAt || '暂无更新',
+      center: safeCenter,
+      points,
+      statusCounts: result.statusCounts || {},
+      categoryCounts: result.categoryCounts || {},
+      postRows: this.normalizeCommunityPostRows(result.postRows),
+      postPagination: {
+        page: Number(result.postPagination && result.postPagination.page) || 1,
+        pageSize: Number(result.postPagination && result.postPagination.pageSize) || COMMUNITY_POST_PAGE_SIZE,
+        hasMore: !!(result.postPagination && result.postPagination.hasMore)
       }
-    }).then(res => {
-      if (res.result && res.result.success) {
-        const facilities = res.result.data || [];
-        
-        // 转换为地图标记格式
-        const items = facilities.map(facility => {
-          const coords = facility.location?.coordinates;
-          const lng = Array.isArray(coords) ? Number(coords[0]) : facility.location?.longitude;
-          const lat = Array.isArray(coords) ? Number(coords[1]) : facility.location?.latitude;
-          
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-          
-          const dist = distanceMeters(latitude, longitude, lat, lng);
-          
-          return {
-            id: facility._id,
-            name: facility.name || facility.facilityType,
-            address: facility.formattedAddress || facility.address,
-            facilityType: facility.facilityType,
-            status: facility.status,
-            latitude: lat,
-            longitude: lng,
-            distanceMeters: dist,
-            distanceText: formatDistance(dist),
-            images: facility.images || [],
-            description: facility.description || '',
-            verified: facility.verified || false,
-            source: 'user_facility'
-          };
-        }).filter(Boolean);
-        
-        this.setData({ userFacilities: items }, () => {
-          this.updateMarkers();
-        });
-        
-        console.log('✅ 加载用户标注设施成功，数量:', items.length);
-      } else {
-        console.error('加载用户标注设施失败:', res.result?.error);
-      }
-    }).catch(err => {
-      console.error('加载用户标注设施失败:', err);
-    });
-  },
-
-  updateMarkers: function () {
-    const facilityMarkers = (this.data.facilities || []).map((item, idx) => {
-      const isSelected =
-        this.data.selectedFacility && this.data.selectedFacility.id === item.id;
-      return {
-        id: idx + 1,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        width: isSelected ? 34 : 28,
-        height: isSelected ? 34 : 28,
-        iconPath: "/images/marker_alert.svg",
-        callout: {
-          content:
-            item.name.length > 16 ? `${item.name.slice(0, 16)}...` : item.name,
-          color: "#111827",
-          fontSize: 12,
-          borderRadius: 8,
-          padding: 8,
-          bgColor: "#ffffff",
-          display: "BYCLICK",
-        },
-        payload: { type: "facility", id: item.id },
-      };
-    });
-
-    const offset = facilityMarkers.length;
-    
-    // 用户标注的设施标记（不同状态不同颜色）
-    const userFacilityMarkers = (this.data.userFacilities || []).map((item, idx) => {
-      const isSelected =
-        this.data.selectedFacility && this.data.selectedFacility.id === item.id;
-      
-      // 根据状态选择图标路径
-      let iconPath = "/images/marker_alert.svg";
-      let bgColor = "#ffffff";
-      
-      switch(item.status) {
-        case 'accessible':
-          iconPath = "/images/marker_alert.svg"; // 绿色标记
-          bgColor = "#d1fae5"; // 浅绿色背景
-          break;
-        case 'blocked':
-          iconPath = "/images/flag.png"; // 红色标记
-          bgColor = "#fee2e2"; // 浅红色背景
-          break;
-        case 'maintenance':
-          iconPath = "/images/marker_alert.svg"; // 黄色标记
-          bgColor = "#fef3c7"; // 浅黄色背景
-          break;
-        case 'occupied':
-          iconPath = "/images/marker_alert.svg"; // 橙色标记
-          bgColor = "#fed7aa"; // 浅橙色背景
-          break;
-      }
-      
-      // 状态标识
-      const statusText = {
-        'accessible': '✅',
-        'blocked': '🚫',
-        'maintenance': '🔧',
-        'occupied': '⚠️'
-      }[item.status] || '';
-      
-      return {
-        id: offset + idx + 1,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        width: isSelected ? 34 : 28,
-        height: isSelected ? 34 : 28,
-        iconPath: iconPath,
-        callout: {
-          content: `${statusText} ${item.name.length > 14 ? item.name.slice(0, 14) + '...' : item.name}`,
-          color: "#111827",
-          fontSize: 12,
-          borderRadius: 8,
-          padding: 8,
-          bgColor: bgColor,
-          display: "BYCLICK",
-        },
-        payload: { type: "user_facility", id: item.id },
-      };
-    });
-
-    const issueOffset = offset + userFacilityMarkers.length;
-    const issueMarkers = (this.data.issues || []).map((item, idx) => {
-      const title = item.category ? `【${item.category}】` : "【障碍点】";
-      const label = item.description ? item.description : "查看详情";
-      const contentBase = `${title}${label}`;
-      const content =
-        contentBase.length > 18
-          ? `${contentBase.slice(0, 18)}...`
-          : contentBase;
-      return {
-        id: issueOffset + idx + 1,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        width: 28,
-        height: 28,
-        iconPath: "/images/flag.png",
-        callout: {
-          content,
-          color: "#111827",
-          fontSize: 12,
-          borderRadius: 8,
-          padding: 8,
-          bgColor: "#ffffff",
-          display: "BYCLICK",
-        },
-        payload: { type: "issue", id: item.id },
-      };
-    });
-
-    this.setData({ markers: facilityMarkers.concat(userFacilityMarkers).concat(issueMarkers) });
-  },
-
-  onCategoryTap: function (e) {
-    const id = e.currentTarget.dataset.id;
-    if (!id || id === this.data.currentCategoryId) return;
-    this.setData(
-      {
-        currentCategoryId: id,
-        currentChipId: "all",
-        selectedFacility: null,
-        nearbyOfSelected: [],
-      },
-      () => {
-        this.setSheetMode("list");
-        this.loadFacilitiesAroundCenter();
-      },
-    );
-  },
-
-  onChipTap: function (e) {
-    const id = e.currentTarget.dataset.id;
-    if (!id || id === this.data.currentChipId) return;
-
-    if (id === "all") {
-      this.setData({ currentChipId: id }, () =>
-        this.loadFacilitiesAroundCenter(),
-      );
-      return;
-    }
-
-    this.setData(
-      {
-        currentChipId: id,
-        currentCategoryId: id,
-        selectedFacility: null,
-        nearbyOfSelected: [],
-      },
-      () => {
-        this.setSheetMode("list");
-        this.loadFacilitiesAroundCenter();
-      },
-    );
-  },
-
-  onSheetHandleTap: function () {
-    if (this.data.sheetMode === "detail") {
-      this.closeDetailToList();
-      return;
-    }
-
-    if (this.data.sheetMode === "collapsed") {
-      this.setSheetMode("list");
-      return;
-    }
-
-    this.setSheetMode("collapsed");
-  },
-
-  handleMarkerTap: function (e) {
-    const markerId = e.markerId;
-    const idx = Number(markerId) - 1;
-    if (!Number.isFinite(idx)) return;
-    const marker = (this.data.markers || [])[idx];
-    if (!marker || !marker.payload) return;
-
-    if (marker.payload.type === "issue") {
-      wx.navigateTo({
-        url: `/pages/issue-detail/issue-detail?id=${marker.payload.id}`,
-      });
-      return;
-    }
-
-    if (marker.payload.type === "user_facility") {
-      // 跳转到用户标注设施详情页
-      wx.navigateTo({
-        url: `/pages/facility/detail/index?id=${marker.payload.id}`,
-      });
-      return;
-    }
-
-    const facility = (this.data.facilities || []).find(
-      (f) => f.id === marker.payload.id,
-    );
-    if (facility) {
-      this.openFacilityDetail(facility);
-    }
-  },
-
-  onFacilityTap: function (e) {
-    const id = e.currentTarget.dataset.id;
-    const facility = (this.data.facilities || []).find((f) => f.id === id);
-    if (!facility) return;
-    if (facility.source === "solutions") {
-      wx.navigateTo({
-        url: `/pages/case-detail/case-detail?postId=${facility.id}`,
-      });
-      return;
-    }
-    this.openFacilityDetail(facility);
-  },
-
-  openFacilityDetail: function (facility) {
-    this.setData({ selectedFacility: facility }, () => {
-      this.setSheetMode("detail");
-      this.updateMarkers();
-      this.loadNearbyOfSelected();
-    });
-  },
-
-  closeDetailToList: function () {
-    this.setData({ selectedFacility: null, nearbyOfSelected: [] }, () => {
-      this.setSheetMode("list");
-      this.updateMarkers();
-    });
-  },
-
-  loadNearbyOfSelected: function () {
-    const selected = this.data.selectedFacility;
-    if (!selected) return;
-    const location = {
-      latitude: selected.latitude,
-      longitude: selected.longitude,
     };
-    qqmapsdk.search({
-      keyword: "无障碍坡道",
-      location,
-      page_size: 8,
-      success: (res) => {
-        const items = (res.data || [])
-          .map((poi, index) => {
-            const lat = poi.location?.lat;
-            const lng = poi.location?.lng;
-            const meters = poi._distance;
-            const rating = poi?.rating || 0;
-            return {
-              id: poi.id || `near-${index}`,
-              name: poi.title || poi.name || "附近设施",
-              latitude: lat,
-              longitude: lng,
-              distanceText:
-                typeof meters === "number" ? formatDistance(meters) : "",
-              stars: toStars(rating),
-            };
-          })
-          .filter(
-            (x) =>
-              typeof x.latitude === "number" && typeof x.longitude === "number",
-          );
-        this.setData({ nearbyOfSelected: items.slice(0, 6) });
-      },
-      fail: (err) => {
-        console.error("加载附近设施失败", err);
-        this.setData({ nearbyOfSelected: [] });
-      },
+  },
+
+  normalizeCommunityPostRows(rows) {
+    return (Array.isArray(rows) ? rows : [])
+      .map((row) => ({
+        postId: String(row.postId || ''),
+        title: this.trimText(row.title || '障碍信息', 42),
+        tag: this.trimText(row.tag || row.recognizedSubtype || row.recognizedCategory || '未分类', 28),
+        status: String(row.status || 'other'),
+        statusText: String(row.statusText || '其他')
+      }))
+      .filter((row) => row.postId);
+  },
+
+  normalizeCommunityPointAsPost(point) {
+    if (!point || !point.postId) return null;
+    return {
+      _id: point.postId,
+      title: point.title,
+      _mapLocation: {
+        latitude: point.latitude,
+        longitude: point.longitude
+      }
+    };
+  },
+
+  buildCommunityMarkers(points) {
+    const markerPostIdMap = Object.create(null);
+    const markers = (points || []).map((point, index) => {
+      const markerId = index + 1;
+      markerPostIdMap[markerId] = point.postId;
+      return {
+        id: markerId,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        iconPath: '/images/marker_alert.svg',
+        width: 30,
+        height: 30,
+        callout: {
+          content: point.title || '障碍信息',
+          color: '#111827',
+          fontSize: 11,
+          borderRadius: 8,
+          padding: 6,
+          bgColor: '#ffffff',
+          display: 'BYCLICK'
+        }
+      };
     });
+    this.markerPostIdMap = markerPostIdMap;
+    return markers;
   },
 
-  onReportTap: function () {
-    wx.navigateTo({ url: "/pages/issue-edit/index" });
-  },
+  includeCommunityPoints(points, fallbackCenter) {
+    if (!this.mapCtx) return;
+    const includePoints = (points || [])
+      .filter((point) => this.isValidCoord(point.latitude, point.longitude))
+      .map((point) => ({ latitude: point.latitude, longitude: point.longitude }));
 
-  onCameraTap: function () {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ["image"],
-      sourceType: ["camera"],
-      success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
-        wx.navigateTo({
-          url: `/pages/issue-edit/index?image=${encodeURIComponent(tempFilePath)}`,
-        });
-      },
-      fail: () => {},
-    });
-  },
-
-  onCenterTap: function () {
-    this.getLocationAndLoad();
-  },
-
-  onLayerTap: function () {
-    wx.showToast({ title: "图层功能开发中", icon: "none" });
-  },
-
-  onSearchTap: function () {
-    this.setData({ searchVisible: true, searchKeyword: "", searchResults: [] });
-  },
-
-  onSearchClose: function () {
-    this.setData({
-      searchVisible: false,
-      searchKeyword: "",
-      searchResults: [],
-    });
-  },
-
-  onSearchInput: function (e) {
-    const keyword = e.detail.value;
-    this.setData({ searchKeyword: keyword });
-    if (!keyword || !keyword.trim()) {
-      this.setData({ searchResults: [] });
+    if (includePoints.length > 0) {
+      this.mapCtx.includePoints({
+        points: includePoints,
+        padding: [110, 48, 230, 48]
+      });
       return;
     }
-    this.fetchSuggestions(keyword.trim());
-  },
 
-  fetchSuggestions: function (keyword) {
-    this.setData({ searchLoading: true });
-    qqmapsdk.getSuggestion({
-      keyword,
-      location: {
-        latitude: this.data.latitude,
-        longitude: this.data.longitude,
-      },
-      page_size: 12,
-      success: (res) => {
-        const items = (res.data || [])
-          .map((item) => {
-            const lat = item.location?.lat;
-            const lng = item.location?.lng;
-            return {
-              id: item.id || item.title,
-              title: item.title,
-              address: item.address || item.province || "",
-              latitude: lat,
-              longitude: lng,
-            };
-          })
-          .filter(
-            (x) =>
-              typeof x.latitude === "number" && typeof x.longitude === "number",
-          );
-        this.setData({ searchResults: items });
-      },
-      fail: (err) => {
-        console.error("搜索失败", err);
-        this.setData({ searchResults: [] });
-      },
-      complete: () => {
-        this.setData({ searchLoading: false });
-      },
-    });
-  },
-
-  onSearchSelect: function (e) {
-    const id = e.currentTarget.dataset.id;
-    const item = (this.data.searchResults || []).find((x) => x.id === id);
-    if (!item) return;
-    this.setData(
-      {
-        latitude: item.latitude,
-        longitude: item.longitude,
-        scale: 15,
-        searchVisible: false,
-        searchKeyword: "",
-        searchResults: [],
-      },
-      () => {
-        this.loadFacilitiesAroundCenter();
-      },
-    );
-  },
-
-  onGoTap: function (e) {
-    const id = e.currentTarget.dataset.id;
-    const facility =
-      (this.data.facilities || []).find((f) => f.id === id) ||
-      (this.data.nearbyOfSelected || []).find((f) => f.id === id) ||
-      this.data.selectedFacility;
-    if (!facility) return;
-    wx.openLocation({
-      latitude: facility.latitude,
-      longitude: facility.longitude,
-      name: facility.name,
-      address: facility.address || "",
-      scale: 18,
-    });
-  },
-
-  // 长按地图标注设施
-  onMapLongPress: function (e) {
-    const { latitude, longitude } = e.detail;
-    
-    wx.showModal({
-      title: '标注设施',
-      content: '是否在此位置标注无障碍设施？',
-      confirmText: '标注',
-      cancelText: '取消',
-      success: (res) => {
-        if (res.confirm) {
-          wx.navigateTo({
-            url: `/pages/facility/mark?latitude=${latitude}&longitude=${longitude}`
-          });
-        }
-      }
-    });
-  },
-
-  // 切换状态筛选面板
-  toggleStatusFilter: function () {
-    this.setData({
-      showStatusFilter: !this.data.showStatusFilter
-    });
-  },
-
-  // 选择状态筛选
-  onStatusFilterTap: function (e) {
-    const status = e.currentTarget.dataset.status;
-    const statusFilter = [...this.data.statusFilter];
-    
-    const index = statusFilter.indexOf(status);
-    if (index > -1) {
-      // 已选中，取消选中
-      statusFilter.splice(index, 1);
-    } else {
-      // 未选中，添加选中
-      statusFilter.push(status);
+    if (fallbackCenter && this.isValidCoord(fallbackCenter.latitude, fallbackCenter.longitude)) {
+      this.setData({
+        latitude: fallbackCenter.latitude,
+        longitude: fallbackCenter.longitude,
+        scale: 15
+      });
     }
-    
-    this.setData({ statusFilter }, () => {
-      // 重新加载设施
-      this.loadUserFacilities();
+  },
+
+  onCommunitySheetTouchStart(e) {
+    const touch = e && e.touches && e.touches[0];
+    if (!touch || !this.data.communitySummaryVisible) return;
+    this.communitySheetDrag = {
+      startY: Number(touch.clientY),
+      startHeight: Number(this.data.communitySheetHeight) || this.communitySheetCollapsedHeight
+    };
+    this.lastCommunitySheetHeight = this.communitySheetDrag.startHeight;
+    this.setData({ communitySheetDragging: true });
+  },
+
+  onCommunitySheetTouchMove(e) {
+    const touch = e && e.touches && e.touches[0];
+    if (!touch || !this.communitySheetDrag) return;
+
+    const delta = this.communitySheetDrag.startY - Number(touch.clientY);
+    const nextHeight = this.clampCommunitySheetHeight(this.communitySheetDrag.startHeight + delta);
+    if (Math.abs(nextHeight - this.lastCommunitySheetHeight) < 4) return;
+    this.lastCommunitySheetHeight = nextHeight;
+    this.setData({ communitySheetHeight: nextHeight });
+  },
+
+  onCommunitySheetTouchEnd() {
+    if (!this.communitySheetDrag) return;
+    this.communitySheetDrag = null;
+    const mid = (this.communitySheetCollapsedHeight + this.communitySheetExpandedHeight) / 2;
+    this.setCommunitySheetExpanded(Number(this.data.communitySheetHeight) >= mid);
+  },
+
+  setCommunitySheetExpanded(expanded) {
+    this.setData({
+      communitySheetExpanded: !!expanded,
+      communitySheetDragging: false,
+      communitySheetHeight: expanded ? this.communitySheetExpandedHeight : this.communitySheetCollapsedHeight
     });
   },
 
-  // 清除状态筛选
-  clearStatusFilter: function () {
-    this.setData({ statusFilter: [] }, () => {
-      this.loadUserFacilities();
-    });
+  clampCommunitySheetHeight(value) {
+    const min = this.communitySheetCollapsedHeight || COMMUNITY_SHEET_COLLAPSED_BASE;
+    const max = this.communitySheetExpandedHeight || 520;
+    return Math.min(max, Math.max(min, Number(value) || min));
   },
 
-  // 打开路线规划
-  openRoutePlanning: function () {
-    // 获取当前位置
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        wx.navigateTo({
-          url: `/pages/route/plan/index?startLat=${res.latitude}&startLng=${res.longitude}`
-        });
-      },
-      fail: () => {
-        wx.navigateTo({
-          url: '/pages/route/plan/index'
-        });
+  onCommunityPostListLower() {
+    this.loadMoreCommunityPosts();
+  },
+
+  loadMoreCommunityPosts() {
+    const community = this.data.communitySummary && this.data.communitySummary.community;
+    const pagination = this.data.communityPostPagination || {};
+    if (!community || this.data.communityPostLoadingMore || !pagination.hasMore) {
+      return Promise.resolve();
+    }
+
+    const nextPage = (Number(pagination.page) || 1) + 1;
+    const pageSize = Number(pagination.pageSize) || COMMUNITY_POST_PAGE_SIZE;
+    this.setData({ communityPostLoadingMore: true });
+
+    return wx.cloud.callFunction({
+      name: 'getCommunityObstacleSummary',
+      data: {
+        community,
+        includePostRows: true,
+        postRowsOnly: true,
+        postPage: nextPage,
+        postPageSize: pageSize
       }
+    }).then((res) => {
+      const result = res && res.result;
+      if (!result || !result.success) {
+        throw new Error((result && result.error) || '帖子加载失败');
+      }
+
+      const nextRows = this.normalizeCommunityPostRows(result.postRows);
+      const existing = this.data.communityPostRows || [];
+      const seen = new Set(existing.map((row) => row.postId));
+      const merged = existing.concat(nextRows.filter((row) => !seen.has(row.postId)));
+      this.setData({
+        communityPostRows: merged,
+        communityPostPagination: {
+          page: Number(result.postPagination && result.postPagination.page) || nextPage,
+          pageSize: Number(result.postPagination && result.postPagination.pageSize) || pageSize,
+          hasMore: !!(result.postPagination && result.postPagination.hasMore)
+        },
+        communityPostLoadingMore: false
+      });
+    }).catch((err) => {
+      console.error('[index] loadMoreCommunityPosts failed:', err);
+      this.setData({ communityPostLoadingMore: false });
+      wx.showToast({
+        title: err && err.message ? err.message : '帖子加载失败',
+        icon: 'none'
+      });
     });
   },
 
-  // 规划到设施的路线
-  planRouteToFacility: function (e) {
-    const id = e.currentTarget.dataset.id;
-    const facility = (this.data.facilities || []).find((f) => f.id === id) ||
-                     (this.data.userFacilities || []).find((f) => f.id === id);
-    
-    if (!facility) return;
-    
-    wx.getLocation({
-      type: 'gcj02',
-      success: (res) => {
-        wx.navigateTo({
-          url: `/pages/route/plan/index?startLat=${res.latitude}&startLng=${res.longitude}&endLat=${facility.latitude}&endLng=${facility.longitude}&endAddress=${encodeURIComponent(facility.name)}`
+  onCommunityPostTap(e) {
+    const postId = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.postId;
+    if (!postId) return;
+    this.openPostDetail(postId);
+  },
+
+  onCommunityDetailTap() {
+    const community = this.data.communitySummary && this.data.communitySummary.community;
+    if (!community) return;
+    wx.setStorageSync('communityInitialTab', 1);
+    wx.setStorageSync('communityInitialFilter', community);
+    wx.switchTab({ url: '/pages/community/community' });
+  },
+
+  onGenerateCommunityReportTap() {
+    const community = this.data.communitySummary && this.data.communitySummary.community;
+    if (!community) return;
+    const userType = wx.getStorageSync('userType');
+    if (userType !== 'communityWorker') {
+      wx.showToast({ title: '仅社区工作者可生成报告', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({
+      url: `/pages/community-report/index?community=${encodeURIComponent(community)}`
+    });
+  },
+
+  planWalkingRoute() {
+    const destination = this.data.destination;
+    if (!destination || !this.isValidCoord(destination.latitude, destination.longitude)) {
+      wx.showToast({
+        title: '请先选择目的地',
+        icon: 'none'
+      });
+      return Promise.resolve();
+    }
+
+    if (this.routePlanInflight) {
+      return this.routePlanInflight;
+    }
+
+    const from = this.currentLocation || {
+      latitude: this.data.latitude,
+      longitude: this.data.longitude
+    };
+
+    if (!this.currentLocation) {
+      wx.showToast({
+        title: '未定位，已用地图中心作为起点',
+        icon: 'none'
+      });
+    }
+
+    this.setData({ routeLoading: true });
+
+    const request = mapService.getRoute(from, destination, 'walking')
+      .then((routeResult) => {
+        const route = this.pickPrimaryRoute(routeResult);
+        const points = this.extractRoutePoints(route, from, destination);
+        if (!Array.isArray(points) || points.length < 2) {
+          throw new Error('路线规划失败，请重试');
+        }
+
+        const polyline = [{
+          points,
+          color: '#1d4ed8',
+          width: 6,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }];
+
+        this.activeRoutePoints = points;
+        this.setData({
+          polyline,
+          routeActive: true,
+          routeSummary: this.buildRouteSummary(route, points)
         });
-      },
-      fail: () => {
+
+        this.includeRouteInView(from, destination, points);
+        return this.loadRouteObstacles(points);
+      })
+      .catch((err) => {
+        console.error('[index] planWalkingRoute failed:', err);
+        if (this.isMapQuotaExceeded(err)) {
+          this.markMapQuotaExceeded('route');
+          return;
+        }
         wx.showToast({
-          title: '请先开启定位',
+          title: (err && err.message) || '路线规划失败',
           icon: 'none'
         });
+      })
+      .finally(() => {
+        this.setData({ routeLoading: false });
+        this.routePlanInflight = null;
+      });
+
+    this.routePlanInflight = request;
+    return request;
+  },
+
+  pickPrimaryRoute(routeResult) {
+    if (Array.isArray(routeResult)) {
+      return routeResult[0] || null;
+    }
+    if (routeResult && Array.isArray(routeResult.routes)) {
+      return routeResult.routes[0] || null;
+    }
+    if (routeResult && Array.isArray(routeResult.result && routeResult.result.routes)) {
+      return routeResult.result.routes[0] || null;
+    }
+    if (routeResult && routeResult.polyline) {
+      return routeResult;
+    }
+    return null;
+  },
+
+  extractRoutePoints(route, from, destination) {
+    let points = [];
+
+    if (route && Array.isArray(route.polyline) && route.polyline.length >= 4) {
+      points = this.decodeNumericPolyline(route.polyline);
+    }
+
+    if (!points.length && route && typeof route.polyline === 'string') {
+      points = this.parsePolylineString(route.polyline);
+    }
+
+    if (!points.length && route && Array.isArray(route.steps)) {
+      const stepPoints = [];
+      route.steps.forEach((step) => {
+        if (!step) return;
+        if (Array.isArray(step.polyline) && step.polyline.length >= 4) {
+          stepPoints.push(...this.decodeNumericPolyline(step.polyline));
+          return;
+        }
+        if (typeof step.polyline === 'string') {
+          stepPoints.push(...this.parsePolylineString(step.polyline));
+        }
+      });
+      points = stepPoints;
+    }
+
+    if (!points.length) {
+      points = [
+        { latitude: from.latitude, longitude: from.longitude },
+        { latitude: destination.latitude, longitude: destination.longitude }
+      ];
+    }
+
+    return this.dedupeRoutePoints(points);
+  },
+
+  decodeNumericPolyline(polyline) {
+    if (!Array.isArray(polyline) || polyline.length < 4) return [];
+    const values = polyline.map((n) => Number(n));
+    if (values.some((n) => !Number.isFinite(n))) return [];
+
+    const decoded = values.slice();
+    for (let i = 2; i < decoded.length; i += 1) {
+      decoded[i] = decoded[i - 2] + decoded[i] / 1000000;
+    }
+
+    const points = [];
+    for (let i = 0; i + 1 < decoded.length; i += 2) {
+      const latitude = Number(decoded[i]);
+      const longitude = Number(decoded[i + 1]);
+      if (!this.isValidCoord(latitude, longitude)) continue;
+      points.push({ latitude, longitude });
+    }
+    return points;
+  },
+
+  parsePolylineString(polyline) {
+    if (!polyline || typeof polyline !== 'string') return [];
+    const points = [];
+    const segments = polyline.split(';');
+    segments.forEach((segment) => {
+      const pair = segment.split(',');
+      if (pair.length < 2) return;
+      const latitude = Number(pair[0]);
+      const longitude = Number(pair[1]);
+      if (!this.isValidCoord(latitude, longitude)) return;
+      points.push({ latitude, longitude });
+    });
+    return points;
+  },
+
+  dedupeRoutePoints(points) {
+    const deduped = [];
+    let lastPoint = null;
+    points.forEach((point) => {
+      if (!this.isValidCoord(point.latitude, point.longitude)) return;
+      if (!lastPoint) {
+        deduped.push(point);
+        lastPoint = point;
+        return;
       }
+      const distance = this.haversineDistance(lastPoint, point);
+      if (distance < 1) return;
+      deduped.push(point);
+      lastPoint = point;
+    });
+    return deduped;
+  },
+
+  includeRouteInView(from, destination, routePoints) {
+    if (!this.mapCtx) return;
+    const sampledRoute = this.samplePoints(routePoints, 80);
+    const includePoints = [
+      { latitude: from.latitude, longitude: from.longitude },
+      { latitude: destination.latitude, longitude: destination.longitude },
+      ...sampledRoute
+    ];
+    this.mapCtx.includePoints({
+      points: includePoints,
+      padding: [80, 48, 280, 48]
     });
   },
+
+  samplePoints(points, maxCount) {
+    if (!Array.isArray(points) || points.length <= maxCount) {
+      return points || [];
+    }
+    const sampled = [];
+    const step = Math.ceil(points.length / maxCount);
+    for (let i = 0; i < points.length; i += step) {
+      sampled.push(points[i]);
+    }
+    const last = points[points.length - 1];
+    if (sampled[sampled.length - 1] !== last) {
+      sampled.push(last);
+    }
+    return sampled;
+  },
+
+  buildRouteSummary(route, points) {
+    const routeDistance = Number(route && route.distance);
+    const distance = Number.isFinite(routeDistance) && routeDistance > 0
+      ? routeDistance
+      : this.getPolylineLength(points);
+
+    const routeDuration = Number(route && route.duration);
+    const duration = Number.isFinite(routeDuration) && routeDuration > 0
+      ? routeDuration
+      : Math.round(distance / 1.2);
+
+    return `步行约 ${this.formatDuration(duration)} · ${this.formatDistance(distance)}`;
+  },
+
+  loadRouteObstacles(routePoints) {
+    if (!Array.isArray(routePoints) || routePoints.length < 2) {
+      return Promise.resolve();
+    }
+
+    const bounds = this.getRouteBounds(routePoints);
+    if (!bounds) {
+      return Promise.resolve();
+    }
+
+    const center = bounds.center;
+    const fetchRadius = Math.min(
+      50000,
+      Math.max(1500, Math.round(bounds.radius + ROUTE_FETCH_EXTRA_RADIUS_M))
+    );
+    const signature = `${center.latitude.toFixed(4)}:${center.longitude.toFixed(4)}:${fetchRadius}`;
+
+    if (signature === this.lastRouteFetchSignature && this.routeObstaclePosts.length) {
+      return Promise.resolve();
+    }
+
+    return this.fetchIssuePostsNear(center, fetchRadius, ROUTE_FETCH_PAGE_SIZE, ROUTE_FETCH_MAX_PAGES)
+      .then((rows) => {
+        const routeHits = [];
+        rows.forEach((item) => {
+          const loc = item._mapLocation || this.extractPostLocation(item);
+          if (!loc) return;
+          const distanceToRoute = this.getPointToPolylineDistanceMeters(loc, routePoints);
+          if (!Number.isFinite(distanceToRoute) || distanceToRoute > ROUTE_HIT_THRESHOLD_M) return;
+          routeHits.push({
+            ...item,
+            _distanceToRoute: distanceToRoute
+          });
+        });
+
+        routeHits.sort((a, b) => a._distanceToRoute - b._distanceToRoute);
+        this.routeObstaclePosts = routeHits;
+        this.lastRouteFetchSignature = signature;
+
+        const routeObstacles = routeHits.slice(0, 80).map((item) => ({
+          postId: item._id,
+          title: this.trimText(item.title || item.content || '障碍点', 22),
+          address: item.formattedAddress || item.address || item.detailAddress || '',
+          distanceText: `${Math.round(item._distanceToRoute)}m`
+        }));
+
+        const markers = this.buildDisplayMarkers(this.baseObstaclePosts, this.routeObstaclePosts);
+        this.setData({
+          routeObstacles,
+          markers
+        });
+      })
+      .catch((err) => {
+        console.error('[index] loadRouteObstacles failed:', err);
+        this.routeObstaclePosts = [];
+        const markers = this.buildDisplayMarkers(this.baseObstaclePosts, []);
+        this.setData({
+          routeObstacles: [],
+          markers
+        });
+      });
+  },
+
+  getRouteBounds(points) {
+    if (!Array.isArray(points) || points.length === 0) return null;
+    let minLat = points[0].latitude;
+    let maxLat = points[0].latitude;
+    let minLng = points[0].longitude;
+    let maxLng = points[0].longitude;
+
+    points.forEach((point) => {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLng) minLng = point.longitude;
+      if (point.longitude > maxLng) maxLng = point.longitude;
+    });
+
+    const center = {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2
+    };
+
+    let radius = 0;
+    points.forEach((point) => {
+      const d = this.haversineDistance(center, point);
+      if (d > radius) radius = d;
+    });
+
+    return { center, radius };
+  },
+
+  getPointToPolylineDistanceMeters(point, polylinePoints) {
+    if (!Array.isArray(polylinePoints) || polylinePoints.length < 2) return Infinity;
+    let minDistance = Infinity;
+    for (let i = 0; i < polylinePoints.length - 1; i += 1) {
+      const d = this.getPointToSegmentDistanceMeters(point, polylinePoints[i], polylinePoints[i + 1]);
+      if (d < minDistance) {
+        minDistance = d;
+      }
+    }
+    return minDistance;
+  },
+
+  getPointToSegmentDistanceMeters(point, start, end) {
+    const refLat = (point.latitude + start.latitude + end.latitude) / 3;
+    const p = this.toMeterPoint(point, refLat);
+    const a = this.toMeterPoint(start, refLat);
+    const b = this.toMeterPoint(end, refLat);
+
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const apx = p.x - a.x;
+    const apy = p.y - a.y;
+    const len2 = abx * abx + aby * aby;
+
+    if (len2 === 0) {
+      return Math.sqrt(apx * apx + apy * apy);
+    }
+
+    let t = (apx * abx + apy * aby) / len2;
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+
+    const nearestX = a.x + t * abx;
+    const nearestY = a.y + t * aby;
+    const dx = p.x - nearestX;
+    const dy = p.y - nearestY;
+    return Math.sqrt(dx * dx + dy * dy);
+  },
+
+  toMeterPoint(point, refLat) {
+    const latFactor = 110540;
+    const lngFactor = 111320 * Math.cos((refLat * Math.PI) / 180);
+    return {
+      x: point.longitude * lngFactor,
+      y: point.latitude * latFactor
+    };
+  },
+
+  haversineDistance(from, to) {
+    if (!from || !to) return Infinity;
+    const lat1 = from.latitude * Math.PI / 180;
+    const lng1 = from.longitude * Math.PI / 180;
+    const lat2 = to.latitude * Math.PI / 180;
+    const lng2 = to.longitude * Math.PI / 180;
+
+    const dLat = lat2 - lat1;
+    const dLng = lng2 - lng1;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return 6371000 * c;
+  },
+
+  getPolylineLength(points) {
+    if (!Array.isArray(points) || points.length < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      total += this.haversineDistance(points[i], points[i + 1]);
+    }
+    return total;
+  },
+
+  formatDuration(seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const minutes = Math.round(safeSeconds / 60);
+    if (minutes < 60) return `${minutes}分钟`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    if (!rest) return `${hours}小时`;
+    return `${hours}小时${rest}分钟`;
+  },
+
+  formatDistance(meters) {
+    const safeMeters = Math.max(0, Number(meters) || 0);
+    if (safeMeters < 1000) return `${Math.round(safeMeters)}米`;
+    return `${(safeMeters / 1000).toFixed(1)}公里`;
+  },
+
+  isMapQuotaExceeded(err) {
+    if (!err) return false;
+    const status = Number(err.status || err.code || (err.result && err.result.status));
+    if (status === 121) return true;
+    const message = String(err.message || '');
+    return message.includes('达到上限') || message.includes('daily') || message.includes('limit');
+  },
+
+  markMapQuotaExceeded(scene) {
+    if (!this.data.mapQuotaExceeded) {
+      this.setData({
+        mapQuotaExceeded: true,
+        searchLoading: false,
+        searchResults: []
+      });
+    }
+    if (scene === 'route') {
+      this.showMapQuotaTip('路线服务额度已用完，请更换腾讯地图Key');
+      return;
+    }
+    this.showMapQuotaTip('搜索额度已用完，请先用地图选点');
+  },
+
+  showMapQuotaTip(message) {
+    const now = Date.now();
+    if (now - this.lastQuotaTipAt < 2200) return;
+    this.lastQuotaTipAt = now;
+    wx.showToast({
+      title: message,
+      icon: 'none',
+      duration: 2600
+    });
+  },
+
+  clearRoute() {
+    this.routeObstaclePosts = [];
+    this.activeRoutePoints = [];
+    this.lastRouteFetchSignature = '';
+    const markers = this.buildDisplayMarkers(this.baseObstaclePosts, []);
+    this.setData({
+      destination: null,
+      destinationLabel: '',
+      polyline: [],
+      routeActive: false,
+      routeSummary: '',
+      routeObstacles: [],
+      routeLoading: false,
+      markers
+    });
+  },
+
+  onRouteObstacleTap(e) {
+    const postId = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.postId;
+    if (!postId) return;
+    this.openPostDetail(postId);
+  }
 });

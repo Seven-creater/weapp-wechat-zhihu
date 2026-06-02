@@ -7,6 +7,7 @@ Page({
     description: '',
     images: [],
     budgetAdjustment: '',
+    estimateDays: '',
     
     maxImages: 9,
     submitting: false
@@ -26,6 +27,10 @@ Page({
   // 输入预算调整
   onBudgetInput: function (e) {
     this.setData({ budgetAdjustment: e.detail.value });
+  },
+
+  onEstimateDaysInput: function (e) {
+    this.setData({ estimateDays: e.detail.value });
   },
 
   // 选择图片
@@ -121,7 +126,9 @@ Page({
           postId: this.data.postId,
           description: this.data.description,
           images: fileIDs,
-          budgetAdjustment: Number(this.data.budgetAdjustment) || 0
+          budgetAdjustment: Number(this.data.budgetAdjustment) || 0,
+          quoteAmount: Number(this.data.budgetAdjustment) || 0,
+          estimateDays: Number(this.data.estimateDays) || 0
         }
       });
     }).then(res => {

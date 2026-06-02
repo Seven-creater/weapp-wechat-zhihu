@@ -1,0 +1,425 @@
+.report-page {
+  min-height: 100vh;
+  padding: 24rpx;
+  background: #eef4fb;
+  box-sizing: border-box;
+}
+
+.report-header {
+  padding: 34rpx 30rpx;
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, #0645a8 0%, #1374c7 100%);
+  color: #ffffff;
+  box-shadow: 0 14rpx 30rpx rgba(6, 69, 168, 0.22);
+}
+
+.report-kicker {
+  display: inline-flex;
+  padding: 6rpx 16rpx;
+  margin-bottom: 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 22rpx;
+}
+
+.report-title {
+  display: block;
+  font-size: 38rpx;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.report-time {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.report-loading,
+.report-error,
+.fallback-tip,
+.html-card,
+.section-card {
+  margin-top: 22rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(15, 55, 107, 0.08);
+}
+
+.report-loading,
+.report-error,
+.fallback-tip {
+  padding: 28rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.report-error {
+  color: #b91c1c;
+  background: #fff1f2;
+}
+
+.fallback-tip {
+  color: #9a5b00;
+  background: #fffbeb;
+}
+
+.fallback-title,
+.fallback-reason {
+  display: block;
+}
+
+.fallback-reason {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #b45309;
+}
+
+.html-card {
+  display: flex;
+  gap: 18rpx;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+}
+
+.html-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.html-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #0f2d5c;
+}
+
+.html-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.html-desc.warn {
+  color: #b45309;
+}
+
+.html-button {
+  width: 160rpx;
+  height: 64rpx;
+  padding: 0;
+  border-radius: 999rpx;
+  line-height: 64rpx;
+  font-size: 24rpx;
+  color: #ffffff;
+  background: #0b63ce;
+}
+
+.section-card {
+  padding: 26rpx;
+}
+
+.section-title {
+  padding-bottom: 18rpx;
+  margin-bottom: 20rpx;
+  border-bottom: 1rpx solid #e2edf9;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #0b4fb3;
+}
+
+.overview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -9rpx;
+}
+
+.overview-card {
+  width: calc(50% - 18rpx);
+  margin: 9rpx;
+}
+
+.overview-card,
+.budget-card,
+.risk-card {
+  padding: 22rpx;
+  border: 1rpx solid #dbe7f6;
+  border-radius: 14rpx;
+  background: #f8fbff;
+}
+
+.overview-value {
+  display: block;
+  min-height: 48rpx;
+  font-size: 34rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #0b4fb3;
+  word-break: break-all;
+}
+
+.overview-label,
+.budget-title,
+.risk-label {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #172033;
+}
+
+.overview-hint,
+.budget-hint,
+.risk-hint,
+.scheme-desc,
+.issue-meta,
+.heatmap-caption {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.bar-row {
+  margin-top: 20rpx;
+}
+
+.bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+  gap: 16rpx;
+}
+
+.bar-name {
+  font-size: 26rpx;
+  color: #172033;
+}
+
+.bar-count {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #0b4fb3;
+}
+
+.bar-track {
+  height: 16rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: #e7eff8;
+}
+
+.bar-fill {
+  height: 16rpx;
+  min-width: 4%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #0b63ce, #2fa7df);
+}
+
+.risk-grid,
+.budget-grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -7rpx;
+}
+
+.budget-grid {
+  margin-top: 11rpx;
+}
+
+.risk-card,
+.budget-card {
+  width: calc(33.333% - 14rpx);
+  margin: 7rpx;
+}
+
+.risk-card.high {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.risk-card.medium {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.risk-card.low {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.risk-value {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 42rpx;
+  font-weight: 900;
+  color: #0f2d5c;
+}
+
+.budget-value {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  font-weight: 800;
+  color: #0b4fb3;
+}
+
+.heatmap-shell {
+  position: relative;
+  width: 100%;
+  height: 440rpx;
+  overflow: hidden;
+  border: 1rpx solid #dbe7f6;
+  border-radius: 14rpx;
+  background: #edf4f8;
+}
+
+.heatmap-canvas,
+.heatmap-image {
+  width: 100%;
+  height: 440rpx;
+}
+
+.heatmap-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.issue-card {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #e2edf9;
+}
+
+.issue-card:last-child {
+  border-bottom: 0;
+}
+
+.issue-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.issue-title {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #172033;
+}
+
+.issue-risk {
+  flex-shrink: 0;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.issue-risk.high {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.issue-risk.medium {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.issue-risk.low {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.issue-row {
+  margin-top: 14rpx;
+}
+
+.issue-label {
+  display: block;
+  margin-bottom: 6rpx;
+  font-size: 23rpx;
+  color: #64748b;
+}
+
+.issue-value {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.55;
+  color: #273449;
+  word-break: break-all;
+}
+
+.scheme-row {
+  display: flex;
+  gap: 18rpx;
+  align-items: flex-start;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #e2edf9;
+}
+
+.scheme-row:last-child {
+  border-bottom: 0;
+}
+
+.scheme-code {
+  width: 118rpx;
+  flex-shrink: 0;
+  font-size: 28rpx;
+  font-weight: 900;
+  color: #0b4fb3;
+}
+
+.scheme-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.scheme-title {
+  display: block;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #172033;
+}
+
+.report-section {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #e2edf9;
+}
+
+.report-section:last-child {
+  border-bottom: 0;
+}
+
+.report-section-title {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #172033;
+}
+
+.report-section-content,
+.report-text {
+  display: block;
+  white-space: pre-wrap;
+  font-size: 26rpx;
+  line-height: 1.8;
+  color: #273449;
+}
+
+.empty-line {
+  padding: 24rpx 0;
+  font-size: 26rpx;
+  color: #94a3b8;
+  text-align: center;
+}

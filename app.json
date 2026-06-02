@@ -6,7 +6,9 @@
     "pages/debug-stats/index",
     "pages/edit-profile/index",
     "pages/community/community",
+    "pages/community-report/index",
     "pages/post/create",
+    "pages/demand/create/index",
     "pages/post/new-post/index",
     "pages/notify/notify",
     "pages/chat/chat",
@@ -21,12 +23,10 @@
     "pages/solutions/index",
     "pages/solution-detail/index",
     "pages/my-issues/index",
-    "pages/issue-detail/issue-detail",
     "pages/post-detail/index",
     "pages/issue-edit/index",
     "pages/profile-edit/index",
     "pages/mine/profile-edit/index",
-    "pages/map-view/index",
     "pages/renovation/renovation",
     "pages/construction/construction",
     "pages/follow-list/index",
@@ -35,8 +35,6 @@
     "pages/admin-certification/index",
     "pages/facility/mark/index",
     "pages/facility/detail/index",
-    "pages/route/plan/index",
-    "pages/route/navigate/index",
     "pages/post/daily/index",
     "pages/design/proposal/index",
     "pages/project/create/index",
@@ -104,5 +102,5 @@
     "request": 10000,
     "downloadFile": 10000
   },
-  "debug": true
+  "debug": false
 }

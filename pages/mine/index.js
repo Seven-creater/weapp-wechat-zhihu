@@ -45,7 +45,7 @@ Page({
     }
   },
 
-  onShow: function () {
+  _legacyOnShowV1: function () {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({
         selected: 4
@@ -63,7 +63,7 @@ Page({
     this.checkLoginStatus();
   },
 
-  checkLoginStatus: async function () {
+  _legacyCheckLoginStatus: async function () {
     const openid = app.globalData.openid || wx.getStorageSync("openid");
     const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
@@ -110,20 +110,77 @@ Page({
     }
   },
 
-  checkIsAdmin: async function(openid) {
-    // 🔐 超级管理员列表（硬编码）
-    const SUPER_ADMIN_OPENIDS = [
-      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',
-      'oOJhu3T9Us9TAnibhfctmyRw2Urc'
-    ];
-    
-    // 1. 首先检查是否是超级管理员
-    if (SUPER_ADMIN_OPENIDS.includes(openid)) {
-      console.log('✅ 超级管理员权限验证通过:', openid);
-      return true;
+  // 覆盖旧实现：onShow 不再先行重复请求，由 checkLoginStatus 统一加载
+  onShow: function () {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({
+        selected: 4
+      });
     }
-    
-    // 2. 检查数据库中的管理员标识
+    this.checkLoginStatus();
+  },
+
+  // 覆盖旧实现：加入 inflight + TTL 门闩，避免 onShow 重复全量加载
+  checkLoginStatus: async function (options = {}) {
+    const force = !!options.force;
+    const now = Date.now();
+    const ttlMs = 30 * 1000;
+    const expired = now - (this._lastLoadedAt || 0) > ttlMs;
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    const profilePostsDirtyAt = Number(
+      wx.getStorageSync(openid ? `profilePostsDirtyAt:${openid}` : "profilePostsDirtyAt") || 0
+    );
+    const postsDirty = profilePostsDirtyAt > (this._lastLoadedAt || 0);
+    if (!force && this._statusInflight) return;
+    if (!force && !expired && !this._dirtyProfile && !postsDirty) return;
+
+    this._statusInflight = true;
+    try {
+      const openid = app.globalData.openid || wx.getStorageSync("openid");
+      const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+
+      if (openid && userInfo) {
+        let avatarUrl = userInfo.avatarUrl;
+        if (!avatarUrl || avatarUrl.trim() === '' || avatarUrl === 'undefined' || avatarUrl === 'null') {
+          avatarUrl = '/images/zhi.png';
+          userInfo.avatarUrl = avatarUrl;
+          app.globalData.userInfo = userInfo;
+          wx.setStorageSync('userInfo', userInfo);
+        }
+
+        const isAdmin = await this.checkIsAdmin(openid);
+        this.setData({
+          isLoggedIn: true,
+          userInfo: userInfo,
+          isAdmin: isAdmin,
+        });
+
+        this.loadFullUserInfo(openid);
+        this.loadStats();
+        this.loadPosts(true);
+      } else {
+        this.setData({
+          isLoggedIn: false,
+          userInfo: {},
+          posts: [],
+          stats: {
+            following: 0,
+            followers: 0,
+            likes: 0,
+          },
+          isAdmin: false,
+        });
+      }
+
+      this._dirtyProfile = false;
+      this._lastLoadedAt = Date.now();
+    } finally {
+      this._statusInflight = false;
+    }
+  },
+
+  checkIsAdmin: async function(openid) {
+    // 仅基于数据库管理员字段判断，不依赖前端硬编码 openid
     try {
       const db = getDB();
       if (!db) return false;
@@ -171,7 +228,9 @@ Page({
     wx.cloud.callFunction({
       name: 'getUserInfo',
       data: {
-        targetId: openid
+        targetId: openid,
+        fieldMode: 'full',
+        includeSensitive: true
       }
     }).then(res => {
       if (res.result && res.result.success) {
@@ -394,6 +453,7 @@ Page({
           pageSize: this.data.pageSize,
           orderBy: "createTime",
           order: "desc",
+          fieldMode: "list",
           authorOpenids: [openid],
         },
       })
@@ -580,6 +640,16 @@ Page({
     return this.convertCloudImages(items);
   },
 
+  formatPostTag: function (doc) {
+    const subtypeText = Array.isArray(doc.recognizedSubtypes) && doc.recognizedSubtypes.length
+      ? doc.recognizedSubtypes.join('、')
+      : doc.recognizedSubtype;
+    if (doc.recognizedCategory && subtypeText) {
+      return `${doc.recognizedCategory} / ${subtypeText}`;
+    }
+    return doc.recognizedCategory || doc.categoryName || doc.category || '';
+  },
+
   buildPostItemFromDoc: function (doc, collection) {
     const titleSource = doc.title || doc.description || doc.content || "";
     const title = this.normalizeTitle(titleSource);
@@ -590,6 +660,7 @@ Page({
     return {
       id: doc._id,
       title,
+      tag: this.formatPostTag(doc),
       image: image || "/images/24213.jpg",
       hasImage: hasImage,  // ✅ 添加 hasImage 字段
       likes,

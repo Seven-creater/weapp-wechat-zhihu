@@ -1,0 +1,10 @@
+{
+  "name": "generateCommunityReport",
+  "version": "1.0.0",
+  "description": "Generate a community obstacle report for community workers.",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  },
+  "license": "MIT"
+}

@@ -1,4 +1,3 @@
-// cloudfunctions/createDesignProposal/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -6,61 +5,145 @@ cloud.init({
 });
 
 const db = cloud.database();
+const _ = db.command;
 
-/**
- * 创建设计方案云函数
- * 设计者为障碍问题帖子添加设计方案
- */
-exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext();
-  const openid = wxContext.OPENID;
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[createDesignProposal] shared validate unavailable');
+}
 
-  const {
-    postId,
-    content,
-    images = [],
-    priceAdjustment = 0,
-    adjustmentReason = ''
-  } = event;
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  const { name = 'value', required = false, min = 0, max = 2000 } = options;
+  if (value == null || value === '') {
+    if (required) return { ok: false, error: `missing ${name}` };
+    return { ok: true, value: '' };
+  }
+  if (typeof value !== 'string') return { ok: false, error: `${name} must be string` };
+  const text = value.trim();
+  if (required && !text) return { ok: false, error: `missing ${name}` };
+  if (text.length < min) return { ok: false, error: `${name} too short` };
+  if (text.length > max) return { ok: false, error: `${name} too long` };
+  return { ok: true, value: text };
+}
+
+function normalizeImages(images) {
+  if (!Array.isArray(images)) {
+    return { ok: false, error: 'images must be array' };
+  }
+  const normalized = images
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean)
+    .slice(0, 9);
+  const tooLong = normalized.find((item) => item.length > 1024);
+  if (tooLong) {
+    return { ok: false, error: 'image url too long' };
+  }
+  return { ok: true, value: normalized };
+}
+
+function normalizeBudget(value) {
+  if (value == null || value === '') return { ok: true, value: 0 };
+  const num = Number(value);
+  if (!Number.isFinite(num)) return { ok: false, error: 'priceAdjustment must be number' };
+  if (num < -10000000 || num > 10000000) {
+    return { ok: false, error: 'priceAdjustment out of range' };
+  }
+  return { ok: true, value: num };
+}
+
+function normalizePositiveNumber(value, fieldName, maxValue) {
+  if (value == null || value === '') return { ok: true, value: 0 };
+  const num = Number(value);
+  if (!Number.isFinite(num)) return { ok: false, error: `${fieldName} must be number` };
+  if (num < 0 || num > maxValue) {
+    return { ok: false, error: `${fieldName} out of range` };
+  }
+  return { ok: true, value: num };
+}
+
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  if (!OPENID) {
+    return { success: false, error: 'unauthorized' };
+  }
+
+  const postIdCheck = validateString(event.postId, {
+    name: 'postId',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!postIdCheck.ok) return { success: false, error: postIdCheck.error };
+
+  const contentCheck = validateString(event.content, {
+    name: 'content',
+    required: true,
+    min: 2,
+    max: 2000
+  });
+  if (!contentCheck.ok) return { success: false, error: contentCheck.error };
+
+  const imagesCheck = normalizeImages(event.images || []);
+  if (!imagesCheck.ok) return { success: false, error: imagesCheck.error };
+
+  const budgetCheck = normalizeBudget(event.priceAdjustment);
+  if (!budgetCheck.ok) return { success: false, error: budgetCheck.error };
+
+  const quoteCheck = normalizePositiveNumber(event.quoteAmount, 'quoteAmount', 10000000);
+  if (!quoteCheck.ok) return { success: false, error: quoteCheck.error };
+
+  const daysCheck = normalizePositiveNumber(event.estimateDays, 'estimateDays', 3650);
+  if (!daysCheck.ok) return { success: false, error: daysCheck.error };
+
+  const reasonCheck = validateString(event.adjustmentReason, {
+    name: 'adjustmentReason',
+    required: false,
+    max: 500
+  });
+  if (!reasonCheck.ok) return { success: false, error: reasonCheck.error };
+
+  const postId = postIdCheck.value;
+  const description = contentCheck.value;
+  const images = imagesCheck.value;
+  const budgetAdjustment = budgetCheck.value;
+  const quoteAmount = quoteCheck.value || Math.max(0, budgetAdjustment);
+  const estimateDays = Math.round(daysCheck.value || 0);
+  const adjustmentReason = reasonCheck.value;
 
   try {
-    // 1. 验证参数
-    if (!postId) {
-      return {
-        success: false,
-        error: '缺少帖子ID'
-      };
-    }
-
-    if (!content || content.trim().length === 0) {
-      return {
-        success: false,
-        error: '设计方案内容不能为空'
-      };
-    }
-
-    // 2. 验证用户是设计者
     const userRes = await db.collection('users')
-      .where({ _openid: openid })
+      .where({ _openid: OPENID })
+      .field({
+        _id: true,
+        _openid: true,
+        userType: true,
+        userInfo: true,
+        nickName: true,
+        avatarUrl: true
+      })
+      .limit(1)
       .get();
 
-    if (!userRes.data || userRes.data.length === 0) {
+    const user = userRes.data && userRes.data[0];
+    if (!user) {
       return {
         success: false,
-        error: '用户不存在'
+        error: 'user not found'
       };
     }
 
-    const user = userRes.data[0];
-
-    if (user.userType !== 'designer') {
+    if (!['designer', 'contractor'].includes(user.userType)) {
       return {
         success: false,
-        error: '只有设计者可以添加设计方案'
+        error: 'only designer or contractor can create proposal'
       };
     }
 
-    // 3. 验证帖子存在且是障碍问题类型
     const postRes = await db.collection('posts')
       .doc(postId)
       .get();
@@ -68,78 +151,93 @@ exports.main = async (event, context) => {
     if (!postRes.data) {
       return {
         success: false,
-        error: '帖子不存在'
+        error: 'post not found'
       };
     }
 
-    if (postRes.data.type !== 'issue') {
+    const post = postRes.data;
+    if (!['issue', 'demand'].includes(post.type)) {
       return {
         success: false,
-        error: '只能为障碍问题帖子添加设计方案'
+        error: 'proposal only supports issue or demand post'
       };
     }
 
-    // 4. 创建设计方案数据
+    if (post.type === 'issue' && user.userType !== 'designer') {
+      return {
+        success: false,
+        error: 'only designer can create issue proposal'
+      };
+    }
+
+    const duplicateRes = await db.collection('design_proposals').where(_.and([
+      _.or([{ issueId: postId }, { postId }]),
+      _.or([{ designerId: OPENID }, { _openid: OPENID }])
+    ])).limit(1).get();
+
+    if ((duplicateRes.data || []).length > 0) {
+      return {
+        success: false,
+        error: 'duplicate proposal'
+      };
+    }
+
+    const designerName = user.userInfo?.nickName || user.nickName || (user.userType === 'contractor' ? '施工方' : '设计师');
+    const designerAvatar = user.userInfo?.avatarUrl || user.avatarUrl || '';
+
     const proposalData = {
-      _openid: openid,
-      postId: postId,
-      issueId: postRes.data.issueId || null,
-      
-      // 设计者信息
+      _openid: OPENID,
+      postId,
+      issueId: postId,
+      designerId: OPENID,
+      designerName,
+      designerAvatar,
       designerInfo: {
-        nickName: user.nickName || '设计者',
-        avatarUrl: user.avatarUrl || '',
-        userId: user._id
+        nickName: designerName,
+        avatarUrl: designerAvatar,
+        userId: user._id || ''
       },
-      
-      // 方案内容
-      content: content.trim(),
-      images: images,
-      
-      // 预算调整
-      priceAdjustment: Number(priceAdjustment) || 0,
-      adjustmentReason: adjustmentReason.trim(),
-      
-      // 统计
+      description,
+      content: description,
+      images,
+      budgetAdjustment,
+      priceAdjustment: budgetAdjustment,
+      quoteAmount,
+      estimateDays,
+      adjustmentReason,
+      submitterType: user.userType,
+      sourcePostType: post.type,
       likes: 0,
       adopted: false,
-      
-      // 时间
+      status: 'pending',
       createTime: db.serverDate(),
       updateTime: db.serverDate()
     };
 
-    // 5. 插入 design_proposals 集合
     const proposalResult = await db.collection('design_proposals').add({
       data: proposalData
     });
 
-    // 6. 更新帖子的设计方案数量
-    await db.collection('posts')
-      .doc(postId)
-      .update({
-        data: {
-          designProposalCount: db.command.inc(1),
-          updateTime: db.serverDate()
-        }
-      });
+    const postUpdateData = {
+      designProposalCount: db.command.inc(1),
+      updateTime: db.serverDate()
+    };
+    if (post.type === 'demand' && post.status === 'pending') {
+      postUpdateData.status = 'accepted';
+    }
 
-    console.log('设计方案创建成功:', proposalResult._id);
+    await db.collection('posts').doc(postId).update({ data: postUpdateData });
 
     return {
       success: true,
       proposalId: proposalResult._id,
-      message: '设计方案添加成功'
+      message: 'proposal created'
     };
-
   } catch (error) {
-    console.error('创建设计方案失败:', error);
+    console.error('[createDesignProposal] failed:', error);
     return {
       success: false,
-      error: error.message || '添加失败，请重试'
+      error: error && error.message ? error.message : 'create failed'
     };
   }
 };
-
-
-

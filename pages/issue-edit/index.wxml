@@ -8,10 +8,10 @@
   </view>
 
   <view class="section">
-    <text class="section-title">问题说明</text>
+    <text class="section-title">问题说明（选填）</text>
     <textarea
       class="description-input"
-      placeholder="请描述问题现状..."
+      placeholder="可以补充问题现状..."
       value="{{description}}"
       maxlength="500"
       show-confirm-bar="false"
@@ -31,20 +31,6 @@
         <text class="voice-text">{{isRecording ? '录音中' : '按住说话'}}</text>
       </view>
     </view>
-  </view>
-
-  <view class="section">
-    <text class="section-title">我的建议 (选填)</text>
-    <textarea
-      class="suggestion-input"
-      placeholder="您觉得应该如何改进？例如：我觉得这里应该加个坡道..."
-      value="{{userSuggestion}}"
-      maxlength="500"
-      show-confirm-bar="false"
-      bindinput="onSuggestionInput"
-      aria-label="我的建议"
-    ></textarea>
-    <view class="word-count">{{userSuggestion.length}}/500</view>
   </view>
 
   <view class="section">
@@ -79,20 +65,100 @@
   </view>
 
   <view class="section">
-    <text class="section-title">请选择分类</text>
+    <text class="section-title">AI 识别结果</text>
+    <text class="category-required">*</text>
+    <view class="recognition-card" wx:if="{{recognizedCategory}}">
+      <view class="recognition-main">
+        <view class="recognition-category" bindtap="onRecognitionCategoryTap" aria-role="button" aria-label="双击修改子类">
+          <text class="recognition-label">大类</text>
+          <text class="recognition-value">{{recognizedCategory}}</text>
+        </view>
+        <view class="recognition-subtype">
+          <text class="recognition-label">子类</text>
+          <view class="recognition-tags">
+            <text
+              class="recognition-tag"
+              wx:for="{{recognizedSubtypes}}"
+              wx:key="*this"
+            >{{item}}</text>
+          </view>
+        </view>
+        <view class="recognition-confidence">
+          <text class="recognition-label">置信度</text>
+          <text class="recognition-value">{{recognitionConfidenceText}}</text>
+        </view>
+      </view>
+      <view class="recognition-actions">
+        <text class="recognition-hint">双击大类可修正子类</text>
+        <view class="ai-btn" bindtap="recognizePrimaryImage" aria-role="button" aria-label="重新识别">
+          <text>重新识别</text>
+        </view>
+      </view>
+    </view>
+    <view class="recognition-empty" wx:else>
+      <text>{{recognitionStatus === 'failed' ? recognitionError : (recognizingImage ? '正在识别，请稍候...' : '请选择现场照片，系统会自动识别设施类型')}}</text>
+      <view
+        class="ai-btn recognition-retry"
+        wx:if="{{recognitionStatus === 'failed' && images.length > 0 && !recognizingImage}}"
+        bindtap="recognizePrimaryImage"
+        aria-role="button"
+        aria-label="重新识别"
+      >
+        <text>重新识别</text>
+      </view>
+    </view>
+
+    <view class="subtype-picker" wx:if="{{showSubtypePicker}}">
+      <view class="subtype-picker-header">
+        <text class="subtype-picker-title">选择{{recognizedCategory}}子类（可多选）</text>
+        <text class="subtype-picker-close" bindtap="closeSubtypePicker">关闭</text>
+      </view>
+      <view class="subtype-grid">
+        <view
+          class="subtype-item {{item.selected ? 'active' : ''}}"
+          wx:for="{{subtypeOptions}}"
+          wx:key="name"
+          data-subtype="{{item.name}}"
+          bindtap="onSubtypeSelect"
+          aria-role="button"
+          aria-label="{{item.selected ? '取消' : '选择'}}{{item.name}}"
+        >
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="scheme-match-box" wx:if="{{recognizedCategory}}">
+      <block wx:if="{{matchedSchemes.length > 0}}">
+        <view
+          class="scheme-match-item {{item.resourceStatus === 'placeholder' ? 'placeholder' : 'ready'}}"
+          wx:for="{{matchedSchemes}}"
+          wx:key="code"
+        >
+          <text class="scheme-code">{{item.code}}</text>
+          <text class="scheme-name">{{item.title}}</text>
+          <text class="scheme-status" wx:if="{{item.resourceStatus === 'ready'}}">{{item.totalFileCount || 0}}个文件</text>
+          <text class="scheme-status" wx:else>暂无方案文件</text>
+        </view>
+      </block>
+      <text class="scheme-empty" wx:else>{{schemeMessage}}</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <text class="section-title">发布到哪个社区</text>
     <text class="category-required">*</text>
     <view class="category-grid">
       <view
-        class="category-item {{selectedCategory === item.name ? 'active' : ''}}"
-        wx:for="{{categoryOptions}}"
-        wx:key="id"
-        data-category="{{item.name}}"
-        data-id="{{item.id}}"
-        bindtap="onCategorySelect"
+        class="category-item {{selectedCommunity === item ? 'active' : ''}}"
+        wx:for="{{communityOptions}}"
+        wx:key="*this"
+        data-community="{{item}}"
+        bindtap="onCommunitySelect"
         aria-role="button"
-        aria-label="{{item.name}}"
+        aria-label="{{item}}"
       >
-        <text class="category-text">{{item.name}}</text>
+        <text class="category-text">{{item}}</text>
       </view>
     </view>
   </view>
@@ -129,37 +195,16 @@
     />
   </view>
 
-  <view class="section">
-    <view class="section-header">
-      <text class="section-title">🤖 AI 生成材料报告 (可编辑)</text>
-      <text class="label-hint">点击下方可修改</text>
-      <view class="ai-btn" bindtap="generateAISolution" aria-role="button" aria-label="生成材料报告">
-        <text>{{aiSolution ? '重新生成' : '生成报告'}}</text>
-      </view>
-    </view>
-    <view class="ai-content">
-        <textarea
-          class="ai-textarea"
-          auto-height
-          maxlength="1000"
-          placeholder="AI 正在分析中..."
-          value="{{aiSolution}}"
-          bindinput="onAiSolutionInput"
-          aria-label="AI生成材料报告"
-        ></textarea>
-      </view>
-  </view>
-
   <view class="footer-actions">
     <button class="submit-btn" bindtap="submitIssue" aria-label="发布到社区">
       发布到社区
     </button>
   </view>
 
-  <view class="loading-mask" wx:if="{{generatingAI || submitting}}">
+  <view class="loading-mask" wx:if="{{recognizingImage || submitting}}">
     <view class="loading-content">
       <image class="loading-icon" src="/images/loading.gif" aria-hidden="true"></image>
-      <text class="loading-text">{{generatingAI ? 'AI 生成中...' : '提交中...'}} </text>
+      <text class="loading-text">{{recognizingImage ? 'AI 识别中...' : '提交中...'}} </text>
     </view>
   </view>
 </view>

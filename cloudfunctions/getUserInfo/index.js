@@ -1,4 +1,3 @@
-// cloudfunctions/getUserInfo/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -6,70 +5,157 @@ cloud.init({
 });
 
 const db = cloud.database();
+const media = require('./media');
 
-exports.main = async (event, context) => {
-  const { targetId } = event;
-  
+const CACHE_TTL_MS = 60 * 1000;
+const profileCache = new Map();
+const inflight = new Map();
+
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  const targetId = toSafeString(event.targetId, 64);
+  const fieldMode = event.fieldMode === 'full' ? 'full' : 'basic';
+  const includeSensitive = event.includeSensitive === true;
+  const allowSensitive = includeSensitive && !!OPENID && targetId === OPENID;
+
   if (!targetId) {
     return {
       success: false,
-      error: '缺少 targetId 参数'
+      error: 'missing targetId'
     };
   }
 
-  try {
-    // 在云函数中查询，不受客户端权限限制
-    const res = await db.collection('users').where({
-      _openid: targetId
-    }).field({
-      userInfo: true,
-      stats: true,
-      userType: true,      // 🔧 添加用户类型
-      badge: true,         // 🔧 添加徽章
-      profile: true,       // 🔧 添加补充信息
-      reputation: true,    // 🔧 添加信誉信息
-      phoneNumber: true,   // 🔧 添加手机号
-      _openid: true
-    }).get();
+  const cacheKey = `${targetId}:${fieldMode}:${allowSensitive ? '1' : '0'}`;
+  const cached = readCache(cacheKey);
+  if (cached) {
+    return cached;
+  }
 
-    if (res.data.length > 0) {
-      const userData = res.data[0];
-      
-      // ✅ 不转换云存储 URL，直接返回 cloud:// 地址
-      // 小程序会自动处理云存储地址的显示，无需转换为临时链接
-      // 如果头像URL为空或无效，使用默认头像
-      if (userData.userInfo && (!userData.userInfo.avatarUrl || userData.userInfo.avatarUrl.trim() === '')) {
-        userData.userInfo.avatarUrl = '/images/zhi.png';
+  if (inflight.has(cacheKey)) {
+    return inflight.get(cacheKey);
+  }
+
+  const request = queryUserProfile(targetId, fieldMode, allowSensitive)
+    .then((result) => {
+      if (result && result.success) {
+        writeCache(cacheKey, result);
       }
-      
-      return {
-        success: true,
-        data: {
-          userInfo: userData.userInfo,
-          stats: userData.stats,
-          userType: userData.userType || 'normal',
-          badge: userData.badge || null,
-          profile: userData.profile || {},
-          reputation: userData.reputation || null,
-          phoneNumber: userData.phoneNumber || null,
-          _openid: userData._openid
-        },
-        // 兼容旧代码
-        userInfo: userData.userInfo,
-        _openid: userData._openid,
-        stats: userData.stats
-      };
-    } else {
+      return result;
+    })
+    .finally(() => {
+      inflight.delete(cacheKey);
+    });
+
+  inflight.set(cacheKey, request);
+  return request;
+};
+
+async function queryUserProfile(targetId, fieldMode, allowSensitive) {
+  try {
+    const projection = getProjection(fieldMode, allowSensitive);
+    const res = await db.collection('users')
+      .where({ _openid: targetId })
+      .field(projection)
+      .limit(1)
+      .get();
+
+    const userData = Array.isArray(res.data) && res.data.length > 0 ? res.data[0] : null;
+    if (!userData) {
       return {
         success: false,
-        error: '用户不存在'
+        error: 'user not found'
       };
     }
+
+    const userInfo = {
+      ...(userData.userInfo || {})
+    };
+    const profile = fieldMode === 'full' ? (userData.profile || {}) : {};
+    const reputation = fieldMode === 'full' ? (userData.reputation || null) : null;
+    const badge = userData.badge || null;
+
+    const cloudIds = media.collectCloudFileIdsDeep([userInfo, profile, badge], new Set(), {
+      maxScan: 120
+    });
+    const urlMap = await media.resolveTempUrlMap(cloud, Array.from(cloudIds), {
+      scenario: 'getUserInfo'
+    });
+
+    const safeUserInfo = media.replaceCloudUrlsDeep(userInfo, urlMap, { maxDepth: 4 });
+    safeUserInfo.avatarUrl = media.normalizeAvatarUrl(safeUserInfo.avatarUrl, '/images/zhi.png');
+
+    const safeProfile = media.replaceCloudUrlsDeep(profile, urlMap, { maxDepth: 4 });
+    const safeBadge = media.replaceCloudUrlsDeep(badge, urlMap, { maxDepth: 4 });
+
+    const data = {
+      userInfo: safeUserInfo,
+      stats: userData.stats || {},
+      userType: userData.userType || 'normal',
+      badge: safeBadge,
+      profile: safeProfile,
+      reputation,
+      phoneNumber: allowSensitive ? (userData.phoneNumber || null) : null,
+      _openid: userData._openid || targetId
+    };
+
+    return {
+      success: true,
+      data,
+      // Backward compatible top-level fields.
+      userInfo: data.userInfo,
+      _openid: data._openid,
+      stats: data.stats
+    };
   } catch (err) {
-    console.error('查询用户信息失败:', err);
+    console.error('[getUserInfo] query failed:', err);
     return {
       success: false,
-      error: err.message
+      error: err && err.message ? err.message : 'query failed'
     };
   }
-};
+}
+
+function getProjection(fieldMode, allowSensitive) {
+  const base = {
+    userInfo: true,
+    stats: true,
+    userType: true,
+    badge: true,
+    _openid: true
+  };
+
+  if (fieldMode === 'basic') {
+    return base;
+  }
+
+  return {
+    ...base,
+    profile: true,
+    reputation: true,
+    ...(allowSensitive ? { phoneNumber: true } : {})
+  };
+}
+
+function readCache(key) {
+  const hit = profileCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    profileCache.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function writeCache(key, value) {
+  profileCache.set(key, {
+    value,
+    expiresAt: Date.now() + CACHE_TTL_MS
+  });
+}
+
+function toSafeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}

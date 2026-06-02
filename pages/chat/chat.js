@@ -2,19 +2,12 @@
 const app = getApp();
 const { formatUserName } = require('../../utils/userDisplay');
 
-// 延迟初始化数据库
 let db = null;
-let _ = null;
+const MARK_READ_THROTTLE_MS = 5 * 1000;
 
 const getDB = () => {
   if (!db) {
-    try {
-      db = wx.cloud.database();
-      _ = db.command;
-    } catch (err) {
-      console.error('数据库初始化失败:', err);
-      return null;
-    }
+    db = wx.cloud.database();
   }
   return db;
 };
@@ -32,39 +25,54 @@ Page({
     watcher: null
   },
 
-  onLoad: function (options) {
+  onLoad(options) {
     const targetOpenId = options.id;
     const nickname = options.nickname || '用户';
-    
     if (!targetOpenId) {
       wx.showToast({ title: '参数错误', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 1500);
       return;
     }
 
-    this.setData({ 
+    this.setData({
       targetOpenId,
-      targetUserInfo: { nickName: nickname }
+      targetUserInfo: { nickName: nickname, avatarUrl: '/images/zhi.png' }
     });
-    
-    wx.setNavigationBarTitle({
-      title: nickname
-    });
-    
+    wx.setNavigationBarTitle({ title: nickname });
+
     this.initUser();
     this.loadTargetUser(targetOpenId);
   },
 
-  onUnload: function () {
+  onShow() {
+    const hasWatcher = !!this.data.watcher;
+    if (!hasWatcher && this.data.targetOpenId && this.data.userInfo) {
+      this.initChatWatcher();
+    }
+    this.markConversationRead();
+  },
+
+  onHide() {
+    this.closeWatcher();
+  },
+
+  onUnload() {
+    this.closeWatcher();
+  },
+
+  closeWatcher() {
+    const watcher = this.data.watcher;
+    if (watcher && typeof watcher.close === 'function') {
+      watcher.close();
+    }
     if (this.data.watcher) {
-      this.data.watcher.close();
+      this.setData({ watcher: null });
     }
   },
 
-  initUser: function () {
+  initUser() {
     const openid = app.globalData.openid || wx.getStorageSync('openid');
     const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
-    
     if (!openid || !userInfo) {
       wx.showModal({
         title: '提示',
@@ -80,113 +88,93 @@ Page({
       });
       return;
     }
-    
+
     this.setData({ userInfo });
     this.initChatWatcher();
-    this.markConversationRead();  // 🔧 标记会话为已读
+    this.markConversationRead(true);
   },
 
-  onShow: function () {
-    // 🆕 每次显示页面时标记为已读
-    this.markConversationRead();
-  },
-
-  loadTargetUser: function (openid) {
-    console.log('========================================');
-    console.log('📥 聊天页面：开始加载目标用户信息');
-    console.log('目标 openid:', openid);
-    console.log('当前登录用户 openid:', app.globalData.openid || wx.getStorageSync('openid'));
-    console.log('========================================');
-
-    // 🔥 使用云函数查询，避免权限问题
+  loadTargetUser(openid) {
     wx.cloud.callFunction({
       name: 'getUserInfo',
-      data: {
-        targetId: openid
-      }
-    }).then(res => {
-      console.log('========================================');
-      console.log('📊 聊天页面：云函数查询结果');
-      console.log('完整结果:', res.result);
-      console.log('========================================');
-      
-      if (res.result && res.result.success) {
-        const userData = res.result.data;
-        const targetUserInfo = userData.userInfo || {
-          nickName: '用户',
-          avatarUrl: '/images/zhi.png'
-        };
-        const userType = userData.userType || 'normal';
-        
-        console.log('✅ 找到目标用户信息');
-        console.log('nickName:', targetUserInfo.nickName);
-        console.log('avatarUrl:', targetUserInfo.avatarUrl);
-        console.log('userType:', userType);
-        
-        this.setData({ 
-          targetUserInfo: targetUserInfo,
-          targetUserType: userType
-        }, () => {
-          console.log('========================================');
-          console.log('✅ 聊天页面：setData 完成');
-          console.log('页面当前 targetUserInfo:', this.data.targetUserInfo);
-          console.log('页面当前 targetOpenId:', this.data.targetOpenId);
-          console.log('页面当前 targetUserType:', this.data.targetUserType);
-          console.log('========================================');
-        });
-        
-        // 使用工具函数格式化标题（添加身份标识）
-        const displayName = formatUserName(targetUserInfo.nickName || '聊天', userType, true);
-        wx.setNavigationBarTitle({
-          title: displayName
-        });
-      } else {
-        console.log('========================================');
-        console.log('❌ 聊天页面：用户不存在');
-        console.log('查询的 openid:', openid);
-        console.log('========================================');
-      }
-    }).catch(err => {
-      console.log('========================================');
-      console.error('❌ 聊天页面：加载用户信息失败');
-      console.error('错误信息:', err);
-      console.log('========================================');
+      data: { targetId: openid }
+    }).then((res) => {
+      if (!res.result || !res.result.success) return;
+
+      const userData = res.result.data || {};
+      const targetUserInfo = userData.userInfo || {
+        nickName: '用户',
+        avatarUrl: '/images/zhi.png'
+      };
+      const userType = userData.userType || 'normal';
+
+      this.setData({
+        targetUserInfo,
+        targetUserType: userType
+      });
+      const displayName = formatUserName(targetUserInfo.nickName || '聊天', userType, true);
+      wx.setNavigationBarTitle({ title: displayName });
+    }).catch((err) => {
+      console.error('load target user failed:', err);
     });
   },
 
-  initChatWatcher: function () {
+  initChatWatcher() {
     const myOpenId = app.globalData.openid || wx.getStorageSync('openid');
     const targetOpenId = this.data.targetOpenId;
+    if (!myOpenId || !targetOpenId) return;
+
+    const dbInstance = getDB();
     const roomId = [myOpenId, targetOpenId].sort().join('_');
-
-    const db = getDB();
-    if (!db) {
-      wx.showToast({ title: '数据库初始化失败', icon: 'none' });
-      return;
-    }
-
+    this.closeWatcher();
     this.setData({ loading: true });
 
-    const watcher = db.collection('messages')
-      .where({
-        roomId: roomId
-      })
+    const watcher = dbInstance.collection('messages')
+      .where({ roomId })
       .orderBy('createTime', 'asc')
       .watch({
         onChange: (snapshot) => {
-          const messages = snapshot.docs.map(doc => ({
-            ...doc,
-            isMy: doc._openid === myOpenId
-          }));
-          
+          const currentMessages = this.data.messages || [];
+          const docChanges = snapshot.docChanges || [];
+          let nextMessages;
+
+          // 初始化或缺少 diff 信息时，回退全量构建
+          if (!docChanges.length || !currentMessages.length) {
+            nextMessages = (snapshot.docs || []).map((doc) => ({
+              ...doc,
+              isMy: doc._openid === myOpenId
+            }));
+          } else {
+            const map = new Map(currentMessages.map((item) => [item._id, item]));
+            docChanges.forEach((change) => {
+              const doc = change.doc || {};
+              const id = doc._id || change.docId;
+              if (!id) return;
+              const dataType = change.dataType || change.type;
+              if (dataType === 'remove') {
+                map.delete(id);
+                return;
+              }
+              map.set(id, {
+                ...doc,
+                isMy: doc._openid === myOpenId
+              });
+            });
+            nextMessages = Array.from(map.values()).sort((a, b) => {
+              const ta = toTime(a.createTime);
+              const tb = toTime(b.createTime);
+              return ta - tb;
+            });
+          }
+
           this.setData({
-            messages,
+            messages: nextMessages,
             loading: false,
-            toView: 'bottom-anchor' // Scroll to bottom
+            toView: 'bottom-anchor'
           });
         },
         onError: (err) => {
-          console.error('监听消息失败', err);
+          console.error('watch messages failed', err);
           this.setData({ loading: false });
         }
       });
@@ -194,31 +182,28 @@ Page({
     this.setData({ watcher });
   },
 
-  onInput: function (e) {
+  onInput(e) {
     this.setData({ inputValue: e.detail.value });
   },
 
-  onFocus: function (e) {
-    // 🔧 键盘弹出时滚动到底部
+  onFocus() {
     setTimeout(() => {
       this.scrollToBottom();
     }, 300);
   },
 
-  onBlur: function () {
-    // 🔧 键盘收起时不需要特殊处理
-  },
+  onBlur() {},
 
-  hideKeyboard: function () {
+  hideKeyboard() {
     wx.hideKeyboard();
   },
 
-  scrollToBottom: function () {
+  scrollToBottom() {
     this.setData({ toView: 'bottom-anchor' });
   },
 
-  sendMessage: function () {
-    const content = this.data.inputValue.trim();
+  sendMessage() {
+    const content = (this.data.inputValue || '').trim();
     if (!content) {
       wx.showToast({ title: '请输入消息内容', icon: 'none' });
       return;
@@ -226,49 +211,41 @@ Page({
 
     const myOpenId = app.globalData.openid || wx.getStorageSync('openid');
     const targetOpenId = this.data.targetOpenId;
-    const roomId = [myOpenId, targetOpenId].sort().join('_');
+    if (!myOpenId || !targetOpenId) return;
 
-    const db = getDB();
-    if (!db) {
-      wx.showToast({ title: '发送失败', icon: 'none' });
-      return;
-    }
+    if (this._sendMessageInflight) return;
+    this._sendMessageInflight = true;
+    this.setData({ inputValue: '' });
 
-    this.setData({ inputValue: '' }); // Clear input immediately
-
-    db.collection('messages').add({
+    wx.cloud.callFunction({
+      name: 'sendMessage',
       data: {
+        targetId: targetOpenId,
         content,
-        roomId,
-        createTime: db.serverDate(),
-        senderId: myOpenId,
-        receiverId: targetOpenId,
-        userInfo: this.data.userInfo
       }
-    }).then(() => {
-      // 调用云函数更新会话列表
-      wx.cloud.callFunction({
-        name: 'updateConversation',
-        data: {
-          action: 'send',
-          targetId: targetOpenId,
-          lastMessage: content,
-          targetUserInfo: this.data.targetUserInfo
-        }
-      }).catch(err => {
-        console.error('更新会话失败:', err);
-      });
-      
+    }).then((res) => {
+      if (!res.result || !res.result.success) {
+        throw new Error((res.result && res.result.error) || 'send failed');
+      }
       this.scrollToBottom();
-    }).catch(err => {
-      console.error('发送失败', err);
+    }).catch((err) => {
+      console.error('send message failed:', err);
+      this.setData({ inputValue: content });
       wx.showToast({ title: '发送失败', icon: 'none' });
+    }).finally(() => {
+      this._sendMessageInflight = false;
     });
   },
 
-  markConversationRead: function () {
+  markConversationRead(force = false) {
     const targetOpenId = this.data.targetOpenId;
     if (!targetOpenId) return;
+
+    const now = Date.now();
+    if (!force && now - (this._lastReadMarkedAt || 0) < MARK_READ_THROTTLE_MS) {
+      return;
+    }
+    this._lastReadMarkedAt = now;
 
     wx.cloud.callFunction({
       name: 'updateConversation',
@@ -277,18 +254,15 @@ Page({
         targetId: targetOpenId
       }
     }).then(() => {
-      // 🆕 标记已读后，刷新全局未读消息数量
-      const app = getApp();
       if (app && typeof app.updateUnreadCount === 'function') {
-        app.updateUnreadCount();
+        app.updateUnreadCount({ force: true, source: 'chat_read' });
       }
-    }).catch(err => {
-      console.error('标记已读失败:', err);
+    }).catch((err) => {
+      console.error('mark read failed:', err);
     });
   },
 
-  // 🔥 新增：点击对方头像跳转到对方主页
-  onTargetAvatarTap: function () {
+  onTargetAvatarTap() {
     const targetOpenId = this.data.targetOpenId;
     if (targetOpenId) {
       wx.navigateTo({
@@ -297,10 +271,18 @@ Page({
     }
   },
 
-  // 🔥 新增：点击自己头像跳转到"我的"页面
-  onMyAvatarTap: function () {
+  onMyAvatarTap() {
     wx.switchTab({
       url: '/pages/mine/index'
     });
   }
 });
+
+function toTime(value) {
+  if (!value) return 0;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return new Date(value).getTime() || 0;
+  if (value.toDate) return value.toDate().getTime() || 0;
+  if (value.$date) return new Date(value.$date).getTime() || 0;
+  return 0;
+}

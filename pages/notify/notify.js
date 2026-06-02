@@ -1,185 +1,166 @@
 // pages/notify/notify.js
 const app = getApp();
 
-// 延迟初始化数据库
 let db = null;
-let _ = null;
+const PAGE_TTL_MS = 30 * 1000;
 
 const getDB = () => {
   if (!db) {
     db = wx.cloud.database();
-    _ = db.command;
   }
-  return { db, _ };
+  return db;
 };
 
 Page({
   data: {
     currentTab: 0,
-    messages: [], // Chat conversations
-    notifications: [], // System/Like notifications
+    messages: [],
     noticeItems: [],
-    loading: false,
     messagePage: 1,
     messagePageSize: 20,
     messageHasMore: true,
     messageLoading: false,
     noticeLoading: false,
+    pageInflight: false,
+    dirty: true,
+    lastLoadedAt: 0
   },
 
-  onShow: function () {
-    // 更新 tabBar 选中状态
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({
-        selected: 3
-      });
+  onShow() {
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 3 });
     }
-    
     this.checkLoginAndLoad();
   },
 
-  checkLoginAndLoad: function () {
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo');
+  checkLoginAndLoad(options = {}) {
+    const force = !!options.force;
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
 
     if (!openid || !userInfo) {
-      // 未登录，显示登录提示
       this.setData({
         messages: [],
         noticeItems: this.buildDefaultNoticeItems("登录后查看最新通知"),
         messageHasMore: false,
         messageLoading: false,
-        noticeLoading: false,
+        noticeLoading: false
       });
-      
-      // 显示登录提示
       this.showLoginPrompt();
-      return;
+      return Promise.resolve();
     }
 
-    // 已登录，加载数据
-    this.loadConversations(true);
-    this.loadNotifications(true);
+    const now = Date.now();
+    const expired = now - (this.data.lastLoadedAt || 0) > PAGE_TTL_MS;
+    if (!force && (this.data.pageInflight || (!this.data.dirty && !expired))) {
+      this.updateUnreadBadge();
+      return Promise.resolve();
+    }
+
+    this.setData({ pageInflight: true, dirty: false });
+    return Promise.all([
+      Promise.resolve(this.loadConversations(true)),
+      Promise.resolve(this.loadNotifications(true))
+    ]).finally(() => {
+      this.setData({
+        pageInflight: false,
+        lastLoadedAt: Date.now()
+      });
+      this.updateUnreadBadge();
+    });
   },
 
-  /**
-   * 显示登录提示
-   */
-  showLoginPrompt: function () {
+  showLoginPrompt() {
     wx.showModal({
-      title: '需要登录',
-      content: '查看消息前需要先登录，是否前往登录？',
-      confirmText: '去登录',
-      cancelText: '取消',
+      title: "需要登录",
+      content: "查看消息前需要先登录，是否前往登录？",
+      confirmText: "去登录",
+      cancelText: "取消",
       success: (res) => {
         if (res.confirm) {
-          wx.navigateTo({
-            url: '/pages/login/index'
-          });
+          wx.navigateTo({ url: "/pages/login/index" });
         }
       }
     });
   },
 
-  onTabTap: function (e) {
-    const index = e.currentTarget.dataset.index;
+  onTabTap(e) {
+    const index = Number(e.currentTarget.dataset.index || 0);
+    if (index === this.data.currentTab) return;
     this.setData({ currentTab: index });
   },
 
-  loadConversations: function (refresh) {
-    if (this.data.messageLoading) return;
-    if (!this.data.messageHasMore && !refresh) return;
+  fetchUsersBatch(openids) {
+    const ids = Array.from(new Set((openids || []).filter(Boolean)));
+    if (ids.length === 0) return Promise.resolve({});
+
+    return wx.cloud.callFunction({
+      name: "getUsersBatch",
+      data: {
+        openids: ids,
+        fieldMode: "basic"
+      }
+    }).then((res) => {
+      if (res.result && res.result.success && res.result.data) {
+        return res.result.data;
+      }
+      return {};
+    }).catch((err) => {
+      console.error("getUsersBatch failed:", err);
+      return {};
+    });
+  },
+
+  loadConversations(refresh) {
+    if (this.data.messageLoading) return Promise.resolve();
+    if (!this.data.messageHasMore && !refresh) return Promise.resolve();
 
     const myOpenId = app.globalData.openid || wx.getStorageSync("openid");
     if (!myOpenId) {
       this.setData({
         messages: [],
         messageHasMore: false,
-        messageLoading: false,
+        messageLoading: false
       });
-      return;
+      return Promise.resolve();
     }
 
-    const { db } = getDB();
+    const dbInstance = getDB();
     const nextPage = refresh ? 1 : this.data.messagePage + 1;
     this.setData({ messageLoading: true });
 
-    db.collection("conversations")
-      .where({
-        ownerId: myOpenId,
-      })
+    return dbInstance.collection("conversations")
+      .where({ ownerId: myOpenId })
       .orderBy("updateTime", "desc")
       .skip((nextPage - 1) * this.data.messagePageSize)
       .limit(this.data.messagePageSize)
       .get()
       .then(async (res) => {
-        // 🔥 使用云函数获取用户信息（自动转换头像URL）
         const conversations = res.data || [];
-        const targetIds = conversations.map(item => item.targetId).filter(Boolean);
-        
-        // 批量查询用户信息
-        const userInfoPromises = targetIds.map(targetId => {
-          return wx.cloud.callFunction({
-            name: 'getUserInfo',
-            data: { targetId }
-          }).then(res => {
-            if (res.result && res.result.success) {
-              return {
-                id: targetId,
-                userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                userType: res.result.data.userType || 'normal' // ✅ 获取 userType
-              };
-            }
-            return {
-              id: targetId,
-              userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-              userType: 'normal'
-            };
-          }).catch(() => ({
-            id: targetId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-            userType: 'normal'
-          }));
-        });
-        
-        const usersData = await Promise.all(userInfoPromises);
-        const userMap = {};
-        usersData.forEach(u => {
-          userMap[u.id] = {
-            userInfo: u.userInfo,
-            userType: u.userType
-          };
-        });
-        
+        const targetIds = conversations.map((item) => item.targetId).filter(Boolean);
+        const batchUserMap = await this.fetchUsersBatch(targetIds);
+
         const mapped = conversations.map((item) => {
-          const userData = userMap[item.targetId] || { 
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-            userType: 'normal'
-          };
+          const userData = batchUserMap[item.targetId] || {};
+          const userInfo = userData.userInfo || { nickName: "未知用户", avatarUrl: "/images/zhi.png" };
           return {
             id: item.targetId,
-            name: userData.userInfo.nickName || "未知用户",
-            avatar: userData.userInfo.avatarUrl || "/images/zhi.png",
-            userType: userData.userType, // ✅ 添加 userType
+            name: userInfo.nickName || "未知用户",
+            avatar: userInfo.avatarUrl || "/images/zhi.png",
+            userType: userData.userType || "normal",
             time: this.formatTime(item.updateTime),
             preview: item.lastMessage || "暂无消息",
-            unread: item.unreadCount || 0,  // 🔧 使用 unreadCount 字段
+            unread: item.unreadCount || 0
           };
         });
-        
-        const messages = refresh
-          ? mapped
-          : (this.data.messages || []).concat(mapped);
-        const hasMore = mapped.length >= this.data.messagePageSize;
+
+        const messages = refresh ? mapped : (this.data.messages || []).concat(mapped);
         this.setData({
           messages,
           messagePage: nextPage,
-          messageHasMore: hasMore,
-          messageLoading: false,
+          messageHasMore: mapped.length >= this.data.messagePageSize,
+          messageLoading: false
         });
-        
-        // 🆕 计算总未读数量并更新角标
-        this.updateUnreadBadge();
       })
       .catch((err) => {
         console.error("加载私信失败", err);
@@ -187,416 +168,197 @@ Page({
       });
   },
 
-  loadNotifications: function (refresh) {
-    if (this.data.noticeLoading) return;
+  loadNotifications() {
+    if (this.data.noticeLoading) return Promise.resolve();
     this.setData({ noticeLoading: true });
 
     const openid = app.globalData.openid || wx.getStorageSync("openid");
     if (!openid) {
       this.setData({
         noticeItems: this.buildDefaultNoticeItems("登录后查看最新通知"),
-        noticeLoading: false,
+        noticeLoading: false
       });
-      return;
+      return Promise.resolve();
     }
 
-    this.fetchMyPostIds(openid)
-      .then((postIds) => this.buildNoticeItems(openid, postIds || []))
-      .then((items) => {
-        this.setData({
-          noticeItems: items,
-          noticeLoading: false,
-        });
-      })
-      .catch(() => {
-        this.setData({
-          noticeItems: this.buildDefaultNoticeItems("暂无通知"),
-          noticeLoading: false,
-        });
+    return wx.cloud.callFunction({
+      name: "getNotificationSummary",
+      data: {
+        pageSize: 20,
+        lastRead: {
+          like: this.getLastRead("like"),
+          comment: this.getLastRead("comment"),
+          follow: this.getLastRead("follow")
+        }
+      }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success || !payload.data) {
+        throw new Error(payload.error || "load summary failed");
+      }
+
+      const summary = payload.data;
+      const like = summary.like || {};
+      const comment = summary.comment || {};
+      const follow = summary.follow || {};
+      const system = summary.system || {};
+
+      const likeName = like.latest && like.latest.actorName ? like.latest.actorName : "有人";
+      const commentName = comment.latest && comment.latest.actorName ? comment.latest.actorName : "有人";
+      const followName = follow.latest && follow.latest.actorName ? follow.latest.actorName : "有人";
+
+      this.setData({
+        noticeItems: [
+          {
+            key: "like",
+            title: "赞和收藏",
+            preview: like.total > 0 ? `${likeName} 赞了你的内容` : "暂无新动态",
+            time: like.latest ? this.formatTime(like.latest.createTime) : "",
+            unread: like.unread || 0,
+            icon: "/images/heart2.png",
+            className: "like-avatar"
+          },
+          {
+            key: "comment",
+            title: "评论",
+            preview: comment.total > 0 ? `${commentName} 评论了你的帖子` : "暂无新评论",
+            time: comment.latest ? this.formatTime(comment.latest.createTime) : "",
+            unread: comment.unread || 0,
+            icon: "/images/comment.png",
+            className: "comment-avatar"
+          },
+          {
+            key: "follow",
+            title: "新增关注",
+            preview: follow.total > 0 ? `${followName} 关注了你` : "暂无新关注",
+            time: follow.latest ? this.formatTime(follow.latest.createTime) : "",
+            unread: follow.unread || 0,
+            icon: "/images/add-user.png",
+            className: "follow-avatar"
+          },
+          {
+            key: "system",
+            title: "系统通知",
+            preview: system.preview || "暂无系统通知",
+            time: system.latest ? this.formatTime(system.latest.createTime) : "",
+            unread: system.unread || 0,
+            icon: "/images/ring.png",
+            className: "system-avatar"
+          }
+        ],
+        noticeLoading: false
       });
+    }).catch((err) => {
+      console.error("load notification summary failed:", err);
+      this.setData({
+        noticeItems: this.buildDefaultNoticeItems("暂无通知"),
+        noticeLoading: false
+      });
+    });
   },
 
-  fetchMyPostIds: function (openid) {
-    const { db } = getDB();
-    
-    return db
-      .collection("posts")
-      .where({ _openid: openid })
-      .field({ _id: true })
-      .limit(100)
-      .get()
-      .then((res) => (res.data || []).map((item) => item._id).filter(Boolean));
+  buildDefaultNoticeItems(placeholder) {
+    return [
+      { key: "like", title: "赞和收藏", preview: placeholder, time: "", unread: 0, icon: "/images/heart2.png", className: "like-avatar" },
+      { key: "comment", title: "评论", preview: placeholder, time: "", unread: 0, icon: "/images/comment.png", className: "comment-avatar" },
+      { key: "follow", title: "新增关注", preview: placeholder, time: "", unread: 0, icon: "/images/add-user.png", className: "follow-avatar" },
+      { key: "system", title: "系统通知", preview: placeholder, time: "", unread: 0, icon: "/images/ring.png", className: "system-avatar" }
+    ];
   },
 
-  formatTime: function (date) {
-    if (!date) return "";
-    const d = this.normalizeDate(date);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) {
-      return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-    }
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  },
-
-  normalizeDate: function (value) {
-    if (!value) return new Date(0);
-    if (value instanceof Date) return value;
-    if (typeof value === "string" || typeof value === "number") {
-      return new Date(value);
-    }
-    if (value.toDate) return value.toDate();
-    return new Date(0);
-  },
-
-  getLastRead: function (key) {
+  getLastRead(key) {
     const stored = wx.getStorageSync("notifyLastRead") || {};
     return stored[key] || 0;
   },
 
-  setLastRead: function (key) {
+  setLastRead(key) {
     const stored = wx.getStorageSync("notifyLastRead") || {};
     stored[key] = Date.now();
     wx.setStorageSync("notifyLastRead", stored);
+    this.setData({ dirty: true });
   },
 
-  buildDefaultNoticeItems: function (placeholder) {
-    return [
-      {
-        key: "like",
-        title: "赞和收藏",
-        preview: placeholder,
-        time: "",
-        unread: 0,
-        icon: "/images/heart2.png",
-        className: "like-avatar",
-      },
-      {
-        key: "comment",
-        title: "评论",
-        preview: placeholder,
-        time: "",
-        unread: 0,
-        icon: "/images/comment.png",
-        className: "comment-avatar",
-      },
-      {
-        key: "follow",
-        title: "新增关注",
-        preview: placeholder,
-        time: "",
-        unread: 0,
-        icon: "/images/add-user.png",
-        className: "follow-avatar",
-      },
-      {
-        key: "system",
-        title: "系统通知",
-        preview: placeholder,
-        time: "",
-        unread: 0,
-        icon: "/images/ring.png",
-        className: "system-avatar",
-      },
-    ];
+  normalizeDate(value) {
+    if (!value) return new Date(0);
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") return new Date(value);
+    if (value.toDate) return value.toDate();
+    return new Date(0);
   },
 
-  buildNoticeItems: function (openid, postIds) {
-    const { db, _ } = getDB();
-    const ids = postIds.slice(0, 100);
-    const likeTypes = ["like_post", "collect_post", "like", "collect"];
-
-    const likeQuery = ids.length
-      ? db
-          .collection("actions")
-          .where(
-            _.and([
-              { type: _.in(likeTypes) },
-              _.or([{ targetId: _.in(ids) }, { postId: _.in(ids) }]),
-              { _openid: _.neq(openid) }, // ✅ 排除自己的点赞
-            ]),
-          )
-      : null;
-
-    const commentQuery = ids.length
-      ? db.collection("comments").where(
-          _.and([
-            { postId: _.in(ids) },
-            { _openid: _.neq(openid) }, // ✅ 排除自己的评论
-          ])
-        )
-      : null;
-
-    const followQuery = db.collection("follows").where({ targetId: openid });
-
-    const likeCountPromise = likeQuery
-      ? likeQuery.count()
-      : Promise.resolve({ total: 0 });
-    const likeLatestPromise = likeQuery
-      ? likeQuery.orderBy("createTime", "desc").limit(1).get()
-      : Promise.resolve({ data: [] });
-    const likeUnreadPromise = likeQuery
-      ? db
-          .collection("actions")
-          .where(
-            _.and([
-              { type: _.in(likeTypes) },
-              _.or([{ targetId: _.in(ids) }, { postId: _.in(ids) }]),
-              { createTime: _.gt(new Date(this.getLastRead("like"))) },
-              { _openid: _.neq(openid) }, // ✅ 排除自己的点赞
-            ]),
-          )
-          .count()
-      : Promise.resolve({ total: 0 });
-
-    const commentCountPromise = commentQuery
-      ? commentQuery.count()
-      : Promise.resolve({ total: 0 });
-    const commentLatestPromise = commentQuery
-      ? commentQuery.orderBy("createTime", "desc").limit(1).get()
-      : Promise.resolve({ data: [] });
-    const commentUnreadPromise = commentQuery
-      ? db
-          .collection("comments")
-          .where(
-            _.and([
-              { postId: _.in(ids) },
-              { createTime: _.gt(new Date(this.getLastRead("comment"))) },
-              { _openid: _.neq(openid) }, // ✅ 排除自己的评论
-            ]),
-          )
-          .count()
-      : Promise.resolve({ total: 0 });
-
-    const followCountPromise = followQuery.count();
-    const followLatestPromise = followQuery
-      .orderBy("createTime", "desc")
-      .limit(1)
-      .get();
-    const followUnreadPromise = db
-      .collection("follows")
-      .where(
-        _.and([
-          { targetId: openid },
-          { createTime: _.gt(new Date(this.getLastRead("follow"))) },
-        ]),
-      )
-      .count();
-
-    return Promise.all([
-      likeCountPromise,
-      likeLatestPromise,
-      likeUnreadPromise,
-      commentCountPromise,
-      commentLatestPromise,
-      commentUnreadPromise,
-      followCountPromise,
-      followLatestPromise,
-      followUnreadPromise,
-    ]).then(async (results) => {
-      const [
-        likeCountRes,
-        likeLatestRes,
-        likeUnreadRes,
-        commentCountRes,
-        commentLatestRes,
-        commentUnreadRes,
-        followCountRes,
-        followLatestRes,
-        followUnreadRes,
-      ] = results;
-
-      const likeLatest = (likeLatestRes.data || [])[0];
-      const commentLatest = (commentLatestRes.data || [])[0];
-      const followLatest = (followLatestRes.data || [])[0];
-
-      const [likeUser, followUser] = await Promise.all([
-        likeLatest
-          ? this.getUserInfoByOpenid(likeLatest._openid)
-          : Promise.resolve(null),
-        followLatest
-          ? this.getUserInfoByOpenid(followLatest.followerId)
-          : Promise.resolve(null),
-      ]);
-
-      const likePreview =
-        likeCountRes.total > 0
-          ? `${(likeUser && likeUser.nickName) || "有人"} 赞了你的内容`
-          : "暂无新动态";
-      const commentPreview =
-        commentCountRes.total > 0
-          ? `${(commentLatest && commentLatest.userInfo && commentLatest.userInfo.nickName) || "有人"} 评论了你的帖子`
-          : "暂无新评论";
-      const followPreview =
-        followCountRes.total > 0
-          ? `${(followUser && followUser.nickName) || "有人"} 关注了你`
-          : "暂无新关注";
-
-      return [
-        {
-          key: "like",
-          title: "赞和收藏",
-          preview: likePreview,
-          time: likeLatest ? this.formatTime(likeLatest.createTime) : "",
-          unread: likeUnreadRes.total || 0,
-          icon: "/images/heart2.png",
-          className: "like-avatar",
-        },
-        {
-          key: "comment",
-          title: "评论",
-          preview: commentPreview,
-          time: commentLatest ? this.formatTime(commentLatest.createTime) : "",
-          unread: commentUnreadRes.total || 0,
-          icon: "/images/comment.png",
-          className: "comment-avatar",
-        },
-        {
-          key: "follow",
-          title: "新增关注",
-          preview: followPreview,
-          time: followLatest ? this.formatTime(followLatest.createTime) : "",
-          unread: followUnreadRes.total || 0,
-          icon: "/images/add-user.png",
-          className: "follow-avatar",
-        },
-        {
-          key: "system",
-          title: "系统通知",
-          preview: "暂无系统通知",
-          time: "",
-          unread: 0,
-          icon: "/images/ring.png",
-          className: "system-avatar",
-        },
-      ];
-    });
+  formatTime(date) {
+    if (!date) return "";
+    const d = this.normalizeDate(date);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+    return `${d.getMonth() + 1}/${d.getDate()}`;
   },
 
-  getUserInfoByOpenid: function (openid) {
-    if (!openid) return Promise.resolve(null);
-    
-    const { db } = getDB();
-    
-    return db
-      .collection("users")
-      .where({ _openid: openid })
-      .field({ 
-        nickName: true, 
-        avatarUrl: true, 
-        _openid: true,
-        userInfo: true
-        // 注意：不查询 phoneNumber 字段，保护隐私
-      })
-      .limit(1)
-      .get()
-      .then((res) => {
-        const doc = res.data && res.data[0];
-        if (!doc) return null;
-        return {
-          nickName:
-            doc.nickName ||
-            (doc.userInfo && doc.userInfo.nickName) ||
-            "匿名用户",
-          avatarUrl:
-            doc.avatarUrl ||
-            (doc.userInfo && doc.userInfo.avatarUrl) ||
-            "/images/zhi.png",
-          _openid: doc._openid,
-          // 不返回 phoneNumber
-        };
-      })
-      .catch(() => null);
-  },
-
-  onSystemMsgTap: function () {
+  onSystemMsgTap() {
     this.setLastRead("system");
     wx.showToast({ title: "系统通知详情", icon: "none" });
   },
 
-  onLikeMsgTap: function () {
+  onLikeMsgTap() {
     this.setLastRead("like");
-    // 跳转到点赞和收藏详情页面
-    wx.navigateTo({
-      url: "/pages/like-notifications/index",
-    });
+    wx.navigateTo({ url: "/pages/like-notifications/index" });
   },
 
-  onCommentMsgTap: function () {
+  onCommentMsgTap() {
     this.setLastRead("comment");
-    wx.navigateTo({
-      url: "/pages/comment-notifications/index",
-    });
+    wx.navigateTo({ url: "/pages/comment-notifications/index" });
   },
 
-  onFollowMsgTap: function () {
+  onFollowMsgTap() {
     this.setLastRead("follow");
-    wx.navigateTo({
-      url: "/pages/follow-list/index?type=followers",
-    });
+    wx.navigateTo({ url: "/pages/follow-list/index?type=followers" });
   },
 
-  onNoticeTap: function (e) {
+  onNoticeTap(e) {
     const key = e.currentTarget.dataset.key;
-    if (key === "like") {
-      this.onLikeMsgTap();
-      return;
-    }
-    if (key === "comment") {
-      this.onCommentMsgTap();
-      return;
-    }
-    if (key === "follow") {
-      this.onFollowMsgTap();
-      return;
-    }
-    this.onSystemMsgTap();
+    if (key === "like") return this.onLikeMsgTap();
+    if (key === "comment") return this.onCommentMsgTap();
+    if (key === "follow") return this.onFollowMsgTap();
+    return this.onSystemMsgTap();
   },
 
-  onChatTap: function (e) {
+  onChatTap(e) {
     const id = e.currentTarget.dataset.id;
-    
-    // 🔧 点击会话时，标记为已读（清除该会话的未读数量）
     const messages = (this.data.messages || []).map((item) =>
-      item.id === id ? { ...item, unread: 0 } : item,
+      item.id === id ? { ...item, unread: 0 } : item
     );
     this.setData({ messages });
-    
-    // 🆕 更新角标
     this.updateUnreadBadge();
-    
-    // 🔧 跳转到聊天页面
-    wx.navigateTo({
-      url: `/pages/chat/chat?id=${id}`,
-    });
+    app.updateUnreadCount({ force: true, source: "notify_chat_tap" });
+
+    wx.navigateTo({ url: `/pages/chat/chat?id=${id}` });
   },
 
-  /**
-   * 🆕 更新未读消息角标
-   */
-  updateUnreadBadge: function () {
-    const messages = this.data.messages || [];
-    const totalUnread = messages.reduce((sum, item) => sum + (item.unread || 0), 0);
-    
-    // 更新 TabBar 角标
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+  updateUnreadBadge() {
+    const totalUnread = app && typeof app.getUnreadCount === "function"
+      ? app.getUnreadCount()
+      : 0;
+    if (typeof this.getTabBar === "function" && this.getTabBar()) {
       this.getTabBar().updateUnreadCount(totalUnread);
     }
   },
 
-  onPullDownRefresh: function () {
+  onPullDownRefresh() {
     const currentTab = this.data.currentTab;
-    const promise =
-      currentTab === 0
-        ? Promise.resolve(this.loadNotifications(true))
-        : Promise.resolve(this.loadConversations(true));
+    const promise = currentTab === 0
+      ? Promise.resolve(this.loadNotifications(true))
+      : Promise.resolve(this.loadConversations(true));
     promise.finally(() => {
+      this.setData({ dirty: true, lastLoadedAt: 0 });
       wx.stopPullDownRefresh();
     });
   },
 
-  onReachBottom: function () {
+  onReachBottom() {
     if (this.data.currentTab === 1) {
       this.loadConversations(false);
     }
-  },
+  }
 });

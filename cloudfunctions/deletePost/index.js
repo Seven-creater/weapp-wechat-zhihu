@@ -1,4 +1,3 @@
-// 云函数入口文件
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -6,54 +5,86 @@ cloud.init({
 });
 
 const db = cloud.database();
+const _ = db.command;
 
-// 云函数入口函数
-exports.main = async (event, context) => {
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[deletePost] shared auth unavailable');
+}
+
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[deletePost] shared validate unavailable');
+}
+
+const SUPER_ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
+  if (SUPER_ADMIN_OPENIDS.includes(openid)) {
+    return true;
+  }
+  const userRes = await db.collection('users')
+    .where({ _openid: openid })
+    .field({ isAdmin: true, permissions: true })
+    .limit(1)
+    .get();
+  const user = userRes.data && userRes.data[0];
+  return !!(user && (user.isAdmin === true || (user.permissions && user.permissions.canManageUsers === true)));
+}
+
+exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
-  const { postId } = event;
 
-  if (!postId) {
-    return { success: false, error: 'postId required' };
+  const postIdCheck = validateString(event.postId, { name: 'postId', required: true, min: 8, max: 64 });
+  if (!postIdCheck.ok) {
+    return { success: false, error: postIdCheck.error };
   }
+  const postId = postIdCheck.value;
 
   try {
-    // 检查是否是管理员
-    const adminOpenids = [
-      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
-      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
-    ];
-    const isAdmin = adminOpenids.includes(openid);
-
+    const callerIsAdmin = await isAdmin(openid);
     const postRes = await db.collection('posts').doc(postId).get();
     const post = postRes.data;
 
-    // 管理员可以删除任何帖子，普通用户只能删除自己的帖子
-    if (!post || (!isAdmin && post._openid !== openid)) {
+    if (!post || (!callerIsAdmin && post._openid !== openid)) {
       return { success: false, error: 'permission denied' };
     }
 
     await db.collection('posts').doc(postId).remove();
-
-    // 删除评论
     await db.collection('comments').where({ postId }).remove();
-
-    // 删除相关 actions
-    await db
-      .collection('actions')
-      .where(
-        db.command.or([
-          { type: 'like_post', targetId: postId },
-          { type: 'like_post', postId: postId },
-          { type: 'collect_post', targetId: postId },
-          { type: 'collect_post', postId: postId }
-        ])
-      )
+    await db.collection('actions')
+      .where(_.or([
+        { type: 'like_post', targetId: postId },
+        { type: 'like_post', postId: postId },
+        { type: 'collect_post', targetId: postId },
+        { type: 'collect_post', postId: postId }
+      ]))
       .remove();
 
     return { success: true };
   } catch (err) {
-    console.error('deletePost error:', err);
-    return { success: false, error: err.message };
+    console.error('[deletePost] failed:', err && err.message ? err.message : err);
+    return { success: false, error: err && err.message ? err.message : 'delete failed' };
   }
 };

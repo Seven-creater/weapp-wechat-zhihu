@@ -10,23 +10,23 @@ Page({
     hasMore: true
   },
 
-  onLoad: function() {
+  onLoad() {
     this.loadNotifications(true);
   },
 
-  onPullDownRefresh: function() {
+  onPullDownRefresh() {
     this.loadNotifications(true).finally(() => {
       wx.stopPullDownRefresh();
     });
   },
 
-  onReachBottom: function() {
+  onReachBottom() {
     if (!this.data.loading && this.data.hasMore) {
       this.loadNotifications(false);
     }
   },
 
-  loadNotifications: function(refresh) {
+  loadNotifications(refresh) {
     const openid = app.globalData.openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showModal({
@@ -43,157 +43,41 @@ Page({
     }
 
     if (this.data.loading) return Promise.resolve();
-
     const nextPage = refresh ? 1 : this.data.page + 1;
     this.setData({ loading: true });
 
-    // 1. 先获取我的帖子ID列表
-    return wx.cloud.database().collection('posts')
-      .where({ _openid: openid })
-      .field({ _id: true, title: true, content: true, images: true })
-      .get()
-      .then(res => {
-        const myPosts = res.data || [];
-        const postIds = myPosts.map(p => p._id);
-        
-        if (postIds.length === 0) {
-          this.setData({
-            notifications: [],
-            loading: false,
-            hasMore: false
-          });
-          return;
-        }
+    return wx.cloud.callFunction({
+      name: 'getNotificationFeed',
+      data: {
+        type: 'like',
+        page: nextPage,
+        pageSize: this.data.pageSize
+      }
+    }).then((res) => {
+      if (!res.result || !res.result.success) {
+        throw new Error(res.result?.error || 'load failed');
+      }
+      const rows = (res.result.data || []).map((item) => ({
+        ...item,
+        time: this.formatTime(item.createTime)
+      }));
 
-        // 构建帖子映射
-        const postMap = {};
-        myPosts.forEach(post => {
-          postMap[post._id] = {
-            title: post.title || post.content || '未命名',
-            image: (post.images && post.images[0]) || '/images/24213.jpg'
-          };
-        });
-
-        // 2. 查询点赞和收藏记录
-        const db = wx.cloud.database();
-        const _ = db.command;
-        
-        return db.collection('actions')
-          .where({
-            type: _.in(['like_post', 'collect_post', 'like', 'collect']),
-            _openid: _.neq(openid), // 排除自己的操作
-            targetId: _.in(postIds)
-          })
-          .orderBy('createTime', 'desc')
-          .skip((nextPage - 1) * this.data.pageSize)
-          .limit(this.data.pageSize)
-          .get()
-          .then(async actionsRes => {
-            const actions = actionsRes.data || [];
-            
-            if (actions.length === 0) {
-              this.setData({
-                notifications: refresh ? [] : this.data.notifications,
-                loading: false,
-                hasMore: false,
-                page: nextPage
-              });
-              return;
-            }
-
-            // 3. 获取操作用户的信息
-            const userIds = [...new Set(actions.map(a => a._openid))];
-            const userInfoPromises = userIds.map(userId => {
-              return wx.cloud.callFunction({
-                name: 'getUserInfo',
-                data: { targetId: userId }
-              }).then(res => {
-                if (res.result && res.result.success) {
-                  return {
-                    _openid: userId,
-                    userInfo: res.result.data.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                    userType: res.result.data.userType || 'normal' // ✅ 获取 userType
-                  };
-                }
-                return {
-                  _openid: userId,
-                  userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                  userType: 'normal'
-                };
-              }).catch(() => ({
-                _openid: userId,
-                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                userType: 'normal'
-              }));
-            });
-
-            const usersData = await Promise.all(userInfoPromises);
-            const userMap = {};
-            usersData.forEach(u => {
-              userMap[u._openid] = {
-                userInfo: u.userInfo,
-                userType: u.userType
-              };
-            });
-
-            // 4. 组装通知数据
-            const notifications = actions.map(action => {
-              const userData = userMap[action._openid] || { 
-                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                userType: 'normal'
-              };
-              const postInfo = postMap[action.targetId] || { title: '未知帖子', image: '/images/24213.jpg' };
-              
-              let actionText = '';
-              if (action.type === 'like_post' || action.type === 'like') {
-                actionText = '赞了你的帖子';
-              } else if (action.type === 'collect_post' || action.type === 'collect') {
-                actionText = '收藏了你的帖子';
-              }
-
-              // 截取帖子标题前20个字
-              let postTitle = postInfo.title || '未知帖子';
-              if (postTitle.length > 20) {
-                postTitle = postTitle.substring(0, 20) + '...';
-              }
-
-              return {
-                id: action._id,
-                userId: action._openid,
-                userName: userData.userInfo.nickName,
-                userAvatar: userData.userInfo.avatarUrl,
-                userType: userData.userType, // ✅ 添加 userType
-                actionText: actionText,
-                postId: action.targetId,
-                postTitle: postTitle,
-                postImage: postInfo.image,
-                time: this.formatTime(action.createTime),
-                createTime: action.createTime
-              };
-            });
-
-            const allNotifications = refresh 
-              ? notifications 
-              : this.data.notifications.concat(notifications);
-
-            this.setData({
-              notifications: allNotifications,
-              loading: false,
-              hasMore: actions.length >= this.data.pageSize,
-              page: nextPage
-            });
-          });
-      })
-      .catch(err => {
-        console.error('加载通知失败:', err);
-        this.setData({ loading: false });
-        wx.showToast({ title: '加载失败', icon: 'none' });
+      this.setData({
+        notifications: refresh ? rows : (this.data.notifications || []).concat(rows),
+        loading: false,
+        hasMore: !!(res.result.pagination && res.result.pagination.hasMore),
+        page: nextPage
       });
+    }).catch((err) => {
+      console.error('load like notifications failed:', err);
+      this.setData({ loading: false });
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    });
   },
 
-  formatTime: function(date) {
+  formatTime(date) {
     if (!date) return '';
-    
+
     let d;
     if (date instanceof Date) {
       d = date;
@@ -216,18 +100,14 @@ Page({
 
     if (days > 7) {
       return `${d.getMonth() + 1}月${d.getDate()}日`;
-    } else if (days > 0) {
-      return `${days}天前`;
-    } else if (hours > 0) {
-      return `${hours}小时前`;
-    } else if (minutes > 0) {
-      return `${minutes}分钟前`;
-    } else {
-      return '刚刚';
     }
+    if (days > 0) return `${days}天前`;
+    if (hours > 0) return `${hours}小时前`;
+    if (minutes > 0) return `${minutes}分钟前`;
+    return '刚刚';
   },
 
-  onUserTap: function(e) {
+  onUserTap(e) {
     const userId = e.currentTarget.dataset.userid;
     if (userId) {
       wx.navigateTo({
@@ -236,7 +116,7 @@ Page({
     }
   },
 
-  onPostTap: function(e) {
+  onPostTap(e) {
     const postId = e.currentTarget.dataset.postid;
     if (postId) {
       wx.navigateTo({
@@ -245,4 +125,3 @@ Page({
     }
   }
 });
-

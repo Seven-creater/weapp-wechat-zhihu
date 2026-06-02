@@ -1,6 +1,7 @@
 // pages/construction-progress/index.js
 const app = getApp();
 const constructionTeam = require("../../utils/construction-team.js");
+const mediaUtil = require("../../utils/cloud-media.js");
 
 // 延迟初始化数据库
 let db = null;
@@ -67,8 +68,8 @@ Page({
     db.collection('construction_projects')
       .doc(projectId)
       .get()
-      .then(res => {
-        const project = res.data;
+      .then(async (res) => {
+        const project = await this.resolveMedia(res.data);
         
         if (!project) {
           throw new Error('项目不存在');
@@ -335,6 +336,16 @@ Page({
   },
 
   // 预览照片
+  resolveMedia: async function (doc) {
+    if (!doc) return doc;
+    const cloudIds = mediaUtil.collectCloudFileIdsDeep(doc);
+    if (!cloudIds || cloudIds.size === 0) {
+      return doc;
+    }
+    const mapping = await mediaUtil.resolveTempUrlMap(Array.from(cloudIds));
+    return mediaUtil.replaceCloudUrlsDeep(doc, mapping);
+  },
+
   previewPhoto: function (e) {
     const { url, urls } = e.currentTarget.dataset;
     wx.previewImage({
@@ -354,11 +365,33 @@ Page({
 
   // 查看团队详情
   viewTeamDetails: function () {
-    if (this.data.project && this.data.project.teamId) {
-      wx.navigateTo({
-        url: `/pages/team-detail/index?id=${this.data.project.teamId}`,
+    const teamOpenId = this.data.project && this.data.project.team_openid;
+    if (!teamOpenId) {
+      wx.showToast({
+        title: '暂无可查看的团队主页',
+        icon: 'none',
       });
+      return;
     }
+
+    wx.navigateTo({
+      url: `/pages/user-profile/index?id=${teamOpenId}`,
+      fail: (err) => {
+        console.error('跳转用户主页失败:', err);
+        wx.showToast({
+          title: '页面不存在或已下线',
+          icon: 'none',
+        });
+        setTimeout(() => {
+          const pages = getCurrentPages();
+          if (pages.length > 1) {
+            wx.navigateBack({ delta: 1 });
+            return;
+          }
+          wx.switchTab({ url: '/pages/index/index' });
+        }, 300);
+      },
+    });
   },
 });
 

@@ -1,215 +1,147 @@
-// utils/follow.js
-// 关注功能工具类
-
 const app = getApp();
 
-/**
- * 关注用户
- * @param {string} targetId - 被关注者的 openid
- * @returns {Promise}
- */
 function followUser(targetId) {
-  return new Promise((resolve, reject) => {
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      reject(new Error('未登录'));
-      return;
-    }
-    
-    if (openid === targetId) {
-      reject(new Error('不能关注自己'));
-      return;
-    }
-    
-    const db = wx.cloud.database();
-    
-    // 添加关注记录
-    db.collection('follows').add({
-      data: {
-        targetId: targetId,
-        createTime: db.serverDate()
-      }
-    }).then(() => {
-      console.log('✅ 关注成功');
-      resolve();
-    }).catch(err => {
-      console.error('❌ 关注失败:', err);
-      reject(err);
-    });
-  });
+  return toggleFollow(targetId, 'follow');
 }
 
-/**
- * 取消关注
- * @param {string} targetId - 被关注者的 openid
- * @returns {Promise}
- */
 function unfollowUser(targetId) {
+  return toggleFollow(targetId, 'unfollow');
+}
+
+function toggleFollow(targetId, action) {
   return new Promise((resolve, reject) => {
     const openid = app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      reject(new Error('未登录'));
-      return;
-    }
-    
-    const db = wx.cloud.database();
-    
-    // 删除关注记录
-    db.collection('follows')
-      .where({
-        _openid: openid,
-        targetId: targetId
-      })
-      .remove()
-      .then(() => {
-        console.log('✅ 取消关注成功');
-        resolve();
-      })
-      .catch(err => {
-        console.error('❌ 取消关注失败:', err);
-        reject(err);
-      });
+    if (!openid) return reject(new Error('not logged in'));
+    if (!targetId || typeof targetId !== 'string') return reject(new Error('invalid targetId'));
+    if (openid === targetId) return reject(new Error('cannot follow yourself'));
+
+    wx.cloud.callFunction({
+      name: 'toggleFollow',
+      data: {
+        targetId,
+        action
+      }
+    }).then((res) => {
+      if (res.result && res.result.success) {
+        resolve(res.result);
+        return;
+      }
+      const errorMsg = (res.result && res.result.error) || `${action} failed`;
+      // Idempotent fallback: keep UI state consistent even when backend returns duplicate-state errors.
+      if (errorMsg === 'already followed') {
+        resolve({
+          success: true,
+          action: 'follow',
+          already: true
+        });
+        return;
+      }
+      if (errorMsg === 'follow record not found' || errorMsg === 'already unfollowed') {
+        resolve({
+          success: true,
+          action: 'unfollow',
+          already: true
+        });
+        return;
+      }
+      reject(new Error(errorMsg));
+    }).catch(reject);
   });
 }
 
-/**
- * 检查是否已关注
- * @param {string} targetId - 被关注者的 openid
- * @returns {Promise<boolean>}
- */
 function checkFollowStatus(targetId) {
   return new Promise((resolve, reject) => {
     const openid = app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      resolve(false);
-      return;
-    }
-    
+    if (!openid) return resolve(false);
+
     const db = wx.cloud.database();
-    
+    const cmd = db.command;
     db.collection('follows')
-      .where({
-        _openid: openid,
-        targetId: targetId
-      })
+      .where(cmd.or([
+        { followerId: openid, targetId },
+        { _openid: openid, targetId }
+      ]))
       .count()
-      .then(res => {
-        resolve(res.total > 0);
-      })
-      .catch(err => {
-        console.error('❌ 检查关注状态失败:', err);
-        reject(err);
-      });
+      .then((res) => resolve((res.total || 0) > 0))
+      .catch(reject);
   });
 }
 
-/**
- * 获取关注列表（我关注的人）
- * @param {string} userId - 用户 openid（可选，默认当前用户）
- * @returns {Promise<Array>}
- */
-function getFollowingList(userId) {
-  return new Promise((resolve, reject) => {
-    const openid = userId || app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      reject(new Error('未登录'));
-      return;
+function normalizeFollowListArgs(userIdOrOptions, maybeOptions) {
+  let userId = userIdOrOptions;
+  let options = maybeOptions || {};
+  if (userIdOrOptions && typeof userIdOrOptions === 'object') {
+    options = userIdOrOptions;
+    userId = options.userId;
+  }
+  return {
+    userId: userId || options.userId,
+    page: Number(options.page || 1),
+    pageSize: Number(options.pageSize || 20),
+    includeProfile: !!options.includeProfile,
+    returnMeta: !!options.returnMeta
+  };
+}
+
+function callFollowList(type, userIdOrOptions, maybeOptions) {
+  const openid = app.globalData.openid || wx.getStorageSync('openid');
+  const args = normalizeFollowListArgs(userIdOrOptions, maybeOptions);
+  const targetUserId = args.userId || openid;
+  if (!targetUserId) {
+    return Promise.reject(new Error('not logged in'));
+  }
+
+  return wx.cloud.callFunction({
+    name: 'getFollowList',
+    data: {
+      type,
+      userId: targetUserId,
+      page: args.page > 0 ? args.page : 1,
+      pageSize: args.pageSize > 0 ? args.pageSize : 20,
+      includeProfile: args.includeProfile
     }
-    
-    // 使用云函数查询，避免权限问题
-    wx.cloud.callFunction({
-      name: 'getFollowList',
-      data: {
-        type: 'following',
-        userId: openid
-      }
-    }).then(res => {
-      if (res.result && res.result.success) {
-        console.log('✅ 查询关注列表成功，数量:', res.result.count);
-        resolve(res.result.data);
-      } else {
-        console.error('❌ 查询关注列表失败:', res.result.error);
-        reject(new Error(res.result.error || '查询失败'));
-      }
-    }).catch(err => {
-      console.error('❌ 调用云函数失败:', err);
-      reject(err);
-    });
-  });
-}
-
-/**
- * 获取粉丝列表（关注我的人）
- * @param {string} userId - 用户 openid（可选，默认当前用户）
- * @returns {Promise<Array>}
- */
-function getFollowersList(userId) {
-  return new Promise((resolve, reject) => {
-    const openid = userId || app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      reject(new Error('未登录'));
-      return;
+  }).then((res) => {
+    if (!res.result || !res.result.success) {
+      throw new Error(res.result?.error || 'query failed');
     }
-    
-    // 使用云函数查询，避免权限问题
-    wx.cloud.callFunction({
-      name: 'getFollowList',
-      data: {
-        type: 'followers',
-        userId: openid
-      }
-    }).then(res => {
-      if (res.result && res.result.success) {
-        console.log('✅ 查询粉丝列表成功，数量:', res.result.count);
-        resolve(res.result.data);
-      } else {
-        console.error('❌ 查询粉丝列表失败:', res.result.error);
-        reject(new Error(res.result.error || '查询失败'));
-      }
-    }).catch(err => {
-      console.error('❌ 调用云函数失败:', err);
-      reject(err);
-    });
+    if (args.returnMeta) {
+      return {
+        data: res.result.data || [],
+        pagination: res.result.pagination || { page: 1, pageSize: args.pageSize, hasMore: false },
+        count: res.result.count || 0
+      };
+    }
+    return res.result.data || [];
   });
 }
 
-/**
- * 获取关注统计
- * @param {string} userId - 用户 openid（可选，默认当前用户）
- * @returns {Promise<Object>} { following: number, followers: number }
- */
+function getFollowingList(userIdOrOptions, maybeOptions) {
+  return callFollowList('following', userIdOrOptions, maybeOptions);
+}
+
+function getFollowersList(userIdOrOptions, maybeOptions) {
+  return callFollowList('followers', userIdOrOptions, maybeOptions);
+}
+
 function getFollowStats(userId) {
   return new Promise((resolve, reject) => {
     const openid = userId || app.globalData.openid || wx.getStorageSync('openid');
-    
-    if (!openid) {
-      reject(new Error('未登录'));
-      return;
-    }
-    
+    if (!openid) return reject(new Error('not logged in'));
+
     const db = wx.cloud.database();
-    
+    const cmd = db.command;
     Promise.all([
-      // 关注数
-      db.collection('follows').where({ _openid: openid }).count(),
-      // 粉丝数
+      db.collection('follows').where(cmd.or([
+        { followerId: openid },
+        { _openid: openid }
+      ])).count(),
       db.collection('follows').where({ targetId: openid }).count()
     ]).then(([followingRes, followersRes]) => {
-      const stats = {
+      resolve({
         following: followingRes.total || 0,
         followers: followersRes.total || 0
-      };
-      console.log('✅ 查询关注统计成功:', stats);
-      resolve(stats);
-    }).catch(err => {
-      console.error('❌ 查询关注统计失败:', err);
-      reject(err);
-    });
+      });
+    }).catch(reject);
   });
 }
 
@@ -221,4 +153,3 @@ module.exports = {
   getFollowersList,
   getFollowStats
 };
-

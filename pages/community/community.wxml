@@ -1,33 +1,33 @@
 <view class="community-container">
   <!-- Top Navigation Tabs -->
   <view class="top-tabs">
-    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">关注</view>
+    <view class="tab-item {{currentTab === 0 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{0}}">需求</view>
     <view class="tab-item {{currentTab === 1 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{1}}">社区</view>
     <view class="tab-item {{currentTab === 2 ? 'active' : ''}}" bindtap="onTabTap" data-index="{{2}}">案例</view>
   </view>
 
-  <!-- Post Type Filter (only show in Community tab) -->
+  <!-- Community Filter (only show in Community tab) -->
   <view class="post-type-filter" wx:if="{{currentTab === 1}}">
     <view 
-      class="filter-item {{postTypeFilter === 'all' ? 'active' : ''}}" 
-      bindtap="switchPostType" 
-      data-type="all"
+      class="filter-item {{communityFilter === 'all' ? 'active' : ''}}" 
+      bindtap="switchCommunityFilter" 
+      data-community="all"
     >
       全部
     </view>
     <view 
-      class="filter-item {{postTypeFilter === 'issue' ? 'active' : ''}}" 
-      bindtap="switchPostType" 
-      data-type="issue"
+      class="filter-item {{communityFilter === '楠竹社区' ? 'active' : ''}}" 
+      bindtap="switchCommunityFilter" 
+      data-community="楠竹社区"
     >
-      问题反馈
+      楠竹社区
     </view>
     <view 
-      class="filter-item {{postTypeFilter === 'daily' ? 'active' : ''}}" 
-      bindtap="switchPostType" 
-      data-type="daily"
+      class="filter-item {{communityFilter === '和美社区' ? 'active' : ''}}" 
+      bindtap="switchCommunityFilter" 
+      data-community="和美社区"
     >
-      日常分享
+      和美社区
     </view>
   </view>
 
@@ -43,6 +43,21 @@
       {{item.shortName}}
     </view>
   </scroll-view>
+
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <image class="search-icon" src="/images/search.png" mode="aspectFit" />
+      <input
+        class="search-input"
+        placeholder="搜索内容或地点"
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+        confirm-type="search"
+      />
+      <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="onSearchClear">清空</text>
+    </view>
+  </view>
 
   <!-- Content Area -->
   <scroll-view scroll-y class="content-scroll" bindscrolltolower="onLoadMore">
@@ -110,7 +125,7 @@
     </view>
     <view class="loading" wx:if="{{loading}}">加载中...</view>
     <view class="empty" wx:if="{{!loading && posts.length === 0}}">
-      {{currentTab === 0 ? '暂无关注内容' : (currentTab === 2 ? '暂无案例，发布时选择"案例"即可显示' : '暂无内容')}}
+      {{currentTab === 0 ? '暂无需求内容' : (currentTab === 2 ? '暂无案例，发布时选择"案例"即可显示' : '暂无内容')}}
     </view>
   </scroll-view>
 </view>

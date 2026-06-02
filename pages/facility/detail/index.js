@@ -49,8 +49,10 @@ Page({
     wx.cloud.callFunction({
       name: 'getFacilities',
       data: {
+        facilityId: this.data.facilityId,
         page: 1,
-        pageSize: 1
+        pageSize: 1,
+        includeTotal: false
       }
     }).then(res => {
       wx.hideLoading();

@@ -1,0 +1,9 @@
+{
+  "name": "cleanupPerfMetrics",
+  "version": "1.0.0",
+  "description": "Cleanup old aggregated perf metrics",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

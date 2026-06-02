@@ -1,4 +1,3 @@
-// cloudfunctions/updateUserInfo/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -7,10 +6,15 @@ cloud.init({
 
 const db = cloud.database();
 
-// 用户类型配置
+const USER_TYPE_NORMAL = 'normal';
+const MAX_NICKNAME_LEN = 20;
+const MAX_PROFILE_KEYS = 50;
+const MAX_PROFILE_STRING_LEN = 500;
+const PHONE_PATTERN = /^1[3-9]\d{9}$/;
+
 const USER_TYPE_CONFIG = {
   normal: {
-    badge: { color: '#6B7280', icon: '👤', text: '用户' },
+    badge: { color: '#6B7280', icon: 'U', text: 'User' },
     permissions: {
       canVerifyIssue: false,
       canCreateProject: false,
@@ -22,7 +26,7 @@ const USER_TYPE_CONFIG = {
     }
   },
   designer: {
-    badge: { color: '#10B981', icon: '🟢', text: '设计者' },
+    badge: { color: '#10B981', icon: 'D', text: 'Designer' },
     permissions: {
       canVerifyIssue: true,
       canCreateProject: false,
@@ -34,7 +38,7 @@ const USER_TYPE_CONFIG = {
     }
   },
   contractor: {
-    badge: { color: '#3B82F6', icon: '🔵', text: '施工方' },
+    badge: { color: '#3B82F6', icon: 'C', text: 'Contractor' },
     permissions: {
       canVerifyIssue: true,
       canCreateProject: true,
@@ -46,8 +50,7 @@ const USER_TYPE_CONFIG = {
     }
   },
   communityWorker: {
-    badge: { color: '#EF4444', icon: '🔴', text: '社区工作者' },
-    needCertification: true,
+    badge: { color: '#EF4444', icon: 'W', text: 'Community Worker' },
     permissions: {
       canVerifyIssue: true,
       canCreateProject: true,
@@ -60,189 +63,277 @@ const USER_TYPE_CONFIG = {
   }
 };
 
-/**
- * 更新用户信息
- */
-exports.main = async (event, context) => {
+const ALLOWED_USER_TYPES = new Set(Object.keys(USER_TYPE_CONFIG));
+
+exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext();
-  const { nickName, avatarUrl, phoneNumber, userType, profile } = event;
+  const {
+    nickName,
+    avatarUrl,
+    phoneNumber,
+    userType,
+    profile
+  } = event;
 
   try {
-    // 🔧 查询用户是否存在（先查询，以便获取现有数据）
     const userQuery = await db.collection('users')
       .where({ _openid: OPENID })
+      .limit(1)
       .get();
-    
-    const existingUser = userQuery.data && userQuery.data.length > 0 ? userQuery.data[0] : null;
-    
-    // 验证参数
-    if (!nickName || !nickName.trim()) {
-      // 🔧 如果没有传递昵称，尝试使用现有昵称
-      if (existingUser && existingUser.userInfo && existingUser.userInfo.nickName) {
-        // 使用现有昵称，继续执行
-      } else {
-        return {
-          success: false,
-          error: '昵称不能为空',
-        };
-      }
-    }
 
-    // 昵称长度限制
-    if (nickName && nickName.length > 20) {
+    const existingUser = Array.isArray(userQuery.data) && userQuery.data.length > 0
+      ? userQuery.data[0]
+      : null;
+
+    const normalizedNickName = safeTrim(nickName);
+    if (!normalizedNickName && !(existingUser && existingUser.userInfo && safeTrim(existingUser.userInfo.nickName))) {
       return {
         success: false,
-        error: '昵称不能超过20个字符',
+        error: 'nickName is required'
+      };
+    }
+    if (normalizedNickName && normalizedNickName.length > MAX_NICKNAME_LEN) {
+      return {
+        success: false,
+        error: `nickName too long (max ${MAX_NICKNAME_LEN})`
       };
     }
 
-    // 🔧 验证手机号（只在首次注册或明确传递时验证）
-    if (phoneNumber) {
-      // 验证手机号格式
-      const phoneReg = /^1[3-9]\d{9}$/;
-      if (!phoneReg.test(phoneNumber)) {
-        return {
-          success: false,
-          error: '手机号格式不正确',
-        };
-      }
-    } else if (!existingUser) {
-      // 新用户必须提供手机号
+    const normalizedPhoneNumber = safeTrim(phoneNumber);
+    if (normalizedPhoneNumber && !PHONE_PATTERN.test(normalizedPhoneNumber)) {
       return {
         success: false,
-        error: '手机号不能为空',
+        error: 'invalid phoneNumber'
+      };
+    }
+    if (!existingUser && !normalizedPhoneNumber) {
+      return {
+        success: false,
+        error: 'phoneNumber is required for new user'
       };
     }
 
-    // 🆕 获取用户类型配置
-    const typeId = userType || 'normal';
-    const typeConfig = USER_TYPE_CONFIG[typeId] || USER_TYPE_CONFIG.normal;
+    const normalizedRequestedType = normalizeUserType(userType);
+    const existingUserTypeRaw = safeTrim(existingUser && existingUser.userType);
+    const normalizedExistingType = normalizeUserType(existingUserTypeRaw);
+    const isExistingTypeInvalid = !!(
+      existingUser &&
+      existingUserTypeRaw &&
+      !ALLOWED_USER_TYPES.has(existingUserTypeRaw)
+    );
+    const isSameTypeRefresh = !!(existingUser && userType && normalizedRequestedType === normalizedExistingType);
+    const isDowngradeToNormal = !!(
+      existingUser &&
+      userType &&
+      normalizedRequestedType === USER_TYPE_NORMAL &&
+      normalizedExistingType !== USER_TYPE_NORMAL
+    );
 
-    // 🆕 如果是社区工作者类型但未认证，默认为普通用户
-    const finalTypeId = (typeId === 'communityWorker' && !event.isCertified) ? 'normal' : typeId;
-    const finalTypeConfig = USER_TYPE_CONFIG[finalTypeId] || USER_TYPE_CONFIG.normal;
+    if (existingUser && userType && !isSameTypeRefresh && !isDowngradeToNormal) {
+      return {
+        success: false,
+        error: 'userType update is not allowed'
+      };
+    }
 
-    // 🔧 使用现有数据或新数据
-    const finalNickName = nickName ? nickName.trim() : (existingUser ? existingUser.userInfo.nickName : '未命名用户');
-    const finalAvatarUrl = avatarUrl || (existingUser ? existingUser.userInfo.avatarUrl : '/images/zhi.png');
-    const finalPhoneNumber = phoneNumber || (existingUser ? existingUser.phoneNumber : '');
+    const finalTypeId = existingUser
+      ? (isDowngradeToNormal ? USER_TYPE_NORMAL : normalizedExistingType)
+      : USER_TYPE_NORMAL;
+    const finalTypeConfig = USER_TYPE_CONFIG[finalTypeId] || USER_TYPE_CONFIG[USER_TYPE_NORMAL];
 
-    // 公开的用户信息（不包含手机号）
+    const existingUserInfo = (existingUser && existingUser.userInfo) || {};
+    const finalNickName = normalizedNickName || safeTrim(existingUserInfo.nickName) || 'User';
+    const finalAvatarUrl = safeTrim(avatarUrl) || safeTrim(existingUserInfo.avatarUrl) || '/images/zhi.png';
+    const finalPhoneNumber = normalizedPhoneNumber || safeTrim(existingUser && existingUser.phoneNumber);
+
     const publicUserInfo = {
       nickName: finalNickName,
-      avatarUrl: finalAvatarUrl,
+      avatarUrl: finalAvatarUrl
     };
 
-    if (existingUser) {
-      // 用户已存在，更新信息
-      const userId = existingUser._id;
-      
-      // 🔧 构建更新数据（只更新传递的字段）
-      const updateData = {
-        userInfo: publicUserInfo, // 公开信息（用于其他用户查看）
-        updateTime: db.serverDate(),
+    const profileResult = sanitizeProfile(profile);
+    if (!profileResult.ok) {
+      return {
+        success: false,
+        error: profileResult.error
       };
-      
-      // 🔧 只在明确传递了 userType 时才更新类型和徽章
-      if (userType) {
-        // 🔥 如果传递了 userType，无论是否改变，都更新徽章（确保徽章正确）
+    }
+
+    if (existingUser) {
+      const updateData = {
+        userInfo: publicUserInfo,
+        updateTime: db.serverDate()
+      };
+
+      const shouldWriteTypeFields = isDowngradeToNormal ||
+        isExistingTypeInvalid ||
+        !existingUser.userType ||
+        !existingUser.permissions;
+      if (shouldWriteTypeFields) {
         updateData.userType = finalTypeId;
         updateData.userTypeLabel = finalTypeConfig.badge.text;
         updateData.badge = finalTypeConfig.badge;
         updateData.permissions = finalTypeConfig.permissions;
-        
-        if (userType !== existingUser.userType) {
-          console.log('🔄 更新用户类型:', existingUser.userType, '->', finalTypeId);
-        } else {
-          console.log('✓ 刷新用户徽章:', finalTypeId, finalTypeConfig.badge.text);
-        }
-      } else {
-        // 没有传递 userType，保持原有类型
-        console.log('✓ 保持原有用户类型:', existingUser.userType);
       }
-      
-      // 🔧 只在提供了手机号时更新
-      if (phoneNumber) {
+
+      if (normalizedPhoneNumber) {
         updateData.phoneNumber = finalPhoneNumber;
       }
-      
-      // 🔧 只在提供了 profile 时更新
-      if (profile !== undefined) {
-        updateData.profile = profile;
-      }
-      
-      await db.collection('users')
-        .doc(userId)
-        .update({
-          data: updateData
-        });
 
-      console.log('用户信息更新成功:', OPENID);
-      
-      // 🔧 返回实际的用户类型和徽章（不是计算出来的）
-      const actualUserType = updateData.userType || existingUser.userType || 'normal';
-      const actualBadge = updateData.badge || existingUser.badge || USER_TYPE_CONFIG[actualUserType].badge;
-      
+      if (profileResult.present) {
+        updateData.profile = profileResult.value;
+      }
+
+      await db.collection('users').doc(existingUser._id).update({
+        data: updateData
+      });
+
+      const actualUserType = updateData.userType || normalizedExistingType || USER_TYPE_NORMAL;
+      const actualBadge = updateData.badge ||
+        existingUser.badge ||
+        (USER_TYPE_CONFIG[actualUserType] && USER_TYPE_CONFIG[actualUserType].badge) ||
+        USER_TYPE_CONFIG[USER_TYPE_NORMAL].badge;
+
       return {
         success: true,
         userInfo: publicUserInfo,
         userType: actualUserType,
-        badge: actualBadge,
+        badge: actualBadge
       };
-    } else {
-      // 用户不存在，创建新用户
-      // 🔧 新用户必须提供手机号
-      if (!finalPhoneNumber) {
-        return {
-          success: false,
-          error: '新用户必须提供手机号'
-        };
-      }
-      
-      await db.collection('users').add({
-        data: {
-          _openid: OPENID,
-          userInfo: publicUserInfo, // 公开信息（用于其他用户查看）
-          phoneNumber: finalPhoneNumber, // 手机号（私密，仅管理员可见）
-          userType: finalTypeId,    // 🆕 用户类型
-          userTypeLabel: finalTypeConfig.badge.text, // 🆕 类型标签
-          badge: finalTypeConfig.badge, // 🆕 徽章信息
-          permissions: finalTypeConfig.permissions, // 🆕 权限配置
-          profile: profile || {},   // 🆕 补充信息
-          stats: {
-            followingCount: 0,
-            followersCount: 0,
-            likesCount: 0
-          },
-          reputation: {             // 🆕 信誉系统
-            rating: 5.0,
-            reviewCount: 0,
-            completedTasks: 0,
-            helpfulCount: 0,
-            responseRate: 100,
-            responseTime: 0
-          },
-          createTime: db.serverDate(),
-          updateTime: db.serverDate(),
-        }
-      });
-
-      console.log('新用户创建成功:', OPENID);
     }
 
-    // 只返回公开信息，不返回手机号
+    await db.collection('users').add({
+      data: {
+        _openid: OPENID,
+        userInfo: publicUserInfo,
+        phoneNumber: finalPhoneNumber,
+        userType: finalTypeId,
+        userTypeLabel: finalTypeConfig.badge.text,
+        badge: finalTypeConfig.badge,
+        permissions: finalTypeConfig.permissions,
+        profile: profileResult.present ? profileResult.value : {},
+        stats: {
+          followingCount: 0,
+          followersCount: 0,
+          likesCount: 0
+        },
+        reputation: {
+          rating: 5,
+          reviewCount: 0,
+          completedTasks: 0,
+          helpfulCount: 0,
+          responseRate: 100,
+          responseTime: 0
+        },
+        createTime: db.serverDate(),
+        updateTime: db.serverDate()
+      }
+    });
+
     return {
       success: true,
-      userInfo: publicUserInfo, // 注意：不包含 phoneNumber
-      userType: finalTypeId,    // 🆕 返回用户类型
-      badge: finalTypeConfig.badge, // 🆕 返回徽章信息
+      userInfo: publicUserInfo,
+      userType: finalTypeId,
+      badge: finalTypeConfig.badge
     };
-
   } catch (err) {
-    console.error('更新用户信息失败:', err);
+    console.error('[updateUserInfo] failed:', err && err.message ? err.message : err);
     return {
       success: false,
-      error: err.message || '更新失败',
+      error: err && err.message ? err.message : 'update failed'
     };
   }
 };
+
+function normalizeUserType(input) {
+  if (typeof input !== 'string') return USER_TYPE_NORMAL;
+  const value = input.trim();
+  if (!value) return USER_TYPE_NORMAL;
+  return ALLOWED_USER_TYPES.has(value) ? value : USER_TYPE_NORMAL;
+}
+
+function sanitizeProfile(input) {
+  if (typeof input === 'undefined') {
+    return { ok: true, present: false, value: {} };
+  }
+  if (!isPlainObject(input)) {
+    return { ok: false, error: 'invalid profile' };
+  }
+
+  const entries = Object.entries(input);
+  if (entries.length > MAX_PROFILE_KEYS) {
+    return { ok: false, error: 'too many profile fields' };
+  }
+
+  const output = {};
+  for (const [rawKey, rawValue] of entries) {
+    const key = safeTrim(rawKey);
+    if (!key) continue;
+    if (key.length > 64) {
+      return { ok: false, error: 'profile field key too long' };
+    }
+
+    if (typeof rawValue === 'string') {
+      output[key] = rawValue.trim().slice(0, MAX_PROFILE_STRING_LEN);
+      continue;
+    }
+
+    if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+      output[key] = rawValue;
+      continue;
+    }
+
+    if (rawValue === null) {
+      output[key] = null;
+      continue;
+    }
+
+    if (Array.isArray(rawValue)) {
+      output[key] = rawValue.slice(0, 20).map((item) => normalizeArrayItem(item));
+      continue;
+    }
+
+    if (isPlainObject(rawValue)) {
+      output[key] = sanitizeNestedObject(rawValue);
+      continue;
+    }
+
+    return { ok: false, error: `unsupported profile field: ${key}` };
+  }
+
+  return { ok: true, present: true, value: output };
+}
+
+function sanitizeNestedObject(value) {
+  const result = {};
+  Object.keys(value).slice(0, 20).forEach((k) => {
+    const key = safeTrim(k);
+    if (!key) return;
+    const item = value[k];
+    if (typeof item === 'string') {
+      result[key] = item.trim().slice(0, MAX_PROFILE_STRING_LEN);
+      return;
+    }
+    if (typeof item === 'number' || typeof item === 'boolean' || item === null) {
+      result[key] = item;
+      return;
+    }
+    result[key] = String(item).slice(0, MAX_PROFILE_STRING_LEN);
+  });
+  return result;
+}
+
+function normalizeArrayItem(item) {
+  if (typeof item === 'string') return item.trim().slice(0, MAX_PROFILE_STRING_LEN);
+  if (typeof item === 'number' || typeof item === 'boolean' || item === null) return item;
+  return String(item).slice(0, MAX_PROFILE_STRING_LEN);
+}
+
+function safeTrim(input) {
+  if (typeof input !== 'string') return '';
+  return input.trim();
+}
+
+function isPlainObject(input) {
+  return Object.prototype.toString.call(input) === '[object Object]';
+}

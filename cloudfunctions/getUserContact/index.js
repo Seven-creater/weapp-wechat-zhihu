@@ -1,4 +1,3 @@
-// cloudfunctions/getUserContact/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -7,82 +6,103 @@ cloud.init({
 
 const db = cloud.database();
 
-/**
- * 获取用户联系方式
- * 只有政府可以查看用户联系方式
- */
-exports.main = async (event, context) => {
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[getUserContact] shared auth unavailable');
+}
+
+exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext();
-  const { targetId } = event;
+  const targetId = toSafeString(event.targetId, 64);
 
   try {
-    // 验证参数
+    if (!OPENID) {
+      return {
+        success: false,
+        error: 'unauthorized'
+      };
+    }
     if (!targetId) {
       return {
         success: false,
-        error: '用户ID不能为空'
+        error: 'missing targetId'
       };
     }
 
-    // 获取当前用户信息，检查权限
-    const currentUserQuery = await db.collection('users')
+    const callerQuery = await db.collection('users')
       .where({ _openid: OPENID })
+      .field({ isAdmin: true, permissions: true })
+      .limit(1)
       .get();
 
-    if (!currentUserQuery.data || currentUserQuery.data.length === 0) {
+    const caller = (callerQuery.data && callerQuery.data[0]) || {};
+    const permissions = caller.permissions || {};
+    const canManageUsers = permissions.canManageUsers === true;
+    const canViewUserContact = permissions.canViewUserContact === true;
+    const localAdmin = caller.isAdmin === true || canManageUsers;
+    let sharedAdmin = false;
+    if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+      try {
+        sharedAdmin = await sharedAuth.isAdmin({ db, openid: OPENID });
+      } catch (err) {
+        sharedAdmin = false;
+      }
+    }
+
+    if (!localAdmin && !sharedAdmin && !canViewUserContact) {
       return {
         success: false,
-        error: '用户不存在'
+        error: 'forbidden'
       };
     }
 
-    const currentUser = currentUserQuery.data[0];
-    const userType = currentUser.userType || 'normal';
-
-    // 检查权限：只有政府可以查看
-    if (userType !== 'government') {
-      return {
-        success: false,
-        error: '只有政府可以查看用户联系方式'
-      };
-    }
-
-    // 获取目标用户的联系方式
-    const targetUserQuery = await db.collection('users')
+    const targetQuery = await db.collection('users')
       .where({ _openid: targetId })
+      .field({
+        phoneNumber: true,
+        profile: true
+      })
+      .limit(1)
       .get();
 
-    if (!targetUserQuery.data || targetUserQuery.data.length === 0) {
+    if (!Array.isArray(targetQuery.data) || targetQuery.data.length === 0) {
       return {
         success: false,
-        error: '目标用户不存在'
+        error: 'target user not found'
       };
     }
 
-    const targetUser = targetUserQuery.data[0];
+    const targetUser = targetQuery.data[0];
     const profile = targetUser.profile || {};
-
-    // 返回联系方式
-    const contactData = {
-      phoneNumber: targetUser.phoneNumber || '',
-      wechat: profile.contactInfo || '',
-      email: profile.email || '',
-      organization: profile.organization || ''
-    };
-
-    console.log('政府查看联系方式:', OPENID, '查看目标:', targetId);
-
     return {
       success: true,
-      data: contactData
+      data: {
+        phoneNumber: safeString(targetUser.phoneNumber, 32),
+        wechat: safeString(profile.contactInfo, 128),
+        email: safeString(profile.email, 128),
+        organization: safeString(profile.organization, 128)
+      }
     };
-
   } catch (err) {
-    console.error('获取联系方式失败:', err);
+    const message = err && err.message ? err.message : 'query failed';
+    console.error('[getUserContact] failed:', message);
     return {
       success: false,
-      error: err.message || '获取失败'
+      error: message
     };
   }
 };
 
+function toSafeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}
+
+function safeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  return value.trim().slice(0, maxLen);
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "envId": "cloud1-8g7mscenc95268ca",
+  "functionRoot": "cloudfunctions",
+  "functions": [
+    {
+      "name": "classifyIssueImage",
+      "timeout": 60,
+      "memorySize": 512,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createIssuePost",
+      "timeout": 60,
+      "memorySize": 512,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createDemandPost",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createDesignProposal",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createDesignSolution",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createProject",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getPublicData",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getDesignProposals",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getDesignProposal",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "updateProjectNode",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "matchIssueSchemes",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "generateCommunityReport",
+      "timeout": 60,
+      "memorySize": 512,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    }
+  ]
+}

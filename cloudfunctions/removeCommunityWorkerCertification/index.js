@@ -1,52 +1,76 @@
-// 云函数：removeCommunityWorkerCertification
-// 移除社区工作者身份（从 users 集合更新）
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
 const db = cloud.database();
 
-// 🔐 管理员 openid 列表
-const ADMIN_OPENIDS = [
-  'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ'  // 你的管理员账号（正确的 openid）
-];
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[removeCommunityWorkerCertification] shared auth unavailable');
+}
 
-exports.main = async (event, context) => {
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[removeCommunityWorkerCertification] shared validate unavailable');
+}
+
+const ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
+  return ADMIN_OPENIDS.includes(openid);
+}
+
+exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext();
   const adminOpenid = wxContext.OPENID;
 
+  const userOpenidCheck = validateString(event.userOpenid, {
+    name: 'userOpenid',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!userOpenidCheck.ok) {
+    return {
+      success: false,
+      error: userOpenidCheck.error
+    };
+  }
+  const userOpenid = userOpenidCheck.value;
+
   try {
-    const { userOpenid } = event;
-
-    // 验证参数
-    if (!userOpenid) {
-      return {
-        success: false,
-        error: '参数错误'
-      };
-    }
-
-    // ✅ 验证管理员权限
-    if (!ADMIN_OPENIDS.includes(adminOpenid)) {
+    if (!(await isAdmin(adminOpenid))) {
       return {
         success: false,
         error: '权限不足，仅管理员可以移除社区工作者身份'
       };
     }
 
-    console.log('🔍 准备移除社区工作者身份，openid:', userOpenid);
-
-    // 🔧 普通用户徽章配置
-    const normalBadge = {
-      color: '#6B7280',
-      icon: '👤',
-      text: '用户'
-    };
-
-    // 查询用户
     const userQuery = await db.collection('users')
       .where({ _openid: userOpenid })
+      .limit(1)
       .get();
 
     if (!userQuery.data || userQuery.data.length === 0) {
@@ -57,14 +81,16 @@ exports.main = async (event, context) => {
     }
 
     const user = userQuery.data[0];
-
-    // 更新用户信息：降级为普通用户
     await db.collection('users')
       .doc(user._id)
       .update({
         data: {
           userType: 'normal',
-          badge: normalBadge,
+          badge: {
+            color: '#6B7280',
+            icon: '👤',
+            text: '用户'
+          },
           userTypeLabel: '普通用户',
           'profile.community': null,
           'profile.position': null,
@@ -75,19 +101,15 @@ exports.main = async (event, context) => {
         }
       });
 
-    console.log('✅ 已移除社区工作者身份:', userOpenid);
-
     return {
       success: true,
       message: '已移除社区工作者身份'
     };
-
   } catch (err) {
-    console.error('移除身份失败:', err);
+    console.error('[removeCommunityWorkerCertification] failed:', err && err.message ? err.message : err);
     return {
       success: false,
-      error: err.message || '操作失败，请稍后重试'
+      error: err && err.message ? err.message : '操作失败，请稍后重试'
     };
   }
 };
-

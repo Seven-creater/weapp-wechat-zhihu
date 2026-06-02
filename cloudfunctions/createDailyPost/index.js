@@ -5,6 +5,7 @@ cloud.init({
 });
 
 const db = cloud.database();
+const ALLOWED_COMMUNITIES = new Set(['楠竹社区', '和美社区']);
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
@@ -33,11 +34,15 @@ exports.main = async (event, context) => {
     const avatarUrl = userInfo.avatarUrl || '/images/zhi.png';
     const nickName = userInfo.nickName || '微信用户';
     const userType = userData.userType || 'resident';
+    const community = normalizeCommunity(
+      event.community || (userData.profile && userData.profile.community) || '楠竹社区'
+    );
 
     // 创建日常帖子
     const postData = {
-      _openid: openid,  // ✅ 保存作者的 openid
+      _openid: openid,  // 保存作者 openid，供个人主页筛选
       type: 'daily',  // 日常帖类型
+      community,
       content: content.trim(),
       images: images || [],
       location: location || null,
@@ -74,3 +79,8 @@ exports.main = async (event, context) => {
     };
   }
 };
+
+function normalizeCommunity(value) {
+  const community = typeof value === 'string' ? value.trim() : '';
+  return ALLOWED_COMMUNITIES.has(community) ? community : '楠竹社区';
+}

@@ -1,0 +1,9 @@
+{
+  "name": "getNotificationFeed",
+  "version": "1.0.0",
+  "description": "Notification feed with server-side pagination and user join",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -1,46 +1,104 @@
-// cloudfunctions/createProject/index.js
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
 const db = cloud.database();
 
-exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext();
-  const openid = wxContext.OPENID;
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[createProject] shared validate unavailable');
+}
+
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  const { name = 'value', required = false, min = 0, max = 2000 } = options;
+  if (value == null || value === '') {
+    if (required) return { ok: false, error: `missing ${name}` };
+    return { ok: true, value: '' };
+  }
+  if (typeof value !== 'string') return { ok: false, error: `${name} must be string` };
+  const text = value.trim();
+  if (required && !text) return { ok: false, error: `missing ${name}` };
+  if (text.length < min) return { ok: false, error: `${name} too short` };
+  if (text.length > max) return { ok: false, error: `${name} too long` };
+  return { ok: true, value: text };
+}
+
+function isValidPhone(value) {
+  if (!value) return false;
+  return /^[0-9+\-\s()]{6,32}$/.test(value);
+}
+
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  if (!OPENID) {
+    return { success: false, error: 'unauthorized' };
+  }
+
+  const postIdCheck = validateString(event.postId, {
+    name: 'postId',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!postIdCheck.ok) {
+    return { success: false, error: postIdCheck.error };
+  }
+
+  const titleCheck = validateString(event.title, {
+    name: 'title',
+    required: true,
+    min: 2,
+    max: 80
+  });
+  if (!titleCheck.ok) {
+    return { success: false, error: titleCheck.error };
+  }
+
+  const contactPhoneCheck = validateString(event.contactPhone, {
+    name: 'contactPhone',
+    required: true,
+    min: 6,
+    max: 32
+  });
+  if (!contactPhoneCheck.ok) {
+    return { success: false, error: contactPhoneCheck.error };
+  }
+  if (!isValidPhone(contactPhoneCheck.value)) {
+    return { success: false, error: 'invalid contactPhone' };
+  }
+
+  const postId = postIdCheck.value;
+  const title = titleCheck.value;
+  const contactPhone = contactPhoneCheck.value;
 
   try {
-    const { postId, title, contactPhone } = event;
-
-    // 验证必填字段
-    if (!postId || !title || !contactPhone) {
-      return {
-        success: false,
-        error: '缺少必填字段'
-      };
-    }
-
-    // 获取施工方信息
     const userResult = await db.collection('users').where({
-      _openid: openid
-    }).get();
+      _openid: OPENID
+    }).field({
+      userType: true,
+      userInfo: true,
+      nickName: true,
+      avatarUrl: true
+    }).limit(1).get();
 
-    const userData = userResult.data[0] || {};
-    
-    // 从 userInfo 对象或直接字段中获取头像和昵称
-    const contractorName = userData.userInfo?.nickName || userData.nickName || '施工方';
-    const contractorAvatar = userData.userInfo?.avatarUrl || userData.avatarUrl || '';
-
-    // 验证用户是施工方
-    if (userData.userType !== 'contractor') {
+    const userData = userResult.data && userResult.data[0];
+    if (!userData || userData.userType !== 'contractor') {
       return {
         success: false,
         error: '仅施工方可以创建项目'
       };
     }
 
-    // 获取帖子信息
+    const contractorName = userData.userInfo?.nickName || userData.nickName || '施工方';
+    const contractorAvatar = userData.userInfo?.avatarUrl || userData.avatarUrl || '';
+
     const postResult = await db.collection('posts').doc(postId).get();
     if (!postResult.data) {
       return {
@@ -48,40 +106,41 @@ exports.main = async (event, context) => {
         error: '帖子不存在'
       };
     }
-
     const post = postResult.data;
-
-    // 检查是否已经有项目
-    const existingProject = await db.collection('construction_projects').where({
-      issueId: postId
-    }).get();
-
-    if (existingProject.data.length > 0) {
+    if (!['issue', 'demand'].includes(post.type)) {
       return {
         success: false,
-        error: '该问题已经有施工项目'
+        error: 'project only supports issue or demand post'
       };
     }
 
-    // 创建项目记录
+    const existingProject = await db.collection('construction_projects').where({
+      issueId: postId
+    }).limit(1).get();
+    if ((existingProject.data || []).length > 0) {
+      return {
+        success: false,
+        error: '该问题已经有关联项目'
+      };
+    }
+
     const projectData = {
       issueId: postId,
-      title: title,
-      category: post.category || '',
-      engineeringType: post.engineeringType || post.category || '',
-      contractorId: openid,
-      contractorName: contractorName,
-      contractorAvatar: contractorAvatar,
-      contactPhone: contactPhone,
-      status: 'preparing',  // 准备阶段
+      title,
+      category: post.categoryName || post.category || '',
+      engineeringType: post.engineeringType || post.categoryName || post.category || '',
+      contractorId: OPENID,
+      contractorName,
+      contractorAvatar,
+      contactPhone,
+      status: 'preparing',
       currentStage: '准备',
       location: post.location || null,
       address: post.address || '',
       formattedAddress: post.formattedAddress || '',
       detailAddress: post.detailAddress || '',
-      budget: post.aiSolution?.budget || 0,
+      budget: Number(post.aiSolution?.budget) || 0,
       actualCost: 0,
-      // 三个固定节点
       stages: [
         {
           name: '准备',
@@ -124,10 +183,9 @@ exports.main = async (event, context) => {
       data: projectData
     });
 
-    // 更新帖子状态为processing
     await db.collection('posts').doc(postId).update({
       data: {
-        status: 'processing',
+        status: post.type === 'demand' ? 'constructing' : 'processing',
         updateTime: db.serverDate()
       }
     });
@@ -137,12 +195,11 @@ exports.main = async (event, context) => {
       projectId: result._id,
       message: '项目创建成功'
     };
-
   } catch (err) {
-    console.error('创建项目失败:', err);
+    console.error('[createProject] failed:', err);
     return {
       success: false,
-      error: err.message || '创建失败'
+      error: err && err.message ? err.message : 'create project failed'
     };
   }
 };

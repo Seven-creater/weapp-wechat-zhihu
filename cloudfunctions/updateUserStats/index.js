@@ -1,116 +1,127 @@
-// cloudfunctions/updateUserStats/index.js
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
 const db = cloud.database();
-const _ = db.command;
 
-exports.main = async (event, context) => {
-  const { action, followerId, targetId } = event;
-  
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[updateUserStats] shared validate unavailable');
+}
+
+function validateString(value, options) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options && options.name ? options.name : 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+function validateEnum(value, allowed, options) {
+  if (sharedValidate && typeof sharedValidate.validateEnum === 'function') {
+    return sharedValidate.validateEnum(value, allowed, options);
+  }
+  if (!allowed.includes(value)) {
+    return { ok: false, error: `invalid ${options && options.name ? options.name : 'value'}` };
+  }
+  return { ok: true, value };
+}
+
+function maskOpenid(openid) {
+  if (typeof openid !== 'string' || openid.length < 8) return 'unknown';
+  return `${openid.slice(0, 3)}***${openid.slice(-3)}`;
+}
+
+exports.main = async (event = {}) => {
+  const wxContext = cloud.getWXContext();
+  const followerId = wxContext.OPENID;
+  const { action } = event;
+
+  const actionCheck = validateEnum(action, ['follow', 'unfollow'], { name: 'action', required: true });
+  if (!actionCheck.ok) {
+    return { success: false, error: actionCheck.error };
+  }
+
+  const targetCheck = validateString(event.targetId, { name: 'targetId', required: true, min: 6, max: 64 });
+  if (!targetCheck.ok) {
+    return { success: false, error: targetCheck.error };
+  }
+
+  const targetId = targetCheck.value;
+  if (targetId === followerId) {
+    return { success: false, error: 'invalid targetId' };
+  }
+
   try {
-    if (action === 'follow') {
-      // 🔥 更新关注者的关注数+1（确保 stats 字段存在）
+    if (actionCheck.value === 'follow') {
       await updateUserStat(followerId, 'followingCount', 1);
-      
-      // 🔥 更新被关注者的粉丝数+1（确保 stats 字段存在）
       await updateUserStat(targetId, 'followersCount', 1);
-      
-      // 检查是否互相关注
-      const reverseFollow = await db.collection('follows').where({
-        followerId: targetId,
-        targetId: followerId
-      }).get();
-      
-      if (reverseFollow.data.length > 0) {
-        // 更新为互相关注
-        await db.collection('follows').where({
-          followerId: followerId,
-          targetId: targetId
-        }).update({
-          data: {
-            isMutual: true
-          }
-        });
-        
-        await db.collection('follows').where({
-          followerId: targetId,
-          targetId: followerId
-        }).update({
-          data: {
-            isMutual: true
-          }
-        });
-      }
-      
-      return { success: true, message: '关注成功' };
-      
-    } else if (action === 'unfollow') {
-      // 🔥 更新关注者的关注数-1
-      await updateUserStat(followerId, 'followingCount', -1);
-      
-      // 🔥 更新被关注者的粉丝数-1
-      await updateUserStat(targetId, 'followersCount', -1);
-      
-      // 更新对方的互相关注状态
-      await db.collection('follows').where({
-        followerId: targetId,
-        targetId: followerId
-      }).update({
-        data: {
-          isMutual: false
-        }
-      });
-      
-      return { success: true, message: '取消关注成功' };
+      await refreshMutual(followerId, targetId, true);
+      return { success: true, message: 'ok' };
     }
-    
-    return { success: false, error: '未知操作' };
-    
+
+    await updateUserStat(followerId, 'followingCount', -1);
+    await updateUserStat(targetId, 'followersCount', -1);
+    await refreshMutual(followerId, targetId, false);
+    return { success: true, message: 'ok' };
   } catch (err) {
-    console.error('更新统计失败:', err);
-    return { success: false, error: err.message };
+    console.error('[updateUserStats] failed:', {
+      action: actionCheck.value,
+      followerId: maskOpenid(followerId),
+      targetId: maskOpenid(targetId),
+      error: err && err.message ? err.message : String(err)
+    });
+    return { success: false, error: err && err.message ? err.message : 'update failed' };
   }
 };
 
-// 🔥 安全地更新用户统计数据
-async function updateUserStat(openid, field, increment) {
-  try {
-    // 先查询用户记录
-    const userRes = await db.collection('users').where({
-      _openid: openid
-    }).get();
-    
-    if (userRes.data.length === 0) {
-      console.log(`用户 ${openid} 不存在，跳过更新`);
-      return;
+async function refreshMutual(followerId, targetId, afterFollow) {
+  if (afterFollow) {
+    const reverseFollow = await db.collection('follows').where({
+      followerId: targetId,
+      targetId: followerId
+    }).limit(1).get();
+
+    if (reverseFollow.data && reverseFollow.data.length > 0) {
+      await db.collection('follows').where({
+        followerId,
+        targetId
+      }).update({ data: { isMutual: true } });
+
+      await db.collection('follows').where({
+        followerId: targetId,
+        targetId: followerId
+      }).update({ data: { isMutual: true } });
     }
-    
-    const user = userRes.data[0];
-    const stats = user.stats || {};
-    
-    // 计算新值（确保不会小于0）
-    const currentValue = stats[field] || 0;
-    const newValue = Math.max(0, currentValue + increment);
-    
-    console.log(`更新用户 ${openid} 的 ${field}: ${currentValue} -> ${newValue}`);
-    
-    // 更新统计数据
-    await db.collection('users').where({
-      _openid: openid
-    }).update({
-      data: {
-        [`stats.${field}`]: newValue
-      }
-    });
-    
-    return { success: true };
-    
-  } catch (err) {
-    console.error(`更新用户 ${openid} 的 ${field} 失败:`, err);
-    throw err;
+    return;
   }
+
+  await db.collection('follows').where({
+    followerId: targetId,
+    targetId: followerId
+  }).update({ data: { isMutual: false } });
 }
 
+async function updateUserStat(openid, field, increment) {
+  const userRes = await db.collection('users').where({ _openid: openid }).limit(1).get();
+  if (!userRes.data || userRes.data.length === 0) {
+    return;
+  }
+
+  const user = userRes.data[0];
+  const stats = user.stats || {};
+  const currentValue = Number(stats[field]) || 0;
+  const nextValue = Math.max(0, currentValue + increment);
+
+  await db.collection('users').where({ _openid: openid }).update({
+    data: {
+      [`stats.${field}`]: nextValue
+    }
+  });
+}

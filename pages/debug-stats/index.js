@@ -1,112 +1,154 @@
-// 临时调试页面 - 查看统计数据
+const app = getApp();
+
 Page({
   data: {
-    result: ''
+    sessionActive: false,
+    perfMode: false,
+    runId: '-',
+    appVersion: '-',
+    networkType: '-',
+    routeCount: 0,
+    sampleCount: 0,
+    droppedRawSampleCount: 0,
+    summaryText: '',
+    reportText: '',
+    blockedText: ''
   },
 
-  onLoad: function() {
-    this.checkStats();
+  onLoad() {
+    this.refreshView();
   },
 
-  checkStats: function() {
-    const openid = wx.getStorageSync('openid');
-    
-    if (!openid) {
-      this.setData({ result: '请先登录' });
+  onShow() {
+    this.refreshView();
+  },
+
+  refreshView() {
+    const snapshot = app.getPerfSnapshot();
+    const perfMode = app.isPerfModeEnabled();
+    if (!snapshot || !snapshot.runId) {
+      this.setData({
+        perfMode,
+        sessionActive: false,
+        runId: '-',
+        appVersion: app.getMiniProgramVersion ? app.getMiniProgramVersion() : 'dev',
+        networkType: '-',
+        routeCount: 0,
+        sampleCount: 0,
+        droppedRawSampleCount: 0,
+        summaryText: '暂无采样会话',
+        reportText: '',
+        blockedText: ''
+      });
       return;
     }
 
-    let result = `当前用户 openid: ${openid}\n\n`;
-
-    // 1. 使用云函数查询 follows 集合（绕过权限限制）
-    wx.cloud.callFunction({
-      name: 'fixUserStats',
-      data: { targetId: openid }
-    }).then(res => {
-      result += `【云函数查询结果】\n`;
-      result += JSON.stringify(res.result, null, 2) + '\n\n';
-
-      // 2. 直接查询 follows（可能受权限限制）
-      return wx.cloud.database().collection('follows').where({
-        followerId: openid
-      }).get();
-    }).then(res => {
-      result += `【我关注的人】（直接查询）\n`;
-      result += `数量: ${res.data.length}\n`;
-      res.data.forEach(item => {
-        result += `- targetId: ${item.targetId}, isMutual: ${item.isMutual}\n`;
+    const routeSummaries = snapshot.routeSummaries || [];
+    const sampleCount = routeSummaries.reduce((sum, item) => sum + (item.sampleCount || 0), 0);
+    const topLines = routeSummaries
+      .slice()
+      .sort((a, b) => ((b.firstScreen && b.firstScreen.p95) || 0) - ((a.firstScreen && a.firstScreen.p95) || 0))
+      .slice(0, 8)
+      .map((item) => {
+        const route = item.route || '-';
+        const fs = item.firstScreen || {};
+        const req = item.requests || {};
+        const payload = item.payload || {};
+        return `${route}
+首屏 p95=${fs.p95 || 0}ms 请求=${req.total || 0} payload=${Math.round((payload.totalBytes || 0) / 1024)}KB`;
       });
-      result += `\n`;
 
-      return wx.cloud.database().collection('follows').where({
-        targetId: openid
-      }).get();
-    }).then(res => {
-      result += `【关注我的人】（直接查询）\n`;
-      result += `数量: ${res.data.length}\n`;
-      res.data.forEach(item => {
-        result += `- followerId: ${item.followerId}, isMutual: ${item.isMutual}\n`;
-      });
-      result += `\n`;
-
-      // 3. 查询 users 集合的 stats
-      return wx.cloud.callFunction({
-        name: 'getUserInfo',
-        data: { targetId: openid }
-      });
-    }).then(res => {
-      result += `【users 集合的 stats】\n`;
-      if (res.result && res.result.success) {
-        const stats = res.result.data.stats || {};
-        result += `followingCount: ${stats.followingCount || 0}\n`;
-        result += `followersCount: ${stats.followersCount || 0}\n`;
-        result += `likesCount: ${stats.likesCount || 0}\n`;
-      } else {
-        result += `查询失败: ${res.result?.error}\n`;
-      }
-      result += `\n`;
-
-      this.setData({ result });
-    }).catch(err => {
-      result += `\n错误: ${err.message || err.errMsg}\n`;
-      this.setData({ result });
+    const blockedRoutes = snapshot.blockedRoutes || [];
+    this.setData({
+      perfMode,
+      sessionActive: !snapshot.endAt,
+      runId: snapshot.runId || '-',
+      appVersion: snapshot.appVersion || '-',
+      networkType: snapshot.networkType || '-',
+      routeCount: routeSummaries.length,
+      sampleCount,
+      droppedRawSampleCount: snapshot.droppedRawSampleCount || 0,
+      summaryText: topLines.join('\n\n') || '暂无路由样本',
+      reportText: JSON.stringify({
+        runId: snapshot.runId,
+        appVersion: snapshot.appVersion,
+        networkType: snapshot.networkType,
+        routeCount: routeSummaries.length,
+        sampleCount,
+        droppedRawSampleCount: snapshot.droppedRawSampleCount || 0
+      }, null, 2),
+      blockedText: blockedRoutes.length
+        ? blockedRoutes.map((item) => `${item.route} - ${item.reason || 'unknown'}`).join('\n')
+        : '无'
     });
   },
 
-  // 运行修复
-  runFix: function() {
-    wx.showLoading({ title: '修复中...' });
-    
-    wx.cloud.callFunction({
-      name: 'fixUserStats',
-      data: {}
-    }).then(res => {
-      wx.hideLoading();
-      wx.showModal({
-        title: '修复完成',
-        content: JSON.stringify(res.result),
-        showCancel: false,
-        success: () => {
-          this.checkStats();
-        }
+  startSampling() {
+    wx.showLoading({ title: '开始采样中' });
+    app.startPerfSession({})
+      .then(() => {
+        wx.hideLoading();
+        wx.showToast({ title: '采样已开始', icon: 'success' });
+        this.refreshView();
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showModal({
+          title: '开始失败',
+          content: err && (err.message || err.errMsg) || 'unknown error',
+          showCancel: false
+        });
       });
-    }).catch(err => {
-      wx.hideLoading();
-      wx.showModal({
-        title: '修复失败',
-        content: err.message || err.errMsg,
-        showCancel: false
-      });
-    });
   },
 
-  copyResult: function() {
+  stopSampling() {
+    const snapshot = app.stopPerfSession();
+    if (!snapshot) {
+      wx.showToast({ title: '无采样会话', icon: 'none' });
+      return;
+    }
+    wx.showToast({ title: '采样已结束', icon: 'success' });
+    this.refreshView();
+  },
+
+  copyJSON() {
+    const report = app.exportPerfReport();
+    if (!report) {
+      wx.showToast({ title: '无数据可复制', icon: 'none' });
+      return;
+    }
+    const content = JSON.stringify(report, null, 2);
     wx.setClipboardData({
-      data: this.data.result,
-      success: () => {
-        wx.showToast({ title: '已复制', icon: 'success' });
-      }
+      data: content,
+      success: () => wx.showToast({ title: 'JSON已复制', icon: 'success' }),
+      fail: () => wx.showToast({ title: '复制失败', icon: 'none' })
     });
+  },
+
+  uploadSummary() {
+    wx.showLoading({ title: '上传中' });
+    app.uploadPerfSummary()
+      .then((res) => {
+        wx.hideLoading();
+        wx.showModal({
+          title: '上传完成',
+          content: JSON.stringify(res, null, 2).slice(0, 800),
+          showCancel: false
+        });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showModal({
+          title: '上传失败',
+          content: err && (err.message || err.errMsg) || 'unknown error',
+          showCancel: false
+        });
+      });
+  },
+
+  clearSession() {
+    app.clearPerfSession();
+    wx.showToast({ title: '已清空', icon: 'success' });
+    this.refreshView();
   }
 });
-

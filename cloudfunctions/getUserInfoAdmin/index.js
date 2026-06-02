@@ -1,4 +1,3 @@
-// cloudfunctions/getUserInfoAdmin/index.js
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -7,61 +6,114 @@ cloud.init({
 
 const db = cloud.database();
 
-/**
- * 获取用户完整信息（包含手机号）
- * 仅供后台管理使用
- */
-exports.main = async (event, context) => {
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[getUserInfoAdmin] shared auth unavailable');
+}
+
+const SUPER_ADMIN_OPENIDS = String(process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext();
-  const { targetOpenid } = event;
+  const targetOpenid = toSafeString(event.targetOpenid, 64) || OPENID;
 
   try {
-    // 查询目标用户信息
-    const openidToQuery = targetOpenid || OPENID;
-    
+    if (!OPENID) {
+      return {
+        success: false,
+        error: 'unauthorized'
+      };
+    }
+
+    const canAccess = await checkAdminAccess(OPENID);
+    if (!canAccess) {
+      return {
+        success: false,
+        error: 'forbidden'
+      };
+    }
+
     const userQuery = await db.collection('users')
-      .where({
-        _openid: openidToQuery
+      .where({ _openid: targetOpenid })
+      .field({
+        _id: true,
+        _openid: true,
+        userInfo: true,
+        userType: true,
+        badge: true,
+        profile: true,
+        stats: true,
+        permissions: true,
+        isAdmin: true,
+        phoneNumber: true,
+        createTime: true,
+        updateTime: true
       })
       .limit(1)
       .get();
 
-    if (!userQuery.data || userQuery.data.length === 0) {
+    if (!Array.isArray(userQuery.data) || userQuery.data.length === 0) {
       return {
         success: false,
-        error: '用户不存在',
+        error: 'user not found'
       };
     }
 
-    const user = userQuery.data[0];
-
-    // 返回完整信息（包含手机号）
     return {
       success: true,
-      data: {
-        _id: user._id,
-        _openid: user._openid,
-        nickName: user.nickName,
-        avatarUrl: user.avatarUrl,
-        phoneNumber: user.phoneNumber, // 手机号（仅后台可见）
-        createTime: user.createTime,
-        updateTime: user.updateTime,
-      },
+      data: userQuery.data[0]
     };
-
   } catch (err) {
-    console.error('获取用户信息失败:', err);
+    const message = err && err.message ? err.message : 'query failed';
+    if (message === 'forbidden') {
+      return {
+        success: false,
+        error: 'forbidden'
+      };
+    }
+    console.error('[getUserInfoAdmin] failed:', message);
     return {
       success: false,
-      error: err.message || '获取失败',
+      error: message
     };
   }
 };
 
+async function checkAdminAccess(openid) {
+  if (!openid) return false;
+  if (sharedAuth && typeof sharedAuth.assertAdmin === 'function') {
+    try {
+      await sharedAuth.assertAdmin({ db, openid, contextName: 'getUserInfoAdmin' });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
 
+  if (SUPER_ADMIN_OPENIDS.includes(openid)) {
+    return true;
+  }
 
+  const res = await db.collection('users')
+    .where({ _openid: openid })
+    .field({ isAdmin: true, permissions: true })
+    .limit(1)
+    .get();
+  const user = (res.data && res.data[0]) || {};
+  return !!(
+    user.isAdmin === true ||
+    (user.permissions && user.permissions.canManageUsers === true)
+  );
+}
 
-
-
-
-
+function toSafeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}

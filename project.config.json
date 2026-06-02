@@ -52,11 +52,127 @@
         "type": "folder"
       },
       {
+        "value": "cloudfunctions",
+        "type": "folder"
+      },
+      {
+        "value": "tmp",
+        "type": "folder"
+      },
+      {
+        "value": "scripts",
+        "type": "folder"
+      },
+      {
+        "value": "reports",
+        "type": "folder"
+      },
+      {
+        "value": ".github",
+        "type": "folder"
+      },
+      {
+        "value": ".cursor",
+        "type": "folder"
+      },
+      {
+        "value": ".trae",
+        "type": "folder"
+      },
+      {
+        "value": "test.txt",
+        "type": "file"
+      },
+      {
+        "value": "test-admin-debug.js",
+        "type": "file"
+      },
+      {
+        "value": "test-check-admin.js",
+        "type": "file"
+      },
+      {
+        "value": "test-comprehensive.js",
+        "type": "file"
+      },
+      {
+        "value": "test-direct-query.js",
+        "type": "file"
+      },
+      {
+        "value": "test-follow-list.js",
+        "type": "file"
+      },
+      {
+        "value": "test-second-admin.js",
+        "type": "file"
+      },
+      {
+        "value": "test-set-admin.js",
+        "type": "file"
+      },
+      {
         "value": "DEPLOYMENT_GUIDE.md",
         "type": "file"
       },
       {
         "value": "README.md",
+        "type": "file"
+      },
+      {
+        "value": "云函数API文档.md",
+        "type": "file"
+      },
+      {
+        "value": "快速使用指南.md",
+        "type": "file"
+      },
+      {
+        "value": "分类系统扩展完成报告.md",
+        "type": "file"
+      },
+      {
+        "value": "地图板块彻底重构完成报告.md",
+        "type": "file"
+      },
+      {
+        "value": "开发进度报告.md",
+        "type": "file"
+      },
+      {
+        "value": "关注功能修复完成.md",
+        "type": "file"
+      },
+      {
+        "value": "地图板块重构完成报告.md",
+        "type": "file"
+      },
+      {
+        "value": "分类显示修复报告.md",
+        "type": "file"
+      },
+      {
+        "value": "帖子详情页修复说明.md",
+        "type": "file"
+      },
+      {
+        "value": "修复关注功能权限错误.md",
+        "type": "file"
+      },
+      {
+        "value": "修复粉丝列表问题.md",
+        "type": "file"
+      },
+      {
+        "value": "错误修复说明.md",
+        "type": "file"
+      },
+      {
+        "value": "管理员权限说明.md",
+        "type": "file"
+      },
+      {
+        "value": "AGENTS.md",
         "type": "file"
       },
       {

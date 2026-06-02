@@ -1,0 +1,151 @@
+<view class="report-page">
+  <view class="report-header">
+    <view class="report-kicker">無界营造 AI 社区报告</view>
+    <text class="report-title">{{community}}无障碍环境诊断报告</text>
+    <text class="report-time" wx:if="{{generatedAt}}">生成时间：{{generatedAt}}</text>
+  </view>
+
+  <view class="report-loading" wx:if="{{loading}}">
+    正在生成社区报告...
+  </view>
+
+  <view class="report-error" wx:if="{{!loading && error}}">
+    {{error}}
+  </view>
+
+  <block wx:if="{{!loading && !error}}">
+    <view class="html-card" wx:if="{{htmlReportUrl || htmlReportError}}">
+      <view class="html-info">
+        <text class="html-title">HTML报告文件</text>
+        <text class="html-desc" wx:if="{{htmlReportUrl}}">已生成云存储临时链接，可复制后打开或转发给社区工作者。</text>
+        <text class="html-desc warn" wx:else>{{htmlReportError || 'HTML报告暂未生成'}}</text>
+      </view>
+      <button class="html-button" wx:if="{{htmlReportUrl}}" bindtap="copyHtmlReportUrl">复制链接</button>
+    </view>
+
+    <view class="fallback-tip" wx:if="{{aiFallback}}">
+      <text class="fallback-title">AI 生成暂不可用，已展示系统模板报告</text>
+      <text class="fallback-reason" wx:if="{{aiErrorMessage}}">原因：{{aiErrorMessage}}</text>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">社区概况</view>
+      <view class="overview-grid">
+        <view class="overview-card" wx:for="{{overviewCards}}" wx:key="label">
+          <text class="overview-value">{{item.value}}</text>
+          <text class="overview-label">{{item.label}}</text>
+          <text class="overview-hint">{{item.hint}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">问题类型统计</view>
+      <block wx:if="{{issueTypeStats.length}}">
+        <view class="bar-row" wx:for="{{issueTypeStats}}" wx:key="name">
+          <view class="bar-head">
+            <text class="bar-name">{{item.name}}</text>
+            <text class="bar-count">{{item.count}}条</text>
+          </view>
+          <view class="bar-track">
+            <view class="bar-fill" style="width: {{item.percent || 4}}%;"></view>
+          </view>
+        </view>
+      </block>
+      <view class="empty-line" wx:else>暂无分类数据</view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">风险量化与预算统计分析</view>
+      <view class="risk-grid">
+        <view class="risk-card {{item.className}}" wx:for="{{riskRows}}" wx:key="key">
+          <text class="risk-label">{{item.label}}</text>
+          <text class="risk-value">{{item.count}}</text>
+          <text class="risk-hint">{{item.hint}}</text>
+        </view>
+      </view>
+      <view class="budget-grid">
+        <view class="budget-card" wx:for="{{budgetStats}}" wx:key="label">
+          <text class="budget-title">{{item.label}}</text>
+          <text class="budget-value">{{item.value}}</text>
+          <text class="budget-hint">{{item.hint}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">问题分布热力图</view>
+      <view class="heatmap-shell">
+        <canvas canvas-id="communityHeatmap" id="communityHeatmap" class="heatmap-canvas"></canvas>
+        <image wx:if="{{heatmapImagePath}}" class="heatmap-image" src="{{heatmapImagePath}}" mode="aspectFill"></image>
+      </view>
+      <view class="heatmap-caption" wx:if="{{hasHeatmapPoints}}">
+        红色代表高风险或密集问题点，橙色为中风险，蓝色为低风险。
+      </view>
+      <view class="heatmap-caption" wx:else>
+        暂无可视化坐标数据。
+      </view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">详细问题清单（含AI诊断建议）</view>
+      <block wx:if="{{typicalIssues.length}}">
+        <view class="issue-card" wx:for="{{typicalIssues}}" wx:key="id">
+          <view class="issue-head">
+            <text class="issue-title">{{item.id}} {{item.subtype}}</text>
+            <text class="issue-risk {{item.riskLevel}}">{{item.riskText}}</text>
+          </view>
+          <view class="issue-meta">{{item.category}} · {{item.statusText}}</view>
+          <view class="issue-row">
+            <text class="issue-label">位置</text>
+            <text class="issue-value">{{item.location}}</text>
+          </view>
+          <view class="issue-row">
+            <text class="issue-label">坐标</text>
+            <text class="issue-value">{{item.coordinate}}</text>
+          </view>
+          <view class="issue-row">
+            <text class="issue-label">问题描述</text>
+            <text class="issue-value">{{item.description}}</text>
+          </view>
+          <view class="issue-row">
+            <text class="issue-label">整改建议</text>
+            <text class="issue-value">{{item.suggestion}}</text>
+          </view>
+          <view class="issue-row">
+            <text class="issue-label">参考规范</text>
+            <text class="issue-value">{{item.standard}}</text>
+          </view>
+        </view>
+      </block>
+      <view class="empty-line" wx:else>暂无典型问题</view>
+    </view>
+
+    <view class="section-card">
+      <view class="section-title">改造方案推荐</view>
+      <block wx:if="{{schemeRecommendations.length}}">
+        <view class="scheme-row" wx:for="{{schemeRecommendations}}" wx:key="code">
+          <view class="scheme-code">{{item.code}}</view>
+          <view class="scheme-main">
+            <text class="scheme-title">{{item.title}}</text>
+            <text class="scheme-desc">{{item.scenario}} · 匹配{{item.hitCount}}次</text>
+          </view>
+        </view>
+      </block>
+      <view class="empty-line" wx:else>暂无匹配方案</view>
+    </view>
+
+    <view class="section-card" wx:if="{{reportSections.length}}">
+      <view class="section-title">AI报告正文</view>
+      <view class="report-section" wx:for="{{reportSections}}" wx:key="title">
+        <text class="report-section-title">{{item.title}}</text>
+        <text class="report-section-content">{{item.content}}</text>
+      </view>
+    </view>
+
+    <view class="section-card" wx:elif="{{reportText}}">
+      <view class="section-title">AI报告正文</view>
+      <text class="report-text">{{reportText}}</text>
+    </view>
+  </block>
+</view>

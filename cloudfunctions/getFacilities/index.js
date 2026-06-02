@@ -1,6 +1,5 @@
-// 云函数：getFacilities
-// 获取无障碍设施列表
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
@@ -8,134 +7,145 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
-exports.main = async (event, context) => {
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
+
+exports.main = async (event = {}) => {
   try {
-    const {
-      latitude,
-      longitude,
-      radius = 5000, // 默认5公里
-      facilityType,
-      status,
-      page = 1,
-      pageSize = 50
-    } = event;
-
-    let query = {};
-
-    // 1. 地理位置查询
-    if (latitude && longitude) {
-      const center = new db.Geo.Point(longitude, latitude);
-      query.location = _.geoNear({
-        geometry: center,
-        maxDistance: radius,
-        minDistance: 0
-      });
+    const facilityId = toSafeString(event.facilityId, 64);
+    if (facilityId) {
+      return getById(facilityId);
     }
 
-    // 2. 设施类型筛选
-    if (facilityType) {
-      query.facilityType = facilityType;
-    }
-
-    // 3. 状态筛选
-    if (status) {
-      if (Array.isArray(status)) {
-        query.status = _.in(status);
-      } else {
-        query.status = status;
-      }
-    }
-
-    // 4. 查询设施
-    const skip = (page - 1) * pageSize;
-    
-    let queryBuilder = db.collection('facilities').where(query);
-    
-    // 如果有地理位置查询，按距离排序
-    // 否则按创建时间倒序
-    if (!latitude || !longitude) {
-      queryBuilder = queryBuilder.orderBy('createTime', 'desc');
-    }
-    
-    const result = await queryBuilder
-      .skip(skip)
-      .limit(pageSize)
-      .get();
-
-    // 5. 统计总数
-    const countResult = await db.collection('facilities').where(query).count();
-
-    console.log('✅ 查询设施成功，数量:', result.data.length);
-
-    return {
-      success: true,
-      data: result.data,
-      total: countResult.total,
-      page: page,
-      pageSize: pageSize,
-      hasMore: skip + result.data.length < countResult.total
-    };
-
+    return queryList(event);
   } catch (err) {
-    console.error('获取设施列表失败:', err);
-    
-    // 如果地理位置查询失败，尝试不使用地理位置查询
-    if (err.message && err.message.includes('geo')) {
-      try {
-        const {
-          facilityType,
-          status,
-          page = 1,
-          pageSize = 50
-        } = event;
-
-        let query = {};
-
-        if (facilityType) {
-          query.facilityType = facilityType;
-        }
-
-        if (status) {
-          if (Array.isArray(status)) {
-            query.status = _.in(status);
-          } else {
-            query.status = status;
-          }
-        }
-
-        const skip = (page - 1) * pageSize;
-        const result = await db.collection('facilities')
-          .where(query)
-          .orderBy('createTime', 'desc')
-          .skip(skip)
-          .limit(pageSize)
-          .get();
-
-        const countResult = await db.collection('facilities').where(query).count();
-
-        console.log('✅ 查询设施成功（无地理位置），数量:', result.data.length);
-
-        return {
-          success: true,
-          data: result.data,
-          total: countResult.total,
-          page: page,
-          pageSize: pageSize,
-          hasMore: skip + result.data.length < countResult.total
-        };
-      } catch (fallbackErr) {
-        console.error('备用查询也失败:', fallbackErr);
-        return {
-          success: false,
-          error: fallbackErr.message || '获取失败，请稍后重试'
-        };
-      }
-    }
-
+    console.error('[getFacilities] failed:', err);
     return {
       success: false,
-      error: err.message || '获取失败，请稍后重试'
+      error: err && err.message ? err.message : 'query failed'
     };
   }
 };
 
+async function getById(facilityId) {
+  try {
+    const res = await db.collection('facilities').doc(facilityId).get();
+    if (!res || !res.data) {
+      return {
+        success: false,
+        error: 'facility not found'
+      };
+    }
+
+    return {
+      success: true,
+      data: [res.data],
+      total: 1,
+      page: 1,
+      pageSize: 1,
+      hasMore: false
+    };
+  } catch (err) {
+    if (String(err && err.message || '').includes('does not exist')) {
+      return {
+        success: false,
+        error: 'facility not found'
+      };
+    }
+    throw err;
+  }
+}
+
+async function queryList(event) {
+  const page = toPositiveInt(event.page, 1);
+  const pageSize = clamp(toPositiveInt(event.pageSize, DEFAULT_PAGE_SIZE), 1, MAX_PAGE_SIZE);
+  const includeTotal = event.includeTotal !== false;
+  const skip = (page - 1) * pageSize;
+
+  const query = buildWhere(event);
+  let queryBuilder = db.collection('facilities').where(query);
+
+  const hasGeo = isFiniteNumber(event.latitude) && isFiniteNumber(event.longitude);
+  if (!hasGeo) {
+    queryBuilder = queryBuilder.orderBy('createTime', 'desc');
+  }
+
+  const result = await queryBuilder.skip(skip).limit(pageSize + 1).get();
+  const rows = Array.isArray(result.data) ? result.data : [];
+  const hasMore = rows.length > pageSize;
+  const data = rows.slice(0, pageSize);
+
+  let total = null;
+  if (includeTotal) {
+    const countResult = await db.collection('facilities').where(query).count();
+    total = countResult.total || 0;
+  } else {
+    total = skip + data.length + (hasMore ? 1 : 0);
+  }
+
+  return {
+    success: true,
+    data,
+    total,
+    page,
+    pageSize,
+    hasMore
+  };
+}
+
+function buildWhere(event) {
+  const query = {};
+
+  const latitude = Number(event.latitude);
+  const longitude = Number(event.longitude);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    const radius = clamp(toPositiveInt(event.radius, 5000), 100, 50000);
+    query.location = _.geoNear({
+      geometry: new db.Geo.Point(longitude, latitude),
+      maxDistance: radius,
+      minDistance: 0
+    });
+  }
+
+  const facilityType = toSafeString(event.facilityType, 64);
+  if (facilityType) {
+    query.facilityType = facilityType;
+  }
+
+  const status = event.status;
+  if (Array.isArray(status) && status.length > 0) {
+    const safeStatus = status.map((item) => toSafeString(item, 32)).filter(Boolean);
+    if (safeStatus.length > 0) {
+      query.status = _.in(safeStatus);
+    }
+  } else {
+    const oneStatus = toSafeString(status, 32);
+    if (oneStatus) {
+      query.status = oneStatus;
+    }
+  }
+
+  return query;
+}
+
+function toSafeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}
+
+function toPositiveInt(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const i = Math.floor(n);
+  return i > 0 ? i : fallback;
+}
+
+function isFiniteNumber(value) {
+  return Number.isFinite(Number(value));
+}
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
+}

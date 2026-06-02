@@ -7,6 +7,7 @@ cloud.init({
 
 const db = cloud.database();
 const _ = db.command;
+const media = require('../_shared/media');
 
 exports.main = async (event, context) => {
   const { targetId, type, page = 1, pageSize = 20 } = event;
@@ -112,15 +113,7 @@ exports.main = async (event, context) => {
         title = String(titleSource).split('\n')[0].slice(0, 40) || '未命名内容';
         
         // 提取图片
-        if (targetData.images && targetData.images.length > 0) {
-          image = targetData.images[0];
-        } else if (targetData.coverImage) {
-          image = targetData.coverImage;
-        } else if (targetData.beforeImg) {
-          image = targetData.beforeImg;
-        } else if (targetData.imageUrl) {
-          image = targetData.imageUrl;
-        }
+        image = media.pickImageFromDoc(targetData) || image;
       }
 
       return {
@@ -136,22 +129,16 @@ exports.main = async (event, context) => {
 
     // 转换云存储URL
     const cloudUrls = enrichedActions
-      .map(item => item.image)
-      .filter(url => url && url.startsWith('cloud://'));
+      .map((item) => item.image)
+      .filter((url) => media.isCloudFileId(url));
 
     if (cloudUrls.length > 0) {
-      const uniqueUrls = [...new Set(cloudUrls)];
-      const urlRes = await cloud.getTempFileURL({ fileList: uniqueUrls });
-      
-      const urlMap = new Map();
-      (urlRes.fileList || []).forEach(file => {
-        if (file.tempFileURL) {
-          urlMap.set(file.fileID, file.tempFileURL);
-        }
+      const urlMap = await media.resolveTempUrlMap(cloud, cloudUrls, {
+        scenario: 'getUserActions'
       });
 
-      enrichedActions.forEach(item => {
-        if (item.image && item.image.startsWith('cloud://')) {
+      enrichedActions.forEach((item) => {
+        if (media.isCloudFileId(item.image)) {
           item.image = urlMap.get(item.image) || item.image;
         }
       });

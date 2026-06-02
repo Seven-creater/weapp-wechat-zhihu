@@ -1,0 +1,10 @@
+{
+  "name": "getCommunityObstacleSummary",
+  "version": "1.0.0",
+  "description": "Get obstacle summary for a supported community.",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  },
+  "license": "MIT"
+}

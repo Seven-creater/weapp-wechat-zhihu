@@ -4,26 +4,40 @@ const followUtil = require('../../utils/follow.js');
 
 Page({
   data: {
-    type: 'following', // following or followers
+    type: 'following',
     users: [],
-    loading: false
+    loading: false,
+    page: 1,
+    pageSize: 20,
+    hasMore: true
   },
 
-  onLoad: function (options) {
-    this.setData({ type: options.type || 'following' });
+  onLoad(options) {
+    const type = options.type || 'following';
+    this.setData({ type });
     wx.setNavigationBarTitle({
-      title: options.type === 'followers' ? '粉丝' : '关注'
+      title: type === 'followers' ? '粉丝' : '关注'
+    });
+    this.loadData(true);
+  },
+
+  onShow() {
+    // no-op: onLoad 已加载；避免重复请求
+  },
+
+  onPullDownRefresh() {
+    Promise.resolve(this.loadData(true)).finally(() => {
+      wx.stopPullDownRefresh();
     });
   },
 
-  onShow: function () {
-    this.loadData();
+  onReachBottom() {
+    if (!this.data.loading && this.data.hasMore) {
+      this.loadData(false);
+    }
   },
 
-  /**
-   * 加载数据
-   */
-  loadData: function () {
+  loadData(refresh = false) {
     const openid = app.globalData.openid || wx.getStorageSync('openid');
     if (!openid) {
       wx.showModal({
@@ -36,222 +50,107 @@ Page({
           }
         }
       });
-      return;
+      return Promise.resolve();
     }
 
+    if (this.data.loading) return Promise.resolve();
+    const nextPage = refresh ? 1 : this.data.page + 1;
     this.setData({ loading: true });
 
-    console.log('🔍 开始加载列表，类型:', this.data.type, '用户:', openid);
+    const fetcher = this.data.type === 'following'
+      ? followUtil.getFollowingList
+      : followUtil.getFollowersList;
 
-    // 根据类型加载不同的列表
-    const loadPromise = this.data.type === 'following' 
-      ? followUtil.getFollowingList() 
-      : followUtil.getFollowersList();
-
-    loadPromise
-      .then(follows => {
-        console.log('✅ 查询关注记录成功，数量:', follows ? follows.length : 0);
-        
-        // 🔧 检查 follows 是否有效
-        if (!follows || !Array.isArray(follows)) {
-          console.error('❌ follows 数据无效:', follows);
-          this.setData({ users: [], loading: false });
-          wx.showToast({ 
-            title: '数据格式错误', 
-            icon: 'none' 
-          });
-          return Promise.reject(new Error('数据格式错误'));
-        }
-        
-        // 提取用户ID列表
-        const userIds = follows.map(f => 
-          this.data.type === 'following' ? f.targetId : f._openid
-        ).filter(id => id);
-
-        console.log('📋 提取到的用户ID列表:', userIds);
-
-        if (userIds.length === 0) {
-          this.setData({ users: [], loading: false });
-          return Promise.resolve(null); // 返回 null 而不是 undefined
-        }
-
-        // 批量查询用户信息
-        return this.batchGetUserInfo(userIds, follows);
-      })
-      .then(users => {
-        if (users !== null && users !== undefined) {
-          console.log('✅ 用户信息查询完成，数量:', users.length);
-          this.setData({ users, loading: false });
-        }
-      })
-      .catch(err => {
-        console.error('❌ 加载列表失败:', err);
-        console.error('错误详情:', JSON.stringify(err));
-        console.error('错误堆栈:', err.stack);
-        this.setData({ loading: false });
-        
-        // 显示更详细的错误信息
-        let errorMsg = '加载失败';
-        if (err.errMsg) {
-          errorMsg = err.errMsg;
-        } else if (err.message) {
-          errorMsg = err.message;
-        }
-        
-        wx.showToast({ 
-          title: errorMsg, 
-          icon: 'none',
-          duration: 3000
-        });
-      });
-  },
-
-  /**
-   * 批量获取用户信息
-   */
-  batchGetUserInfo: function (userIds, follows) {
-    return new Promise((resolve, reject) => {
-      const openid = app.globalData.openid || wx.getStorageSync('openid');
-
-      // 使用云函数批量查询用户信息
-      const promises = userIds.map(userId => {
-        return wx.cloud.callFunction({
-          name: 'getUserInfo',
-          data: { targetId: userId }
-        }).then(res => {
-          if (res.result && res.result.success) {
-            return {
-              userId: userId,
-              userInfo: res.result.data.userInfo || { 
-                nickName: '未知用户', 
-                avatarUrl: '/images/zhi.png' 
-              },
-              userType: res.result.data.userType || 'normal'
-            };
-          }
-          return {
-            userId: userId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-            userType: 'normal'
-          };
-        }).catch(err => {
-          console.error('查询用户信息失败:', userId, err);
-          return {
-            userId: userId,
-            userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-            userType: 'normal'
-          };
-        });
+    return fetcher({
+      userId: openid,
+      page: nextPage,
+      pageSize: this.data.pageSize,
+      includeProfile: true,
+      returnMeta: true
+    }).then((res) => {
+      const rows = Array.isArray(res.data) ? res.data : [];
+      const users = rows.map((item) => {
+        const userId = this.data.type === 'following' ? item.targetId : item._openid;
+        const userInfo = item.userInfo || { nickName: '未知用户', avatarUrl: '/images/zhi.png' };
+        return {
+          userId,
+          userInfo,
+          userType: item.userType || 'normal',
+          isFollowing: !!item.isFollowing,
+          isMutual: !!item.isMutual,
+          isSelf: userId === openid,
+          createTime: item.createTime
+        };
       });
 
-      Promise.all(promises).then(usersData => {
-        // 构建用户映射
-        const userMap = {};
-        usersData.forEach(u => {
-          if (u && u.userId) {
-            userMap[u.userId] = u;
-          }
-        });
-
-        // 查询我关注的人（用于显示关注按钮状态）
-        followUtil.getFollowingList().then(myFollows => {
-          const followingSet = new Set(myFollows.map(f => f.targetId));
-
-          // 构建最终的用户列表
-          const users = follows.map(f => {
-            const userId = this.data.type === 'following' ? f.targetId : f._openid;
-            const userData = userMap[userId];
-
-            // 🔧 防止 userData 为 undefined
-            if (!userData) {
-              console.warn('⚠️ 用户数据不存在:', userId);
-              return {
-                userId: userId,
-                userInfo: { nickName: '未知用户', avatarUrl: '/images/zhi.png' },
-                userType: 'normal',
-                isFollowing: followingSet.has(userId),
-                isSelf: userId === openid,
-                createTime: f.createTime
-              };
-            }
-
-            return {
-              userId: userId,
-              userInfo: userData.userInfo,
-              userType: userData.userType,
-              isFollowing: followingSet.has(userId),
-              isSelf: userId === openid,
-              createTime: f.createTime
-            };
-          });
-
-          resolve(users);
-        }).catch(reject);
-      }).catch(reject);
+      this.setData({
+        users: refresh ? users : (this.data.users || []).concat(users),
+        page: nextPage,
+        hasMore: !!(res.pagination && res.pagination.hasMore),
+        loading: false
+      });
+    }).catch((err) => {
+      console.error('load follow list failed:', err);
+      this.setData({ loading: false });
+      wx.showToast({
+        title: err.message || '加载失败',
+        icon: 'none',
+        duration: 3000
+      });
     });
   },
 
-  /**
-   * 跳转到用户主页
-   */
-  navigateToProfile: function (e) {
+  navigateToProfile(e) {
     const userId = e.currentTarget.dataset.id;
     const openid = app.globalData.openid || wx.getStorageSync('openid');
-    
+
     if (!userId) {
       wx.showToast({ title: '用户ID错误', icon: 'none' });
       return;
     }
-    
     if (userId === openid) {
       wx.switchTab({ url: '/pages/mine/index' });
       return;
     }
-    
     wx.navigateTo({
       url: `/pages/user-profile/index?id=${userId}`
     });
   },
 
-  /**
-   * 关注/取消关注
-   */
-  toggleFollow: function (e) {
-    const index = e.currentTarget.dataset.index;
+  toggleFollow(e) {
+    const index = Number(e.currentTarget.dataset.index);
     const user = this.data.users[index];
-    
-    if (!user || user.isSelf) {
-      return;
-    }
+    if (!user || user.isSelf) return;
 
-    const action = user.isFollowing ? '取消关注' : '关注';
-    
     wx.showLoading({ title: '处理中...' });
-    
-    const promise = user.isFollowing 
+    const promise = user.isFollowing
       ? followUtil.unfollowUser(user.userId)
       : followUtil.followUser(user.userId);
 
-    promise
-      .then(() => {
-        wx.hideLoading();
-        wx.showToast({ 
-          title: user.isFollowing ? '已取消关注' : '关注成功', 
-          icon: 'success' 
-        });
-        
-        // 更新状态
-        const users = this.data.users;
-        users[index].isFollowing = !user.isFollowing;
-        this.setData({ users });
-      })
-      .catch(err => {
-        wx.hideLoading();
-        console.error('操作失败:', err);
-        wx.showToast({ 
-          title: err.message || '操作失败', 
-          icon: 'none' 
-        });
+    promise.then(() => {
+      wx.hideLoading();
+      wx.showToast({
+        title: user.isFollowing ? '已取消关注' : '关注成功',
+        icon: 'success'
       });
+
+      const users = this.data.users.slice();
+      const nextFollowing = !user.isFollowing;
+      users[index] = {
+        ...users[index],
+        isFollowing: nextFollowing,
+        isMutual: this.data.type === 'followers'
+          ? nextFollowing
+          : users[index].isMutual
+      };
+      this.setData({ users });
+    }).catch((err) => {
+      wx.hideLoading();
+      console.error('follow action failed:', err);
+      wx.showToast({
+        title: err.message || '操作失败',
+        icon: 'none'
+      });
+    });
   }
 });

@@ -1,18 +1,18 @@
 <!-- pages/design/solution/create.wxml -->
 <view class="container">
   <view class="header">
-    <view class="header-title">添加设计方案</view>
-    <view class="header-subtitle">为问题提供专业的设计建议</view>
+    <view class="header-title">提交报名方案</view>
+    <view class="header-subtitle">提交方案说明、报价和预计工期</view>
   </view>
 
   <view class="form-section">
     <view class="form-label">
-      <text class="label-text">设计方案描述</text>
+      <text class="label-text">方案说明</text>
       <text class="label-required">*</text>
     </view>
     <textarea 
       class="form-textarea"
-      placeholder="详细描述您的设计方案、施工建议、材料选择等..."
+      placeholder="详细描述您的方案、施工建议、材料选择等..."
       value="{{description}}"
       bindinput="onDescInput"
       maxlength="1000"
@@ -23,7 +23,7 @@
 
   <view class="form-section">
     <view class="form-label">
-      <text class="label-text">设计图纸</text>
+      <text class="label-text">方案图片</text>
       <text class="label-required">*</text>
       <text class="label-tip">（最多{{maxImages}}张）</text>
     </view>
@@ -57,24 +57,37 @@
 
   <view class="form-section">
     <view class="form-label">
-      <text class="label-text">预算调整（元）</text>
+      <text class="label-text">报价金额（元）</text>
     </view>
     <input 
       class="form-input"
       type="digit"
-      placeholder="如需调整预算，请输入新的预算金额"
+      placeholder="请输入报价金额"
       value="{{budgetAdjustment}}"
       bindinput="onBudgetInput"
     />
-    <view class="form-tip">💡 如果AI估算的预算不准确，可以在此调整</view>
+    <view class="form-tip">用于需求方查看在线报价，可后续沟通确认</view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="label-text">预计工期（天）</text>
+    </view>
+    <input 
+      class="form-input"
+      type="number"
+      placeholder="请输入预计工期"
+      value="{{estimateDays}}"
+      bindinput="onEstimateDaysInput"
+    />
   </view>
 
   <view class="tips-section">
-    <view class="tips-title">📝 设计建议</view>
+    <view class="tips-title">报名建议</view>
     <view class="tips-item">• 提供详细的设计方案和施工步骤</view>
     <view class="tips-item">• 上传清晰的设计图纸或效果图</view>
     <view class="tips-item">• 说明材料选择和施工注意事项</view>
-    <view class="tips-item">• 给出合理的预算建议</view>
+    <view class="tips-item">• 给出合理的报价和预计工期</view>
   </view>
 
   <view class="submit-section">
@@ -83,7 +96,7 @@
       bindtap="submitSolution"
       disabled="{{submitting}}"
     >
-      {{submitting ? '提交中...' : '提交设计方案'}}
+      {{submitting ? '提交中...' : '提交报名方案'}}
     </button>
   </view>
 </view>

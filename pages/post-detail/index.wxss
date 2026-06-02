@@ -165,6 +165,276 @@
   text-align: justify;
 }
 
+.recognition-report-card {
+  background-color: #f1f5ff;
+  border-radius: 16rpx;
+  padding: 26rpx;
+  border: 1rpx solid #d9e4ff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 47, 167, 0.04);
+}
+
+.recognition-report-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx dashed #c7d7ff;
+}
+
+.recognition-report-icon {
+  font-size: 34rpx;
+  margin-right: 12rpx;
+}
+
+.recognition-report-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #002fa7;
+}
+
+.recognition-report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 10rpx 0;
+}
+
+.recognition-report-label {
+  font-size: 25rpx;
+  color: #6b7a99;
+}
+
+.recognition-report-value {
+  font-size: 28rpx;
+  color: #0a2463;
+  font-weight: 700;
+  text-align: right;
+}
+
+.recognition-report-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8rpx;
+  flex: 1;
+}
+
+.recognition-report-tag {
+  max-width: 100%;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  background-color: #eef4ff;
+  color: #0a2463;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.scheme-report-card {
+  background-color: #fffaf0;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  border: 1rpx solid #f1dfb8;
+  box-shadow: 0 4rpx 12rpx rgba(120, 80, 0, 0.05);
+}
+
+.scheme-report-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 18rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx dashed #dfc98f;
+}
+
+.scheme-report-icon {
+  font-size: 34rpx;
+  margin-right: 12rpx;
+}
+
+.scheme-report-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #8a5a00;
+}
+
+.ramp-problem-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 16rpx;
+}
+
+.ramp-problem-tag {
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background-color: #fff3d1;
+  color: #8a5a00;
+  font-size: 22rpx;
+}
+
+.scheme-card {
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f1dfb8;
+}
+
+.scheme-card:last-child {
+  border-bottom: 0;
+}
+
+.scheme-card-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.scheme-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.scheme-card-code {
+  min-width: 96rpx;
+  color: #002fa7;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.scheme-card-title {
+  color: #333;
+  font-size: 27rpx;
+  line-height: 1.4;
+}
+
+.scheme-card-status {
+  flex-shrink: 0;
+  font-size: 23rpx;
+  color: #178a5f;
+}
+
+.scheme-card.placeholder .scheme-card-status {
+  color: #a36b00;
+}
+
+.scheme-file-groups {
+  margin-top: 16rpx;
+  padding-left: 8rpx;
+}
+
+.scheme-focused-sections {
+  margin-top: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.scheme-focus-section {
+  padding: 14rpx 16rpx;
+  border-radius: 12rpx;
+  background-color: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid #f3e7c8;
+}
+
+.scheme-file-group {
+  margin-top: 14rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 12rpx;
+  background-color: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid #f3e7c8;
+}
+
+.scheme-group-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+  color: #8a5a00;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.scheme-section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+  color: #8a5a00;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.scheme-group-count {
+  flex-shrink: 0;
+  color: #9a7a38;
+  font-size: 22rpx;
+  font-weight: 400;
+}
+
+.scheme-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  padding: 10rpx 0;
+  border-top: 1rpx solid #f5ecd6;
+}
+
+.scheme-file-name {
+  flex: 1;
+  min-width: 0;
+  color: #333;
+  font-size: 24rpx;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.scheme-file-type {
+  flex-shrink: 0;
+  color: #178a5f;
+  font-size: 22rpx;
+}
+
+.scheme-file-row.engineering .scheme-file-type {
+  color: #a36b00;
+}
+
+.scheme-tag-summary {
+  background-color: #fffdf7;
+}
+
+.scheme-summary-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 8rpx 0;
+}
+
+.scheme-summary-label {
+  width: 112rpx;
+  flex-shrink: 0;
+  color: #9a7a38;
+  font-size: 23rpx;
+}
+
+.scheme-summary-value {
+  flex: 1;
+  color: #3d3420;
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+
+.scheme-card-empty {
+  display: block;
+  color: #8a6d3b;
+  font-size: 27rpx;
+  line-height: 1.6;
+}
+
 /* 用户建议块 */
 .user-suggestion-block {
   margin-bottom: 30rpx;
@@ -257,6 +527,13 @@
   word-break: break-word;
   padding-left: 20rpx;
   border-left: 3rpx solid #002fa7;
+}
+
+.coordinate-text {
+  font-size: 24rpx;
+  color: #777;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 /* 图片展示 */
@@ -849,6 +1126,49 @@
   transform: scale(0.95);
 }
 
+.tag-demand {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.demand-info-card {
+  margin: 20rpx 0;
+  padding: 22rpx;
+  border-radius: 16rpx;
+  background: #f8fbff;
+  border: 2rpx solid #dbeafe;
+}
+
+.demand-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 0;
+}
+
+.demand-info-label {
+  color: #64748b;
+  font-size: 26rpx;
+}
+
+.demand-info-value {
+  color: #172554;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.demand-info-value.urgency-high {
+  color: #ef4444;
+}
+
+.demand-info-value.urgency-medium {
+  color: #f59e0b;
+}
+
+.demand-info-value.urgency-low {
+  color: #22c55e;
+}
+
 /* 状态徽章 */
 .status-badge {
   margin-left: auto;
@@ -870,6 +1190,21 @@
 .status-processing {
   background: #dbeafe;
   color: #1e40af;
+}
+
+.status-accepted {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.status-constructing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-accepting {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .status-completed {
@@ -977,4 +1312,3 @@
 .completed-badge:active {
   transform: none;
 }
-

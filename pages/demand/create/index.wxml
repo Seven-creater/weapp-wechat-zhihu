@@ -1,0 +1,124 @@
+<view class="demand-create-page">
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>标题</text>
+    </view>
+    <input
+      class="form-input"
+      value="{{title}}"
+      maxlength="30"
+      placeholder="如：楠竹社区单元门口坡道改造"
+      bindinput="onTitleInput"
+    />
+    <view class="input-count">{{title.length}}/30</view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>问题描述</text>
+    </view>
+    <textarea
+      class="form-textarea"
+      value="{{content}}"
+      maxlength="300"
+      placeholder="描述改造需求、影响人群、希望解决的问题..."
+      bindinput="onContentInput"
+      show-confirm-bar="{{false}}"
+    ></textarea>
+    <view class="input-count">{{content.length}}/300</view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>上传图片</text>
+      <text class="label-tip">（最多5张）</text>
+    </view>
+    <view class="image-grid">
+      <view class="image-item" wx:for="{{images}}" wx:key="index">
+        <image class="preview-image" src="{{item.path}}" mode="aspectFill" bindtap="previewImage" data-src="{{item.path}}" />
+        <view class="remove-btn" bindtap="removeImage" data-index="{{index}}">×</view>
+      </view>
+      <view class="add-image" wx:if="{{images.length < 5}}" bindtap="chooseImage">
+        <text class="add-icon">+</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>发布到哪个社区</text>
+    </view>
+    <view class="option-row">
+      <view
+        class="option-item {{selectedCommunity === item ? 'active' : ''}}"
+        wx:for="{{communityOptions}}"
+        wx:key="*this"
+        data-value="{{item}}"
+        bindtap="selectCommunity"
+      >{{item}}</view>
+    </view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>位置</text>
+    </view>
+    <view class="location-card" bindtap="chooseLocation">
+      <view>
+        <view class="location-name">{{formattedAddress || '请选择位置'}}</view>
+        <view class="location-address">{{detailAddress || address || '点击选择改造位置'}}</view>
+      </view>
+      <text class="location-action">定位</text>
+    </view>
+    <input
+      class="form-input detail-input"
+      value="{{detailAddress}}"
+      maxlength="120"
+      placeholder="补充门牌号、楼栋、单元等详细位置"
+      bindinput="onDetailAddressInput"
+    />
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text class="required">*</text>
+      <text>紧急程度</text>
+    </view>
+    <view class="urgency-row">
+      <view
+        class="urgency-item {{urgency === item.value ? 'active' : ''}} {{item.value}}"
+        wx:for="{{urgencyOptions}}"
+        wx:key="value"
+        data-value="{{item.value}}"
+        bindtap="selectUrgency"
+      >
+        <text class="urgency-name">{{item.label}}</text>
+        <text class="urgency-desc">{{item.desc}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-section">
+    <view class="form-label">
+      <text>联系方式（选填）</text>
+    </view>
+    <input
+      class="form-input"
+      value="{{contactPhone}}"
+      maxlength="32"
+      placeholder="便于报名方沟通需求"
+      bindinput="onContactPhoneInput"
+    />
+  </view>
+
+  <view class="submit-wrap">
+    <button class="submit-btn" bindtap="submitDemand" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : '提交发布'}}
+    </button>
+  </view>
+</view>

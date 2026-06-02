@@ -2,10 +2,10 @@
 <view class="container">
   <!-- 问题信息 -->
   <view wx:if="{{post}}" class="problem-section">
-    <view class="section-title">障碍问题</view>
+    <view class="section-title">{{post.type === 'demand' ? '改造需求' : '障碍问题'}}</view>
     <view class="problem-card">
       <view class="problem-header">
-        <view class="category-badge">{{post.category}}</view>
+        <view class="category-badge">{{post.categoryName || post.category}}</view>
         <view class="status-badge pending">待处理</view>
       </view>
       <view class="problem-content">{{post.content}}</view>

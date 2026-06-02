@@ -7,16 +7,33 @@ cloud.init({
 
 const db = cloud.database();
 
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[setAdmin] shared auth unavailable');
+}
+
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[setAdmin] shared validate unavailable');
+}
+
 // 🔐 超级管理员列表（硬编码）
-const SUPER_ADMIN_OPENIDS = [
-  'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',
-  'oOJhu3T9Us9TAnibhfctmyRw2Urc'
-];
+const SUPER_ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 /**
  * 检查是否是管理员
  */
 async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
   // 1. 首先检查是否是超级管理员
   if (SUPER_ADMIN_OPENIDS.includes(openid)) {
     console.log('✅ 超级管理员权限验证通过:', openid);
@@ -47,6 +64,16 @@ async function isAdmin(openid) {
   return false;
 }
 
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
 // 管理员权限配置（不改变用户身份，只添加管理员权限）
 const ADMIN_PERMISSIONS = {
   canVerifyIssue: true,
@@ -68,7 +95,19 @@ const ADMIN_PERMISSIONS = {
  */
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext();
-  const { targetOpenid } = event;
+  const targetCheck = validateString(event && event.targetOpenid, {
+    name: 'targetOpenid',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!targetCheck.ok) {
+    return {
+      success: false,
+      error: targetCheck.error
+    };
+  }
+  const targetOpenid = targetCheck.value;
 
   try {
     // 🔒 安全检查：只允许管理员调用此函数

@@ -1,16 +1,37 @@
 <view class="container">
   <view class="header">
-    <text class="title">统计数据调试</text>
+    <text class="title">性能采样调试</text>
+    <text class="subtitle">开关: {{perfMode ? 'ON' : 'OFF'}} | 会话: {{sessionActive ? '进行中' : '未开始'}}</text>
   </view>
 
-  <view class="content">
-    <text class="result">{{result || '加载中...'}}</text>
+  <view class="meta-card">
+    <text class="line">runId: {{runId}}</text>
+    <text class="line">appVersion: {{appVersion}}</text>
+    <text class="line">networkType: {{networkType}}</text>
+    <text class="line">routeCount: {{routeCount}} | sampleCount: {{sampleCount}}</text>
+    <text class="line">droppedRaw: {{droppedRawSampleCount}}</text>
   </view>
 
-  <view class="buttons">
-    <button class="btn" bindtap="checkStats">刷新数据</button>
-    <button class="btn primary" bindtap="runFix">运行修复</button>
-    <button class="btn" bindtap="copyResult">复制结果</button>
+  <view class="button-group">
+    <button class="btn primary" bindtap="startSampling">开始采样</button>
+    <button class="btn" bindtap="stopSampling">结束采样</button>
+    <button class="btn" bindtap="copyJSON">复制JSON</button>
+    <button class="btn" bindtap="uploadSummary">上传聚合</button>
+    <button class="btn danger" bindtap="clearSession">清空</button>
+  </view>
+
+  <view class="card">
+    <text class="card-title">会话摘要</text>
+    <text class="card-content">{{reportText}}</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">Top 路由 (按首屏 p95)</text>
+    <text class="card-content">{{summaryText}}</text>
+  </view>
+
+  <view class="card">
+    <text class="card-title">Blocked Routes</text>
+    <text class="card-content">{{blockedText}}</text>
   </view>
 </view>
-

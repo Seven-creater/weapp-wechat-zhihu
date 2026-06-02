@@ -1,6 +1,5 @@
-// 云函数：removeCertification
-// 移除用户的认证身份（施工方、社区工作者、设计者）
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
@@ -8,37 +7,74 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
-// 🔐 管理员 openid 列表
-const ADMIN_OPENIDS = [
-  'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ'  // 管理员账号
-];
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[removeCertification] shared auth unavailable');
+}
 
-exports.main = async (event, context) => {
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[removeCertification] shared validate unavailable');
+}
+
+const ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
+  if (ADMIN_OPENIDS.includes(openid)) {
+    return true;
+  }
+  return false;
+}
+
+exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext();
   const adminOpenid = wxContext.OPENID;
 
+  const targetCheck = validateString(event.targetOpenid, {
+    name: 'targetOpenid',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!targetCheck.ok) {
+    return {
+      success: false,
+      error: targetCheck.error
+    };
+  }
+  const targetOpenid = targetCheck.value;
+
   try {
-    const { targetOpenid } = event;
-
-    // 验证参数
-    if (!targetOpenid) {
-      return {
-        success: false,
-        error: '参数错误：缺少目标用户 openid'
-      };
-    }
-
-    // ✅ 验证管理员权限
-    if (!ADMIN_OPENIDS.includes(adminOpenid)) {
+    if (!(await isAdmin(adminOpenid))) {
       return {
         success: false,
         error: '权限不足，仅管理员可以移除认证身份'
       };
     }
 
-    // 查询目标用户
     const userRes = await db.collection('users')
       .where({ _openid: targetOpenid })
+      .limit(1)
       .get();
 
     if (!userRes.data || userRes.data.length === 0) {
@@ -50,8 +86,6 @@ exports.main = async (event, context) => {
 
     const user = userRes.data[0];
     const currentUserType = user.userType;
-
-    // 检查用户是否有认证身份
     if (!currentUserType || currentUserType === 'resident' || currentUserType === 'normal') {
       return {
         success: false,
@@ -59,19 +93,15 @@ exports.main = async (event, context) => {
       };
     }
 
-    console.log('🗑️ 准备移除用户认证身份:', targetOpenid, '当前身份:', currentUserType);
-
-    // 移除认证身份，恢复为普通用户
     await db.collection('users')
       .doc(user._id)
       .update({
         data: {
-          userType: 'resident',  // 恢复为普通居民
-          badge: _.remove(),  // 移除徽章
-          userTypeLabel: _.remove(),  // 移除身份标签
-          certificationTime: _.remove(),  // 移除认证时间
-          certificationApplication: _.remove(),  // 移除认证申请记录
-          // 清除认证相关的 profile 字段
+          userType: 'resident',
+          badge: _.remove(),
+          userTypeLabel: _.remove(),
+          certificationTime: _.remove(),
+          certificationApplication: _.remove(),
           'profile.community': _.remove(),
           'profile.position': _.remove(),
           'profile.workId': _.remove(),
@@ -87,20 +117,16 @@ exports.main = async (event, context) => {
         }
       });
 
-    console.log('✅ 用户认证身份已移除:', targetOpenid, '原身份:', currentUserType);
-
     return {
       success: true,
       message: '认证身份已移除',
       removedType: currentUserType
     };
-
   } catch (err) {
-    console.error('移除认证失败:', err);
+    console.error('[removeCertification] failed:', err && err.message ? err.message : err);
     return {
       success: false,
-      error: err.message || '移除失败，请稍后重试'
+      error: err && err.message ? err.message : '移除失败，请稍后重试'
     };
   }
 };
-

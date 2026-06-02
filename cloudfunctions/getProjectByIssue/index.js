@@ -6,6 +6,7 @@ cloud.init({
 });
 
 const db = cloud.database();
+const media = require('./media');
 
 /**
  * 查询问题帖关联的施工项目
@@ -31,9 +32,10 @@ exports.main = async (event, context) => {
       .get();
 
     if (result.data && result.data.length > 0) {
+      const data = await replaceMedia(result.data[0]);
       return {
         success: true,
-        data: result.data[0]
+        data
       };
     } else {
       return {
@@ -50,5 +52,14 @@ exports.main = async (event, context) => {
     };
   }
 };
+
+async function replaceMedia(doc) {
+  if (!doc || typeof doc !== 'object') return doc;
+  const cloudIds = media.collectCloudFileIdsDeep(doc, new Set(), { maxScan: 160 });
+  const urlMap = await media.resolveTempUrlMap(cloud, Array.from(cloudIds), {
+    scenario: 'getProjectByIssue'
+  });
+  return media.replaceCloudUrlsDeep(doc, urlMap, { maxDepth: 6 });
+}
 
 

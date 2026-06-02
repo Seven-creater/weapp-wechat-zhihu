@@ -9,6 +9,7 @@ Page({
     content: '',
     images: [],
     priceAdjustment: 0,
+    estimateDays: '',
     adjustmentReason: '',
     
     maxImages: 9,
@@ -54,6 +55,10 @@ Page({
   // 输入预算调整
   onPriceInput: function (e) {
     this.setData({ priceAdjustment: e.detail.value });
+  },
+
+  onEstimateDaysInput: function (e) {
+    this.setData({ estimateDays: e.detail.value });
   },
 
   // 输入调整原因
@@ -147,6 +152,8 @@ Page({
           content: this.data.content,
           images: fileIDs,
           priceAdjustment: Number(this.data.priceAdjustment) || 0,
+          quoteAmount: Number(this.data.priceAdjustment) || 0,
+          estimateDays: Number(this.data.estimateDays) || 0,
           adjustmentReason: this.data.adjustmentReason
         }
       });

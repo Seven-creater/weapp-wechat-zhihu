@@ -46,7 +46,8 @@ Page({
     wx.cloud.callFunction({
       name: 'getUserInfo',
       data: {
-        targetId: app.globalData.openid
+        targetId: app.globalData.openid,
+        fieldMode: 'full'
       }
     }).then(res => {
       wx.hideLoading();

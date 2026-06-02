@@ -1,0 +1,8 @@
+{
+  "name": "repairPostCommentStats",
+  "version": "1.0.0",
+  "description": "Repair post comment stats by recounting comments",
+  "dependencies": {
+    "wx-server-sdk": "^3.0.1"
+  }
+}

@@ -8,11 +8,11 @@
     <view class="arrow-icon">></view>
   </view>
 
-  <view class="selection-card daily" bindtap="onDailyTap">
+  <view class="selection-card daily" bindtap="onDemandTap">
     <image class="card-icon" src="/images/write.png" mode="aspectFit" />
     <view class="card-content">
-      <text class="card-title">日常分享</text>
-      <text class="card-desc">分享生活点滴</text>
+      <text class="card-title">社区改造需求发布</text>
+      <text class="card-desc">发布改造需求，邀请方案报名</text>
     </view>
     <view class="arrow-icon">></view>
   </view>

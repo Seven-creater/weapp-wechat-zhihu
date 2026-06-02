@@ -1,5 +1,6 @@
 // pages/project/detail/index.js
 const app = getApp();
+const mediaUtil = require('../../../utils/cloud-media.js');
 
 Page({
   data: {
@@ -34,6 +35,45 @@ Page({
       .get()
       .then(res => {
         wx.hideLoading();
+        if (res.data) {
+          this.resolveMedia(res.data)
+            .then((project) => {
+              if (project.stages) {
+                project.stages = project.stages.map((stage) => {
+                  if (stage.completedAt) {
+                    stage.completedAtFormatted = this.formatTime(stage.completedAt);
+                  }
+                  return stage;
+                });
+              }
+
+              this.setData({
+                project,
+                loading: false
+              }, () => {
+                this.checkPermissions();
+              });
+            })
+            .catch(() => {
+              const project = res.data;
+              if (project.stages) {
+                project.stages = project.stages.map((stage) => {
+                  if (stage.completedAt) {
+                    stage.completedAtFormatted = this.formatTime(stage.completedAt);
+                  }
+                  return stage;
+                });
+              }
+
+              this.setData({
+                project,
+                loading: false
+              }, () => {
+                this.checkPermissions();
+              });
+            });
+          return;
+        }
         if (res.data) {
           // 格式化时间
           const project = res.data;
@@ -225,6 +265,15 @@ Page({
   },
 
   // 格式化时间
+  resolveMedia: async function (doc) {
+    const cloudIds = mediaUtil.collectCloudFileIdsDeep(doc);
+    if (!cloudIds || cloudIds.size === 0) {
+      return doc;
+    }
+    const mapping = await mediaUtil.resolveTempUrlMap(Array.from(cloudIds));
+    return mediaUtil.replaceCloudUrlsDeep(doc, mapping);
+  },
+
   formatTime: function (time) {
     if (!time) return '';
     
@@ -248,4 +297,3 @@ Page({
     return `${year}-${month}-${day} ${hour}:${minute}`;
   }
 });
-

@@ -23,10 +23,10 @@
 
   <!-- 设计方案输入 -->
   <view class="proposal-section">
-    <view class="section-title">设计方案</view>
+    <view class="section-title">报名方案</view>
     <textarea
       class="proposal-input"
-      placeholder="请详细描述您的设计方案..."
+      placeholder="请详细描述您的方案、施工建议、材料选择等..."
       value="{{content}}"
       bindinput="onContentInput"
       maxlength="2000"
@@ -59,11 +59,11 @@
     </view>
   </view>
 
-  <!-- 预算调整 -->
+  <!-- 在线报价 -->
   <view class="budget-section">
-    <view class="section-title">预算调整</view>
+    <view class="section-title">在线报价</view>
     <view class="budget-input-row">
-      <text class="budget-label">调整金额</text>
+      <text class="budget-label">报价金额</text>
       <input 
         class="budget-input" 
         type="digit"
@@ -73,11 +73,23 @@
       />
       <text class="budget-unit">元</text>
     </view>
-    <view class="budget-tip">正数表示增加，负数表示减少</view>
+    <view class="budget-tip">填写本次报名方案的预计报价</view>
+    
+    <view class="budget-input-row">
+      <text class="budget-label">预计工期</text>
+      <input 
+        class="budget-input" 
+        type="number"
+        placeholder="0"
+        value="{{estimateDays}}"
+        bindinput="onEstimateDaysInput"
+      />
+      <text class="budget-unit">天</text>
+    </view>
     
     <textarea
       class="reason-input"
-      placeholder="请说明预算调整的原因..."
+      placeholder="请说明报价依据或补充说明..."
       value="{{adjustmentReason}}"
       bindinput="onReasonInput"
       maxlength="500"
@@ -91,7 +103,7 @@
       bindtap="submitProposal"
       disabled="{{submitting}}"
     >
-      {{submitting ? '提交中...' : '提交设计方案'}}
+      {{submitting ? '提交中...' : '提交报名方案'}}
     </button>
   </view>
 </view>

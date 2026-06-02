@@ -1,7 +1,7 @@
 <view class="container">
   <!-- 头部 -->
   <view class="header">
-    <text class="header-title">设计方案</text>
+    <text class="header-title">报名方案</text>
     <text class="header-subtitle">共 {{proposals.length}} 个方案</text>
   </view>
 
@@ -25,12 +25,12 @@
           catchtap="navigateToDesigner"
         ></image>
         <view class="designer-details">
-          <text class="designer-name">{{item.designerName || '设计师'}}</text>
+          <text class="designer-name">{{item.designerName || '报名方'}}</text>
           <text class="submit-time">提交于 {{item.createTime}}</text>
         </view>
         <view class="designer-badge">
           <text class="badge-icon">📐</text>
-          <text class="badge-text">设计师</text>
+          <text class="badge-text">{{item.submitterType === 'contractor' ? '施工方' : '设计师'}}</text>
         </view>
       </view>
 
@@ -52,9 +52,11 @@
       </view>
 
       <!-- 预算调整 -->
-      <view class="budget-info" wx:if="{{item.budgetAdjustment}}">
-        <text class="budget-label">预算调整：</text>
-        <text class="budget-value">¥{{item.budgetAdjustment}}</text>
+      <view class="budget-info" wx:if="{{item.quoteAmount || item.budgetAdjustment}}">
+        <text class="budget-label">报价：</text>
+        <text class="budget-value">¥{{item.quoteAmount || item.budgetAdjustment}}</text>
+        <text class="budget-label" wx:if="{{item.estimateDays}}"> · 工期：</text>
+        <text class="budget-value" wx:if="{{item.estimateDays}}">{{item.estimateDays}}天</text>
       </view>
 
       <!-- 查看详情提示 -->
@@ -68,8 +70,8 @@
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{!loading && proposals.length === 0}}">
     <image class="empty-icon" src="/images/empty.png" mode="aspectFit"></image>
-    <text class="empty-text">暂无设计方案</text>
-    <text class="empty-subtext">等待设计师提交方案</text>
+    <text class="empty-text">暂无报名方案</text>
+    <text class="empty-subtext">等待设计方或施工方提交方案</text>
   </view>
 
   <!-- 加载状态 -->
@@ -77,4 +79,3 @@
     <text class="loading-text">加载中...</text>
   </view>
 </view>
-

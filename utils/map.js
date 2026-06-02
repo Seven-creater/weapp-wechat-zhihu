@@ -11,8 +11,12 @@ let qqmapsdk = null;
  */
 function initMapSDK() {
   if (!qqmapsdk) {
+    const mapKey = config.TENCENT_MAP_KEY || config.tencentMapKey || '';
+    if (!mapKey) {
+      throw new Error('Missing Tencent Map key');
+    }
     qqmapsdk = new QQMapWX({
-      key: config.TENCENT_MAP_KEY
+      key: mapKey
     });
   }
   return qqmapsdk;
@@ -140,22 +144,30 @@ function getRoute(from, to, mode = 'walking') {
     };
     
     // 根据出行方式调用不同的接口
-    switch (mode) {
-      case 'driving':
-        sdk.direction(params);
-        break;
-      case 'walking':
-        sdk.walking(params);
-        break;
-      case 'bicycling':
-        sdk.bicycling(params);
-        break;
-      case 'transit':
-        sdk.transit(params);
-        break;
-      default:
-        sdk.walking(params);
+    const routeMode = mode === 'driving' || mode === 'transit' || mode === 'walking'
+      ? mode
+      : 'walking';
+
+    if (typeof sdk.direction === 'function') {
+      sdk.direction({ ...params, mode: routeMode });
+      return;
     }
+
+    // fallback for SDK variants exposing dedicated route methods
+    if (routeMode === 'walking' && typeof sdk.walking === 'function') {
+      sdk.walking(params);
+      return;
+    }
+    if (routeMode === 'driving' && typeof sdk.driving === 'function') {
+      sdk.driving(params);
+      return;
+    }
+    if (routeMode === 'transit' && typeof sdk.transit === 'function') {
+      sdk.transit(params);
+      return;
+    }
+
+    reject(new Error('Route API unavailable in current map SDK'));
   });
 }
 

@@ -1,0 +1,9 @@
+{
+  "name": "getNotificationSummary",
+  "version": "1.0.0",
+  "description": "Notification summary aggregation for notify page",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

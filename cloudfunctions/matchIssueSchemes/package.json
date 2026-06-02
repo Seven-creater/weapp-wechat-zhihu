@@ -1,0 +1,10 @@
+{
+  "name": "matchIssueSchemes",
+  "version": "1.0.0",
+  "description": "Match recognized accessibility issues to cloud scheme library records.",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  },
+  "license": "MIT"
+}

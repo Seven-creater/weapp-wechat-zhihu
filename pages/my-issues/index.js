@@ -1,8 +1,8 @@
 // pages/my-issues/index.js
 const app = getApp();
 
-// 延迟初始化数据库
 let db = null;
+const PAGE_TTL_MS = 30 * 1000;
 
 const getDB = () => {
   if (!db) {
@@ -22,18 +22,21 @@ Page({
     limit: 10,
     issuesHasMore: true,
     postsHasMore: true,
+    inflight: false,
+    dirty: true,
+    lastLoadedAt: 0
   },
 
-  onLoad: function (options) {
+  onLoad() {
+    getDB();
+    this.checkLoginAndLoad({ force: true });
+  },
+
+  onShow() {
     this.checkLoginAndLoad();
   },
 
-  onShow: function () {
-    // 页面显示时重新检查登录并加载数据
-    this.checkLoginAndLoad();
-  },
-
-  onPullDownRefresh: function () {
+  onPullDownRefresh() {
     this.setData({
       issuesPage: 1,
       postsPage: 1,
@@ -41,83 +44,79 @@ Page({
       posts: [],
       issuesHasMore: true,
       postsHasMore: true,
+      dirty: true,
+      lastLoadedAt: 0
     });
-    const currentTab = this.data.currentTab;
-    const promise =
-      currentTab === "issues" ? this.loadMyIssues() : this.loadMyPosts();
-    promise.then(() => {
+
+    const promise = this.data.currentTab === "issues"
+      ? this.loadMyIssues()
+      : this.loadMyPosts();
+    promise.finally(() => {
       wx.stopPullDownRefresh();
     });
   },
 
-  onReachBottom: function () {
+  onReachBottom() {
     if (this.data.currentTab === "issues") {
       if (this.data.issuesHasMore && !this.data.loading) {
         this.loadMoreIssues();
       }
-    } else {
-      if (this.data.postsHasMore && !this.data.loading) {
-        this.loadMorePosts();
-      }
+      return;
+    }
+    if (this.data.postsHasMore && !this.data.loading) {
+      this.loadMorePosts();
     }
   },
 
-  checkLoginAndLoad: function () {
-    const that = this;
-    return new Promise((resolve, reject) => {
-      const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
-      const openid = app.globalData.openid || wx.getStorageSync("openid");
+  checkLoginAndLoad(options = {}) {
+    const force = !!options.force;
+    const now = Date.now();
+    const expired = now - (this.data.lastLoadedAt || 0) > PAGE_TTL_MS;
+    if (!force && (this.data.inflight || (!this.data.dirty && !expired))) {
+      return Promise.resolve();
+    }
 
-      console.log("当前登录状态:", { userInfo: !!userInfo, openid: !!openid });
-
-      if (userInfo && openid) {
-        app.globalData.userInfo = userInfo;
-        app.globalData.openid = openid;
-        console.log("=== checkLoginAndLoad 内部 ===");
-        console.log("currentTab:", that.data.currentTab);
-        console.log("openid:", openid);
-
-        if (that.data.currentTab === "issues") {
-          console.log("调用 loadMyIssues");
-          that.loadMyIssues();
-        } else {
-          console.log("调用 loadMyPosts");
-          that.loadMyPosts();
+    const userInfo = app.globalData.userInfo || wx.getStorageSync("userInfo");
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    if (!userInfo || !openid) {
+      this.setData({ loading: false });
+      wx.showModal({
+        title: "未登录",
+        content: "请先登录以查看您的发布记录",
+        showCancel: false,
+        confirmText: "去登录",
+        success: (res) => {
+          if (!res.confirm) return;
+          app.login()
+            .then(() => this.checkLoginAndLoad({ force: true }))
+            .catch((err) => {
+              console.error("登录失败:", err);
+              this.setData({ loading: false });
+            });
         }
-        resolve(true);
-      } else {
-        that.setData({ loading: false });
-        wx.showModal({
-          title: "未登录",
-          content: "请先登录以查看您的发布记录",
-          showCancel: false,
-          confirmText: "去登录",
-          success: (res) => {
-            if (res.confirm) {
-              app
-                .login()
-                .then(() => {
-                  if (that.data.currentTab === "issues") {
-                    that.loadMyIssues();
-                  } else {
-                    that.loadMyPosts();
-                  }
-                })
-                .catch((err) => {
-                  console.error("登录失败:", err);
-                  that.setData({ loading: false });
-                });
-            } else {
-              that.setData({ loading: false });
-            }
-          },
-        });
-        reject(false);
-      }
+      });
+      return Promise.resolve();
+    }
+
+    app.globalData.userInfo = userInfo;
+    app.globalData.openid = openid;
+    this.setData({ inflight: true });
+
+    const promise = this.data.currentTab === "issues"
+      ? this.loadMyIssues()
+      : this.loadMyPosts();
+
+    return Promise.resolve(promise).then(() => {
+      this.setData({
+        dirty: false,
+        lastLoadedAt: Date.now()
+      });
+    }).finally(() => {
+      this.setData({ inflight: false });
     });
   },
 
-  onTabChange: function (e) {
+  onTabChange(e) {
     const tab = e.currentTarget.dataset.tab;
     if (tab === this.data.currentTab) return;
 
@@ -126,75 +125,66 @@ Page({
       loading: true,
       issuesPage: 1,
       postsPage: 1,
+      dirty: true,
+      lastLoadedAt: 0
     });
 
     if (tab === "issues") {
       this.setData({ issues: [], issuesHasMore: true });
       this.loadMyIssues();
-    } else {
-      this.setData({ posts: [], postsHasMore: true });
-      this.loadMyPosts();
+      return;
     }
+    this.setData({ posts: [], postsHasMore: true });
+    this.loadMyPosts();
   },
 
-  loadMyIssues: function () {
+  loadMyIssues() {
+    const dbInstance = getDB();
     const { issuesPage, limit } = this.data;
     const skip = (issuesPage - 1) * limit;
     const openid = app.globalData.openid || wx.getStorageSync("openid");
 
-    console.log("=== loadMyIssues 调试信息 ===");
-    console.log("globalData.openid:", app.globalData.openid);
-    console.log("storage openid:", wx.getStorageSync("openid"));
-    console.log("使用的openid:", openid);
-
     if (!openid) {
-      console.log("没有openid，返回空数据");
       this.setData({ issues: [], loading: false, issuesHasMore: false });
       return Promise.resolve();
     }
 
-    return db
-      .collection("issues")
+    return dbInstance.collection("issues")
       .where({ _openid: openid })
       .orderBy("createTime", "desc")
       .skip(skip)
       .limit(limit)
       .get()
       .then((res) => {
-        console.log("查询结果数量:", res.data.length);
-        console.log("查询结果数据:", JSON.stringify(res.data, null, 2));
-
-        const newIssues = res.data.map((issue) => {
-          // 兼容 aiAnalysis 和 aiSolution 字段
+        const newIssues = (res.data || []).map((issue) => {
           const aiText = issue.aiAnalysis || issue.aiSolution || "";
-          // 截取前30个字作为摘要
-          const aiSummary =
-            aiText.length > 30
-              ? aiText.substring(0, 30) + "..."
-              : aiText || "AI正在分析中...";
+          const aiSummary = aiText.length > 30
+            ? aiText.substring(0, 30) + "..."
+            : (aiText || "AI正在分析中...");
 
           return {
             ...issue,
             createTime: this.formatTime(issue.createTime),
-            aiSummary: aiSummary,
+            aiSummary
           };
         });
-        const issues =
-          issuesPage === 1 ? newIssues : [...this.data.issues, ...newIssues];
+
+        const issues = issuesPage === 1 ? newIssues : [...this.data.issues, ...newIssues];
         this.setData({
           issues,
           issuesHasMore: newIssues.length === limit,
-          loading: false,
+          loading: false
         });
       })
       .catch((err) => {
         console.error("加载路障反馈数据失败:", err);
         this.setData({ issues: [], loading: false, issuesHasMore: false });
-        wx.showToast({ title: "加载失败: " + err.errMsg, icon: "none" });
+        wx.showToast({ title: "加载失败", icon: "none" });
       });
   },
 
-  loadMyPosts: function () {
+  loadMyPosts() {
+    const dbInstance = getDB();
     const { postsPage, limit } = this.data;
     const skip = (postsPage - 1) * limit;
     const openid = app.globalData.openid || wx.getStorageSync("openid");
@@ -204,35 +194,32 @@ Page({
       return Promise.resolve();
     }
 
-    return db
-      .collection("posts")
+    return dbInstance.collection("posts")
       .where({ _openid: openid })
       .orderBy("createTime", "desc")
       .skip(skip)
       .limit(limit)
       .get()
       .then((res) => {
-        const newPosts = res.data.map((post) => {
-          // 处理摘要：如果content存在，截取前30个字；否则显示"分享了一张图片"
+        const newPosts = (res.data || []).map((post) => {
           const contentText = post.content || "";
-          const summary =
-            contentText.length > 30
-              ? contentText.substring(0, 30) + "..."
-              : contentText || "分享了一张图片";
+          const summary = contentText.length > 30
+            ? contentText.substring(0, 30) + "..."
+            : (contentText || "分享了一张图片");
 
           return {
             ...post,
             createTime: this.formatTime(post.createTime),
             stats: post.stats || { like: 0, comment: 0 },
-            summary: summary, // 添加摘要字段
+            summary
           };
         });
-        const posts =
-          postsPage === 1 ? newPosts : [...this.data.posts, ...newPosts];
+
+        const posts = postsPage === 1 ? newPosts : [...this.data.posts, ...newPosts];
         this.setData({
           posts,
           postsHasMore: newPosts.length === limit,
-          loading: false,
+          loading: false
         });
       })
       .catch((err) => {
@@ -242,56 +229,51 @@ Page({
       });
   },
 
-  loadMoreIssues: function () {
+  loadMoreIssues() {
     if (!this.data.issuesHasMore || this.data.loading) return;
     this.setData({ issuesPage: this.data.issuesPage + 1 });
     this.loadMyIssues();
   },
 
-  loadMorePosts: function () {
+  loadMorePosts() {
     if (!this.data.postsHasMore || this.data.loading) return;
     this.setData({ postsPage: this.data.postsPage + 1 });
     this.loadMyPosts();
   },
 
-  goToIssueDetail: function (e) {
+  goToIssueDetail(e) {
     const issueId = e.currentTarget.dataset.id;
     wx.navigateTo({
-      url: `/pages/solution-detail/index?id=${issueId}&collection=issues`,
+      url: `/pages/solution-detail/index?id=${issueId}&collection=issues`
     });
   },
 
-  goToPostDetail: function (e) {
+  goToPostDetail(e) {
     const postId = e.currentTarget.dataset.id;
     if (!postId) {
-      console.error("postId is undefined", e.currentTarget.dataset);
-      wx.showToast({
-        title: "帖子ID无效",
-        icon: "none",
-      });
+      wx.showToast({ title: "帖子ID无效", icon: "none" });
       return;
     }
     wx.navigateTo({
-      url: `/pages/post-detail/index?id=${postId}`,
+      url: `/pages/post-detail/index?id=${postId}`
     });
   },
 
-  goToHome: function () {
+  goToHome() {
     wx.switchTab({ url: "/pages/index/index" });
   },
 
-  formatTime: function (timestamp) {
+  formatTime(timestamp) {
     if (!timestamp) return "";
 
     let date;
-
     if (typeof timestamp === "object") {
       if (timestamp.$date) {
         date = new Date(timestamp.$date);
       } else if (timestamp.getTime) {
         date = timestamp;
       } else {
-        return timestamp.toString() || "";
+        return String(timestamp || "");
       }
     } else if (typeof timestamp === "number") {
       date = new Date(timestamp);
@@ -305,13 +287,13 @@ Page({
     const diff = now.getTime() - date.getTime();
 
     if (diff < 24 * 60 * 60 * 1000) {
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
       return `今天 ${hours}:${minutes}`;
     }
     if (diff < 48 * 60 * 60 * 1000) {
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
       return `昨天 ${hours}:${minutes}`;
     }
     if (diff < 7 * 24 * 60 * 60 * 1000) {
@@ -319,15 +301,15 @@ Page({
       return `${days}天前`;
     }
     const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const day = date.getDate().toString().padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   },
 
-  onShareAppMessage: function () {
+  onShareAppMessage() {
     return {
       title: "我的发布历史",
-      path: "/pages/my-issues/index",
+      path: "/pages/my-issues/index"
     };
-  },
+  }
 });

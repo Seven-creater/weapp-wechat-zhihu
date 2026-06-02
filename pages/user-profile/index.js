@@ -1,5 +1,6 @@
 const app = getApp();
 const followUtil = require('../../utils/follow.js');
+const mediaUtil = require('../../utils/cloud-media.js');
 
 // 延迟初始化数据库
 let db = null;
@@ -60,21 +61,46 @@ Page({
     this.checkFollowStatus(targetId);
     this.loadStats(targetId);
     this.loadPosts(targetId);
+    this._lastLoadedAt = Date.now();
+    this._postsLastLoadedAt = this._lastLoadedAt;
+    this._dirtyProfileData = false;
   },
 
   onShow: function () {
     const targetId = this.data.targetId;
     if (targetId) {
+      const now = Date.now();
+      const ttlMs = 30 * 1000;
+      const expired = now - (this._lastLoadedAt || 0) > ttlMs;
+      const profilePostsDirtyAt = Number(wx.getStorageSync(`profilePostsDirtyAt:${targetId}`) || 0);
+      const postsDirty = profilePostsDirtyAt > (this._postsLastLoadedAt || 0);
+      if (this._profileInflight || (!expired && !this._dirtyProfileData)) {
+        if (this.data.currentTab === 0 && postsDirty) {
+          this.loadPosts(targetId);
+        }
+        return;
+      }
+      this._profileInflight = true;
+      this._lastLoadedAt = now;
+      this._dirtyProfileData = false;
       this.loadStats(targetId);
       this.checkFollowStatus(targetId);
+      if (this.data.currentTab === 0 && (expired || postsDirty)) {
+        this.loadPosts(targetId);
+      }
+      this._profileInflight = false;
     }
   },
 
   loadUserInfo: function (openid) {
+    const selfOpenid = app.globalData.openid || wx.getStorageSync('openid');
+    const includeSensitive = !!selfOpenid && selfOpenid === openid;
     wx.cloud.callFunction({
       name: 'getUserInfo',
       data: {
-        targetId: openid
+        targetId: openid,
+        fieldMode: 'full',
+        includeSensitive
       }
     }).then(res => {
       if (res.result && res.result.success) {
@@ -185,6 +211,7 @@ Page({
           pageSize: 20,
           orderBy: 'createTime',
           order: 'desc',
+          fieldMode: 'list',
           authorOpenids: [targetId]
         }
       }).then(res => {
@@ -197,7 +224,10 @@ Page({
             likes: item.stats ? item.stats.like : 0,
             route: '/pages/post-detail/index'
           }));
-          this.setData({ posts });
+          this.setData({
+            posts: this.mapDocsToCards(res.result.data || [], '/pages/post-detail/index')
+          });
+          this._postsLastLoadedAt = Date.now();
         } else {
           this.setData({ posts: [] });
         }
@@ -219,6 +249,9 @@ Page({
 
   // 加载收藏的帖子（包含真实点赞数）
   loadCollectedPosts: function(targetId) {
+    this.loadActionCards(targetId, ['collect_post', 'collect_solution', 'collect']);
+    return;
+
     const db = getDB();
     if (!db) {
       this.setData({ posts: [] });
@@ -279,6 +312,9 @@ Page({
 
   // 加载点赞的帖子（包含真实点赞数）
   loadLikedPosts: function(targetId) {
+    this.loadActionCards(targetId, ['like_post', 'like_solution', 'like']);
+    return;
+
     const db = getDB();
     if (!db) {
       this.setData({ posts: [] });
@@ -338,44 +374,123 @@ Page({
   },
 
   // 转换云存储图片URL
-  convertCloudImages: function(posts) {
-    const cloudUrls = posts
-      .map(item => {
-        if (item.images && item.images.length > 0) {
-          return item.images[0];
-        }
-        return null;
-      })
-      .filter(url => url && url.indexOf('cloud://') === 0);
-
-    if (cloudUrls.length === 0) {
-      return Promise.resolve(posts);
+  loadActionCards: async function(targetId, actionTypes) {
+    const db = getDB();
+    if (!db) {
+      this.setData({ posts: [] });
+      return;
     }
 
-    const unique = Array.from(new Set(cloudUrls));
-    return wx.cloud.getTempFileURL({ fileList: unique })
-      .then(res => {
-        const mapping = new Map();
-        (res.fileList || []).forEach(file => {
-          if (file.fileID && file.tempFileURL) {
-            mapping.set(file.fileID, file.tempFileURL);
-          }
-        });
+    try {
+      const actionRes = await db.collection('actions')
+        .where({
+          _openid: targetId,
+          type: db.command.in(actionTypes)
+        })
+        .orderBy('createTime', 'desc')
+        .limit(20)
+        .get();
 
-        return posts.map(item => {
-          if (item.images && item.images.length > 0) {
-            const firstImage = item.images[0];
-            if (mapping.has(firstImage)) {
-              return {
-                ...item,
-                images: [mapping.get(firstImage), ...item.images.slice(1)]
-              };
-            }
-          }
-          return item;
+      const actions = actionRes.data || [];
+      if (actions.length === 0) {
+        this.setData({ posts: [] });
+        return;
+      }
+
+      const postIds = [];
+      const solutionIds = [];
+      actions.forEach((action) => {
+        const targetId = action.targetId || action.postId;
+        if (!targetId) return;
+        const actionType = String(action.type || '');
+        const targetCollection = String(action.targetCollection || '');
+        const isSolution = actionType.indexOf('_solution') > -1 || targetCollection === 'solutions';
+        if (isSolution) {
+          solutionIds.push(targetId);
+        } else {
+          postIds.push(targetId);
+        }
+      });
+
+      const [postDocs, solutionDocs] = await Promise.all([
+        this.fetchDocsByIds('posts', postIds),
+        this.fetchDocsByIds('solutions', solutionIds)
+      ]);
+      const postMap = new Map(postDocs.map((item) => [item._id, item]));
+      const solutionMap = new Map(solutionDocs.map((item) => [item._id, item]));
+
+      const cards = [];
+      actions.forEach((action) => {
+        const targetId = action.targetId || action.postId;
+        if (!targetId) return;
+        const actionType = String(action.type || '');
+        const targetCollection = String(action.targetCollection || '');
+        const isSolution = actionType.indexOf('_solution') > -1 || targetCollection === 'solutions';
+        const doc = isSolution ? solutionMap.get(targetId) : postMap.get(targetId);
+        if (!doc) return;
+
+        cards.push({
+          id: doc._id,
+          title: doc.content || doc.title || '无标题',
+          tag: this.formatPostTag(doc),
+          image: mediaUtil.pickImageFromDoc(doc) || '',
+          hasImage: !!mediaUtil.pickImageFromDoc(doc),
+          likes: doc.stats ? (doc.stats.like || 0) : 0,
+          route: isSolution ? '/pages/solution-detail/index' : '/pages/post-detail/index'
         });
-      })
-      .catch(() => posts);
+      });
+
+      this.setData({ posts: cards });
+    } catch (err) {
+      console.error('loadActionCards failed:', err);
+      this.setData({ posts: [] });
+    }
+  },
+
+  fetchDocsByIds: async function(collection, ids) {
+    const db = getDB();
+    const uniqueIds = Array.from(new Set((ids || []).filter(Boolean))).slice(0, 50);
+    if (!db || uniqueIds.length === 0) return [];
+
+    const res = await db.collection(collection)
+      .where({ _id: db.command.in(uniqueIds) })
+      .get();
+    return this.convertCloudImages(res.data || []);
+  },
+
+  formatPostTag: function(doc) {
+    const subtypeText = Array.isArray(doc.recognizedSubtypes) && doc.recognizedSubtypes.length
+      ? doc.recognizedSubtypes.join('、')
+      : doc.recognizedSubtype;
+    if (doc.recognizedCategory && subtypeText) {
+      return `${doc.recognizedCategory} / ${subtypeText}`;
+    }
+    return doc.recognizedCategory || doc.categoryName || doc.category || '';
+  },
+
+  mapDocsToCards: function(docs, route) {
+    return (docs || []).map((item) => {
+      const image = mediaUtil.pickImageFromDoc(item);
+      return {
+        id: item._id,
+        title: item.content || item.title || '无标题',
+        tag: this.formatPostTag(item),
+        image: image || '',
+        hasImage: !!image,
+        likes: item.stats ? (item.stats.like || 0) : 0,
+        route: route || '/pages/post-detail/index'
+      };
+    });
+  },
+
+  convertCloudImages: async function(posts) {
+    const cloudIds = mediaUtil.collectCloudFileIdsDeep(posts || []);
+    if (!cloudIds || cloudIds.size === 0) {
+      return posts || [];
+    }
+
+    const mapping = await mediaUtil.resolveTempUrlMap(Array.from(cloudIds));
+    return (posts || []).map((item) => mediaUtil.replaceCloudUrlsDeep(item, mapping));
   },
 
   onTabTap: function(e) {
@@ -417,9 +532,12 @@ Page({
       : followUtil.followUser(targetId);
 
     promise
-      .then(() => {
+      .then((result) => {
         wx.hideLoading();
-        this.setData({ isFollowing: !isFollowing });
+        const nextFollowing = result && result.action
+          ? result.action === 'follow'
+          : !isFollowing;
+        this.setData({ isFollowing: nextFollowing });
         wx.showToast({ 
           title: isFollowing ? '已取消关注' : '关注成功', 
           icon: 'success' 

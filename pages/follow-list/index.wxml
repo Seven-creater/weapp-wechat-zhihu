@@ -1,6 +1,6 @@
 <view class="container">
   <view class="user-list">
-    <block wx:for="{{users}}" wx:key="_id">
+    <block wx:for="{{users}}" wx:key="userId">
       <view class="user-item" bindtap="navigateToProfile" data-id="{{item.userId}}">
         <image class="avatar" src="{{item.userInfo.avatarUrl}}" mode="aspectFill"></image>
         <view class="info">

@@ -1,6 +1,11 @@
 // pages/issue-edit/index.js
 const app = getApp();
-const { getAllCategories } = require('../../utils/categories.js');
+const {
+  ISSUE_CLASSIFICATION_SCHEMA,
+  getCategoryId,
+  getSubtypes,
+  isValidSubtype
+} = require('../../utils/issue-classification.js');
 
 // 延迟初始化数据库
 let db = null;
@@ -13,15 +18,95 @@ const getDB = () => {
 };
 
 const recorderManager = wx.getRecorderManager();
+const MAX_UPLOAD_IMAGE_BYTES = 3 * 1024 * 1024;
+const IMAGE_COMPRESS_QUALITIES = [80, 60, 45, 35];
+
+function formatConfidence(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return '--';
+  return `${Math.round(number * 100)}%`;
+}
+
+function normalizeSelectedSubtypes(category, value, fallback) {
+  const source = Array.isArray(value) ? value : [];
+  const candidates = source.concat(fallback ? [fallback] : []);
+  const seen = new Set();
+  const result = [];
+  candidates.forEach((item) => {
+    const subtype = typeof item === 'string' ? item.trim() : '';
+    if (!subtype || seen.has(subtype) || !isValidSubtype(category, subtype)) return;
+    seen.add(subtype);
+    result.push(subtype);
+  });
+  return result.slice(0, 5);
+}
+
+function buildSubtypeOptions(category, selectedSubtypes) {
+  const selected = new Set(Array.isArray(selectedSubtypes) ? selectedSubtypes : [selectedSubtypes].filter(Boolean));
+  return getSubtypes(category).map((name) => ({
+    name,
+    selected: selected.has(name)
+  }));
+}
+
+function buildSubtypeText(subtypes) {
+  return (Array.isArray(subtypes) ? subtypes : []).join('、');
+}
+
+function getLocalFileSize(filePath) {
+  return new Promise((resolve) => {
+    if (!filePath || !wx.getFileInfo) {
+      resolve(0);
+      return;
+    }
+    wx.getFileInfo({
+      filePath,
+      success: (res) => resolve(Number(res.size) || 0),
+      fail: () => resolve(0)
+    });
+  });
+}
+
+function compressLocalImage(filePath, quality) {
+  return new Promise((resolve, reject) => {
+    if (!wx.compressImage) {
+      reject(new Error('wx.compressImage unavailable'));
+      return;
+    }
+    wx.compressImage({
+      src: filePath,
+      quality,
+      success: (res) => resolve(res.tempFilePath || filePath),
+      fail: reject
+    });
+  });
+}
+
+function inferImageExt(filePath) {
+  const match = String(filePath || '').match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+  const rawExt = match ? match[1].toLowerCase() : 'jpg';
+  return ['jpg', 'jpeg', 'png', 'webp'].includes(rawExt) ? rawExt : 'jpg';
+}
 
 Page({
   data: {
     description: '',
-    userSuggestion: '',
     images: [],
-    selectedCategory: '',
-    selectedCategoryId: '',  // 新增：保存分类ID
-    categoryOptions: [],  // 将在onLoad中初始化
+    selectedCommunity: '楠竹社区',
+    communityOptions: ['楠竹社区', '和美社区'],
+    recognizedCategory: '',
+    recognizedSubtype: '',
+    recognizedSubtypes: [],
+    recognitionConfidence: 0,
+    recognitionConfidenceText: '--',
+    recognitionStatus: '',
+    recognitionError: '',
+    categoryProbabilities: {},
+    subcategoryProbabilities: {},
+    subtypeOptions: [],
+    showSubtypePicker: false,
+    matchedSchemes: [],
+    schemeMessage: '暂无方案',
     contactPhone: '',
     latitude: null,
     longitude: null,
@@ -29,26 +114,31 @@ Page({
     formattedAddress: '',
     detailAddress: '',
     aiSolution: '',
-    generatingAI: false,
+    recognizingImage: false,
     submitting: false,
     isRecording: false,
     tempAudioPath: ''
   },
 
   onLoad: function (options) {
-    // 初始化分类选项
-    const categories = getAllCategories();
+    const communityOptions = ['楠竹社区', '和美社区'];
+    const selectedCommunity = options && communityOptions.includes(options.community)
+      ? options.community
+      : '楠竹社区';
     this.setData({
-      categoryOptions: categories
+      communityOptions,
+      selectedCommunity
     });
     
     // 如果从其他页面传入了图片
     if (options && options.image) {
       this.setData({
         images: [{
-          path: decodeURIComponent(options.image)
+          path: decodeURIComponent(options.image),
+          fileID: ''
         }]
       });
+      this.recognizePrimaryImage();
     }
     
     // 自动获取位置
@@ -66,10 +156,6 @@ Page({
 
   onDescriptionInput: function (e) {
     this.setData({ description: e.detail.value });
-  },
-
-  onSuggestionInput: function (e) {
-    this.setData({ userSuggestion: e.detail.value });
   },
 
   onContactPhoneInput: function (e) {
@@ -91,16 +177,43 @@ Page({
     this.setData({ detailAddress: e.detail.value });
   },
 
-  onAiSolutionInput: function (e) {
-    this.setData({ aiSolution: e.detail.value });
+  onCommunitySelect: function (e) {
+    const community = e.currentTarget.dataset.community;
+    if (!community || community === this.data.selectedCommunity) return;
+    if (!this.data.communityOptions.includes(community)) return;
+    this.setData({ selectedCommunity: community });
   },
 
-  onCategorySelect: function (e) {
-    const category = e.currentTarget.dataset.category;
-    const categoryId = e.currentTarget.dataset.id;
-    this.setData({ 
-      selectedCategory: category,
-      selectedCategoryId: categoryId
+  loadMatchedSchemes: function (category, subtypes) {
+    const normalizedSubtypes = normalizeSelectedSubtypes(category, subtypes, this.data.recognizedSubtype);
+    if (!category || normalizedSubtypes.length === 0) return Promise.resolve();
+    this.setData({
+      matchedSchemes: [],
+      schemeMessage: '方案匹配中...'
+    });
+
+    return wx.cloud.callFunction({
+      name: 'matchIssueSchemes',
+      data: {
+        recognizedCategory: category,
+        recognizedSubtype: normalizedSubtypes[0],
+        recognizedSubtypes: normalizedSubtypes
+      }
+    }).then((res) => {
+      const result = res.result || {};
+      if (!result.success) {
+        throw new Error(result.error || '方案匹配失败');
+      }
+      this.setData({
+        matchedSchemes: Array.isArray(result.matchedSchemes) ? result.matchedSchemes : [],
+        schemeMessage: result.schemeMessage || ''
+      });
+    }).catch((err) => {
+      console.error('[issue-edit] matchIssueSchemes failed:', err);
+      this.setData({
+        matchedSchemes: [],
+        schemeMessage: '暂无匹配方案'
+      });
     });
   },
 
@@ -121,10 +234,20 @@ Page({
       sourceType: ['album', 'camera'],
       success: (res) => {
         const newImages = res.tempFiles.map(file => ({
-          path: file.tempFilePath
+          path: file.tempFilePath,
+          size: Number(file.size) || 0,
+          uploadPath: '',
+          uploadSize: 0,
+          fileID: ''
         }));
+        const shouldRecognize = this.data.images.length === 0 && newImages.length > 0;
         this.setData({
-          images: [...this.data.images, ...newImages]
+          images: [...this.data.images, ...newImages],
+          ...(shouldRecognize ? this.resetRecognitionState() : {})
+        }, () => {
+          if (shouldRecognize) {
+            this.recognizePrimaryImage();
+          }
         });
       }
     });
@@ -145,7 +268,259 @@ Page({
     const index = e.currentTarget.dataset.index;
     const images = [...this.data.images];
     images.splice(index, 1);
-    this.setData({ images });
+    const shouldReset = Number(index) === 0;
+    this.setData({
+      images,
+      ...(shouldReset ? this.resetRecognitionState() : {})
+    }, () => {
+      if (shouldReset && images.length > 0) {
+        this.recognizePrimaryImage();
+      }
+    });
+  },
+
+  resetRecognitionState: function () {
+    return {
+      recognizedCategory: '',
+      recognizedSubtype: '',
+      recognizedSubtypes: [],
+      recognitionConfidence: 0,
+      recognitionConfidenceText: '--',
+      recognitionStatus: '',
+      recognitionError: '',
+      categoryProbabilities: {},
+      subcategoryProbabilities: {},
+      subtypeOptions: [],
+      showSubtypePicker: false,
+      matchedSchemes: [],
+      schemeMessage: '暂无方案',
+      aiSolution: ''
+    };
+  },
+
+  ensureImageUploaded: function (index) {
+    const image = this.data.images[index];
+    if (!image || !image.path) {
+      return Promise.reject(new Error('请先上传现场照片'));
+    }
+    if (image.fileID) {
+      return Promise.resolve(image.fileID);
+    }
+    return this.prepareImageForUpload(index).then((preparedImage) => {
+      const uploadPath = preparedImage.uploadPath || preparedImage.path;
+      const cloudPath = `issues/${Date.now()}-${index}.${inferImageExt(uploadPath)}`;
+      return wx.cloud.uploadFile({
+        cloudPath,
+        filePath: uploadPath
+      }).then((res) => {
+        const images = this.data.images.slice();
+        images[index] = {
+          ...images[index],
+          fileID: res.fileID
+        };
+        this.setData({ images });
+        return res.fileID;
+      });
+    });
+  },
+
+  prepareImageForUpload: function (index) {
+    const image = this.data.images[index];
+    if (!image || !image.path) {
+      return Promise.reject(new Error('请先上传现场照片'));
+    }
+    if (image.uploadPath) {
+      return Promise.resolve(image);
+    }
+
+    return getLocalFileSize(image.path).then((detectedSize) => {
+      const originalSize = Number(image.size) || detectedSize || 0;
+      if (originalSize > 0 && originalSize <= MAX_UPLOAD_IMAGE_BYTES) {
+        const images = this.data.images.slice();
+        images[index] = {
+          ...images[index],
+          size: originalSize,
+          uploadPath: image.path,
+          uploadSize: originalSize
+        };
+        this.setData({ images });
+        return images[index];
+      }
+
+      let bestPath = image.path;
+      let bestSize = originalSize;
+      let chain = Promise.resolve();
+
+      IMAGE_COMPRESS_QUALITIES.forEach((quality) => {
+        chain = chain.then(() => {
+          if (bestSize > 0 && bestSize <= MAX_UPLOAD_IMAGE_BYTES) return null;
+          return compressLocalImage(image.path, quality)
+            .then((compressedPath) => getLocalFileSize(compressedPath)
+              .then((compressedSize) => {
+                const isSmaller = compressedSize > 0 && (!bestSize || compressedSize < bestSize);
+                if (isSmaller) {
+                  bestPath = compressedPath;
+                  bestSize = compressedSize;
+                }
+              }))
+            .catch((err) => {
+              console.warn('[issue-edit] compress image failed:', err);
+            });
+        });
+      });
+
+      return chain.then(() => {
+        const images = this.data.images.slice();
+        images[index] = {
+          ...images[index],
+          size: originalSize,
+          uploadPath: bestPath,
+          uploadSize: bestSize || originalSize,
+          compressed: bestPath !== image.path
+        };
+        this.setData({ images });
+        return images[index];
+      });
+    });
+  },
+
+  recognizePrimaryImage: function () {
+    if (this.data.recognizingImage) return;
+    if (!this.data.images.length) {
+      wx.showToast({ title: '请先上传现场照片', icon: 'none' });
+      return;
+    }
+
+    this.setData({
+      recognizingImage: true,
+      recognitionStatus: 'pending',
+      recognitionError: ''
+    });
+    wx.showLoading({ title: '识别中...' });
+
+    this.ensureImageUploaded(0)
+      .then((fileID) => wx.cloud.callFunction({
+        name: 'classifyIssueImage',
+        data: { fileID }
+      }))
+      .then((res) => {
+        const result = res.result && res.result.data;
+        if (!res.result || !res.result.success || !result) {
+          throw new Error((res.result && res.result.error) || '识别失败，请重新拍摄，并对准设施主体');
+        }
+        this.applyRecognitionResult(result, true);
+      })
+      .catch((err) => {
+        const message = err.message || '识别失败，请重新拍摄，并对准设施主体';
+        this.setData({
+          ...this.resetRecognitionState(),
+          recognitionStatus: 'failed',
+          recognitionError: message
+        });
+        console.error('[issue-edit] classifyIssueImage failed:', err);
+        wx.showToast({
+          title: message,
+          icon: 'none'
+        });
+      })
+      .finally(() => {
+        wx.hideLoading();
+        this.setData({ recognizingImage: false });
+      });
+  },
+
+  applyRecognitionResult: function (result, showModal) {
+    const category = result.recognizedCategory || '';
+    const subtypes = normalizeSelectedSubtypes(category, result.recognizedSubtypes, result.recognizedSubtype);
+    if (!ISSUE_CLASSIFICATION_SCHEMA[category] || subtypes.length === 0) {
+      throw new Error('识别失败，请重新拍摄，并对准设施主体');
+    }
+    const subtype = subtypes[0];
+    const subtypeText = buildSubtypeText(subtypes);
+
+    const confidence = Math.max(0, Math.min(1, Number(result.confidence) || 0));
+    this.setData({
+      recognizedCategory: category,
+      recognizedSubtype: subtype,
+      recognizedSubtypes: subtypes,
+      recognitionConfidence: confidence,
+      recognitionConfidenceText: formatConfidence(confidence),
+      recognitionStatus: 'success',
+      recognitionError: '',
+      categoryProbabilities: result.categoryProbabilities || {},
+      subcategoryProbabilities: result.subcategoryProbabilities || {},
+      subtypeOptions: buildSubtypeOptions(category, subtypes),
+      showSubtypePicker: false,
+      aiSolution: `已识别：${category} / ${subtypeText}`,
+      matchedSchemes: [],
+      schemeMessage: '方案匹配中...'
+    });
+    this.loadMatchedSchemes(category, subtypes);
+
+    if (showModal) {
+      wx.showModal({
+        title: '识别完成',
+        content: `已识别：${category} / ${subtypeText}`,
+        showCancel: false,
+        confirmText: '知道了'
+      });
+    }
+  },
+
+  onRecognitionCategoryTap: function () {
+    const now = Date.now();
+    if (this._lastCategoryTapAt && now - this._lastCategoryTapAt < 450) {
+      this._lastCategoryTapAt = 0;
+      this.openSubtypePicker();
+      return;
+    }
+    this._lastCategoryTapAt = now;
+  },
+
+  openSubtypePicker: function () {
+    if (!this.data.recognizedCategory) return;
+    this.setData({
+      subtypeOptions: buildSubtypeOptions(
+        this.data.recognizedCategory,
+        this.data.recognizedSubtypes
+      ),
+      showSubtypePicker: true
+    });
+  },
+
+  closeSubtypePicker: function () {
+    this.setData({ showSubtypePicker: false });
+    if (this._pendingSubtypeSelectionChanged) {
+      this._pendingSubtypeSelectionChanged = false;
+      this.loadMatchedSchemes(this.data.recognizedCategory, this.data.recognizedSubtypes);
+    }
+  },
+
+  onSubtypeSelect: function (e) {
+    const subtype = e.currentTarget.dataset.subtype;
+    const category = this.data.recognizedCategory;
+    if (!isValidSubtype(category, subtype)) return;
+    const current = normalizeSelectedSubtypes(category, this.data.recognizedSubtypes, this.data.recognizedSubtype);
+    const exists = current.includes(subtype);
+    if (exists && current.length <= 1) {
+      wx.showToast({ title: '至少保留一个子类', icon: 'none' });
+      return;
+    }
+    if (!exists && current.length >= 5) {
+      wx.showToast({ title: '最多选择5个子类', icon: 'none' });
+      return;
+    }
+    const nextSubtypes = exists
+      ? current.filter((item) => item !== subtype)
+      : current.concat(subtype);
+    const subtypeText = buildSubtypeText(nextSubtypes);
+    this._pendingSubtypeSelectionChanged = true;
+    this.setData({
+      recognizedSubtype: nextSubtypes[0],
+      recognizedSubtypes: nextSubtypes,
+      subtypeOptions: buildSubtypeOptions(category, nextSubtypes),
+      aiSolution: `已识别：${category} / ${subtypeText}`
+    });
   },
 
   // 选择位置
@@ -236,151 +611,25 @@ Page({
     });
   },
 
-  // 生成AI方案
-  generateAISolution: function () {
-    if (this.data.images.length === 0) {
-      wx.showToast({
-        title: '请先上传现场照片',
-        icon: 'none'
-      });
-      return;
-    }
-
-    if (!this.data.description.trim()) {
-      wx.showToast({
-        title: '请先填写问题描述',
-        icon: 'none'
-      });
-      return;
-    }
-
-    this.setData({ generatingAI: true });
-    wx.showLoading({ title: 'AI分析中...' });
-
-    // 先上传图片到云存储
-    this.uploadImages().then(fileIDs => {
-      // TODO: 调用团队训练的AI大模型接口
-      // 接口预留位置
-      // return wx.cloud.callFunction({
-      //   name: 'callAIModel',
-      //   data: {
-      //     imageUrl: fileIDs[0],
-      //     description: this.data.description,
-      //     location: {
-      //       latitude: this.data.latitude,
-      //       longitude: this.data.longitude,
-      //       address: this.data.address
-      //     }
-      //   }
-      // });
-
-      // 暂时返回假数据模拟AI分析结果
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            result: {
-              success: true,
-              // 使用用户选择的分类，而不是硬编码
-              category: this.data.selectedCategory || '无障碍坡道',
-              budget: 5000,  // AI估算的预算
-              description: `根据图片分析，建议安装坡度为1:12的${this.data.selectedCategory || '无障碍设施'}，长度约6米，配备防滑材料和扶手。`
-            }
-          });
-        }, 2000);
-      });
-    }).then(res => {
-      wx.hideLoading();
-      this.setData({ generatingAI: false });
-      
-      if (res.result && res.result.success) {
-        const aiResult = res.result;
-        
-        // 只在用户没有选择分类时，才使用AI识别的分类
-        if (aiResult.category && !this.data.selectedCategory) {
-          this.setData({
-            selectedCategory: aiResult.category
-          });
-        }
-        
-        // 设置AI生成的方案描述
-        this.setData({
-          aiSolution: aiResult.description || '暂无AI分析结果'
-        });
-
-        // TODO: 调用淘宝开放平台API获取预算
-        // 接口预留位置
-        // this.getBudgetEstimate(aiResult.category);
-
-        wx.showToast({
-          title: 'AI分析完成',
-          icon: 'success'
-        });
-      } else {
-        wx.showToast({
-          title: 'AI分析失败',
-          icon: 'none'
-        });
-      }
-    }).catch(err => {
-      wx.hideLoading();
-      this.setData({ generatingAI: false });
-      console.error('AI分析失败:', err);
-      wx.showToast({
-        title: 'AI分析失败',
-        icon: 'none'
-      });
-    });
-  },
-
-  // 获取预算估算（淘宝开放平台API）
-  getBudgetEstimate: function (category) {
-    // TODO: 调用淘宝开放平台API
-    // 接口预留位置
-    // wx.request({
-    //   url: 'https://eco.taobao.com/router/rest',
-    //   data: {
-    //     method: 'taobao.item.price.get',
-    //     app_key: 'YOUR_APP_KEY',
-    //     category: category,
-    //     location: this.data.address
-    //   },
-    //   success: (res) => {
-    //     const budget = res.data.estimatedCost;
-    //     // 更新预算显示
-    //   }
-    // });
-
-    // 暂时使用假数据
-    console.log('预算API预留位置，分类:', category);
-  },
-
   // 上传图片到云存储
   uploadImages: function () {
-    const uploadPromises = this.data.images.map((img, index) => {
-      const cloudPath = `issues/${Date.now()}-${index}.jpg`;
-      return wx.cloud.uploadFile({
-        cloudPath: cloudPath,
-        filePath: img.path
-      }).then(res => res.fileID);
-    });
-
-    return Promise.all(uploadPromises);
+    return Promise.all(this.data.images.map((_, index) => this.ensureImageUploaded(index)));
   },
 
   // 提交问题
   submitIssue: function () {
     // 验证必填项
-    if (!this.data.description.trim()) {
+    if (this.data.recognizingImage) {
       wx.showToast({
-        title: '请填写问题说明',
+        title: '图片识别中，请稍候',
         icon: 'none'
       });
       return;
     }
 
-    if (!this.data.selectedCategory) {
+    if (!this.data.recognizedCategory || !this.data.recognizedSubtype || this.data.recognizedSubtypes.length === 0) {
       wx.showToast({
-        title: '请选择分类',
+        title: '请先完成图片识别',
         icon: 'none'
       });
       return;
@@ -405,48 +654,50 @@ Page({
     this.setData({ submitting: true });
     wx.showLoading({ title: '发布中...' });
 
-    // 直接创建帖子，不需要先创建issues记录
     this.uploadImages().then(fileIDs => {
-      const db = getDB();
-      
-      // 从缓存获取用户信息
-      const cachedUserInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-      const cachedUserType = app.globalData.userType || wx.getStorageSync('userType') || 'resident';
-      
+      const description = this.data.description.trim();
+      const subtypeText = buildSubtypeText(this.data.recognizedSubtypes);
+      const fallbackTitle = `${this.data.recognizedCategory} / ${subtypeText}`;
       const postData = {
-        type: 'issue',  // 问题帖类型
-        status: 'pending',  // 待处理状态
-        title: this.data.description.substring(0, 30),
-        content: this.data.description,
+        title: (description || fallbackTitle).substring(0, 30),
+        content: description,
         images: fileIDs,
-        category: this.data.selectedCategoryId,  // 保存分类ID
-        categoryName: this.data.selectedCategory,  // 保存分类名称
-        location: new db.Geo.Point(this.data.longitude, this.data.latitude),
+        categoryId: getCategoryId(this.data.recognizedCategory),
+        categoryName: this.data.recognizedCategory,
+        recognizedCategory: this.data.recognizedCategory,
+        recognizedSubtype: this.data.recognizedSubtype,
+        recognizedSubtypes: this.data.recognizedSubtypes,
+        recognitionConfidence: this.data.recognitionConfidence,
+        categoryProbabilities: this.data.categoryProbabilities,
+        subcategoryProbabilities: this.data.subcategoryProbabilities,
+        community: this.data.selectedCommunity,
+        location: {
+          latitude: this.data.latitude,
+          longitude: this.data.longitude
+        },
         address: this.data.address,
         formattedAddress: this.data.formattedAddress,
         detailAddress: this.data.detailAddress,
-        userSuggestion: this.data.userSuggestion,
-        aiSolution: this.data.aiSolution,  // AI生成的方案
+        aiSolution: this.data.aiSolution,
         contactPhone: this.data.contactPhone,
-        userInfo: {
-          nickName: cachedUserInfo.nickName || '微信用户',
-          avatarUrl: cachedUserInfo.avatarUrl || '/images/zhi.png'
-        },
-        userType: cachedUserType,
-        stats: {
-          like: 0,
-          comment: 0,
-          collect: 0,
-          view: 0
-        },
-        createTime: db.serverDate(),
-        updateTime: db.serverDate()
       };
 
-      return db.collection('posts').add({ data: postData });
+      return wx.cloud.callFunction({
+        name: 'createIssuePost',
+        data: postData
+      }).then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || '发布失败');
+        }
+        return res;
+      });
     }).then(() => {
       wx.hideLoading();
       this.setData({ submitting: false });
+      const openid = app.globalData.openid || wx.getStorageSync('openid');
+      if (openid) {
+        wx.setStorageSync(`profilePostsDirtyAt:${openid}`, Date.now());
+      }
       
       wx.showToast({
         title: '发布成功',
@@ -472,4 +723,3 @@ Page({
     wx.navigateBack();
   }
 });
-

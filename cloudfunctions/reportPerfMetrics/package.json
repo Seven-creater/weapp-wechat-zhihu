@@ -1,0 +1,9 @@
+{
+  "name": "reportPerfMetrics",
+  "version": "1.0.0",
+  "description": "Persist aggregated mini-program performance metrics",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

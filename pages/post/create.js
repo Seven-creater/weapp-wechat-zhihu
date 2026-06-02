@@ -49,17 +49,17 @@ Page({
   },
 
   /**
-   * 发布日常分享
+   * 发布社区改造需求
    */
-  onDailyTap: function() {
+  onDemandTap: function() {
     // 检查登录状态
     if (!this.isLoggedIn()) {
-      this.showLoginPrompt('发布日常分享');
+      this.showLoginPrompt('发布改造需求');
       return;
     }
 
     wx.navigateTo({
-      url: '/pages/post/daily/index'
+      url: '/pages/demand/create/index'
     });
   },
 

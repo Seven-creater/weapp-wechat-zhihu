@@ -165,6 +165,10 @@ Page({
       this.setData({ submitting: false });
 
       if (res.result && res.result.success) {
+        const openid = app.globalData.openid || wx.getStorageSync('openid');
+        if (openid) {
+          wx.setStorageSync(`profilePostsDirtyAt:${openid}`, Date.now());
+        }
         wx.showToast({
           title: '发布成功',
           icon: 'success'
@@ -189,4 +193,3 @@ Page({
     });
   }
 });
-

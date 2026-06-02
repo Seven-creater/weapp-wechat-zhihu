@@ -5,7 +5,7 @@ module.exports = {
   cloudEnvId: 'your-cloud-env-id',
   
   // 腾讯地图密钥（请替换为你的实际密钥）
-  tencentMapKey: 'QTABZ-SI5CL-JMMPF-MJMVG-AND33-UHFCE',
+  tencentMapKey: '6FYBZ-RLVYL-WZSPM-MFAOZ-XKU3T-G7BUU',
   
   // API配置
   apiTimeout: 10000, // 接口超时时间（毫秒）

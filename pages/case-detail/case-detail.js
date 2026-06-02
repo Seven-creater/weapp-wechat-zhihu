@@ -1,6 +1,7 @@
 // 获取全局应用实例
 const app = getApp();
 const collectUtil = require("../../utils/collect.js");
+const mediaUtil = require("../../utils/cloud-media.js");
 
 // 延迟初始化数据库
 let db = null;
@@ -90,7 +91,7 @@ Page({
     watchStarted: false,
   },
 
-  onLoad: function (options) {
+  _legacyOnLoad: function (options) {
     const postId = options.postId || "";
     this.setData({ postId });
     if (postId) {
@@ -102,7 +103,7 @@ Page({
     }
   },
 
-  onShow: function () {
+  _legacyOnShow: function () {
     // 页面显示时检查登录状态，如果已登录但未启动监听，则启动监听
     if (app.globalData.openid && this.data.postId && !this.data.watchStarted) {
       this.watchComments(this.data.postId);
@@ -251,8 +252,9 @@ Page({
             .catch(() => ({ data: [] }));
           const userInfo = userRes.data?.[0]?.userInfo;
           if (userInfo) {
+            const avatarUrl = await this.resolveAvatarUrl(userInfo.avatarUrl);
             detail.designer = {
-              avatar: userInfo.avatarUrl || detail.designer.avatar,
+              avatar: avatarUrl || detail.designer.avatar,
               name: userInfo.nickName || detail.designer.name,
               bio: userInfo.province || "",
             };
@@ -317,7 +319,7 @@ Page({
       });
   },
 
-  watchComments: function (postId) {
+  _legacyWatchComments: function (postId) {
     // 检查登录状态，只有登录后才启动监听
     if (!app.globalData.openid) {
       console.log("未登录，无法启动评论实时监听");
@@ -341,6 +343,83 @@ Page({
           console.error("监听评论失败:", err);
         },
       });
+  },
+
+  // 覆盖生命周期，确保只启动一个监听并在离开页面时释放
+  onLoad: function (options) {
+    getDB();
+    const postId = options.postId || "";
+    this.setData({ postId });
+    if (postId) {
+      this.initData(postId);
+    }
+    this.ensureCommentWatcher();
+  },
+
+  onShow: function () {
+    this.ensureCommentWatcher();
+  },
+
+  onHide: function () {
+    this.stopCommentWatcher();
+  },
+
+  onUnload: function () {
+    this.stopCommentWatcher();
+  },
+
+  watchComments: function (postId) {
+    if (!app.globalData.openid || !postId) return;
+    getDB();
+    this.stopCommentWatcher();
+
+    this.commentWatcher = db.collection("comments")
+      .where({ postId })
+      .watch({
+        onChange: (snapshot) => {
+          const commentList = (snapshot.docs || []).map((comment) => ({
+            ...comment,
+            isLiked: false,
+            createTime: this.formatTime(comment.createTime),
+          }));
+          this.setData({ commentList });
+          this.getCommentLikeStatus(postId, commentList);
+        },
+        onError: (err) => {
+          console.error("comment watch failed:", err);
+        },
+      });
+
+    if (!this.data.watchStarted) {
+      this.setData({ watchStarted: true });
+    }
+  },
+
+  ensureCommentWatcher: function () {
+    if (!app.globalData.openid || !this.data.postId) return;
+    if (this.commentWatcher && this.data.watchStarted) return;
+    this.watchComments(this.data.postId);
+  },
+
+  stopCommentWatcher: function () {
+    if (this.commentWatcher && typeof this.commentWatcher.close === "function") {
+      this.commentWatcher.close();
+    }
+    this.commentWatcher = null;
+    if (this.data.watchStarted) {
+      this.setData({ watchStarted: false });
+    }
+  },
+
+  resolveAvatarUrl: async function (avatarUrl) {
+    if (!avatarUrl || typeof avatarUrl !== "string") {
+      return "";
+    }
+    if (avatarUrl.indexOf("cloud://") !== 0) {
+      return avatarUrl;
+    }
+    const mapping = await mediaUtil.resolveTempUrlMap([avatarUrl]);
+    return mapping.get(avatarUrl) || avatarUrl;
   },
 
   formatTime: function (timestamp) {
@@ -490,25 +569,24 @@ Page({
       // ✅ 只有通过了上面两关，才能执行下面的代码！
       // ==========================================
 
-      // 使用登录用户的信息
-      const userInfo = app.globalData.userInfo;
-
       // 获取文章标题
       const postTitle = this.data.projectDetail.title;
 
-      // 发送评论到云数据库
-      await db.collection("comments").add({
+      // 发送评论到云函数（服务端校验后写入）
+      const createRes = await wx.cloud.callFunction({
+        name: "createComment",
         data: {
           postId: postId,
           content: content.trim(),
-          userInfo: userInfo,
-          likeCount: 0,
-          postTitle: postTitle,
-          createTime: db.serverDate(),
+          postTitle: postTitle ? String(postTitle).slice(0, 120) : "",
         },
       });
+      if (!createRes.result || !createRes.result.success) {
+        throw new Error((createRes.result && createRes.result.error) || "评论失败");
+      }
 
       console.log("评论发送成功");
+      wx.hideLoading();
       // 清空输入内容并隐藏评论框
       this.setData({
         inputValue: "",

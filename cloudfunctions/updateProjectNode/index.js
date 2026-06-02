@@ -97,6 +97,15 @@ exports.main = async (event, context) => {
       }
     });
 
+    if (project.issueId) {
+      await db.collection('posts').doc(project.issueId).update({
+        data: {
+          status: projectStatus,
+          updateTime: db.serverDate()
+        }
+      });
+    }
+
     return {
       success: true,
       message: '节点更新成功'

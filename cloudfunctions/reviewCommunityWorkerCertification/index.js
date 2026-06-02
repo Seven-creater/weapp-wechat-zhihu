@@ -9,16 +9,33 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[reviewCommunityWorkerCertification] shared auth unavailable');
+}
+
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[reviewCommunityWorkerCertification] shared validate unavailable');
+}
+
 // 🔐 超级管理员列表（硬编码）
-const SUPER_ADMIN_OPENIDS = [
-  'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',
-  'oOJhu3T9Us9TAnibhfctmyRw2Urc'
-];
+const SUPER_ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 /**
  * 检查是否是管理员
  */
 async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
   // 1. 首先检查是否是超级管理员
   if (SUPER_ADMIN_OPENIDS.includes(openid)) {
     console.log('✅ 超级管理员权限验证通过:', openid);
@@ -49,26 +66,73 @@ async function isAdmin(openid) {
   return false;
 }
 
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+function validateEnum(value, allowed, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateEnum === 'function') {
+    return sharedValidate.validateEnum(value, allowed, options);
+  }
+  if (!Array.isArray(allowed) || !allowed.includes(value)) {
+    return { ok: false, error: `invalid ${options.name || 'value'}` };
+  }
+  return { ok: true, value };
+}
+
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const reviewerOpenid = wxContext.OPENID;
 
   try {
-    const { applicationId, status, rejectReason } = event;
-
-    // 验证参数
-    if (!applicationId || !status) {
+    const applicationIdCheck = validateString(event && event.applicationId, {
+      name: 'applicationId',
+      required: true,
+      min: 8,
+      max: 64
+    });
+    if (!applicationIdCheck.ok) {
       return {
         success: false,
-        error: '参数错误'
+        error: applicationIdCheck.error
       };
     }
-
-    if (!['approved', 'rejected'].includes(status)) {
+    const statusCheck = validateEnum(event && event.status, ['approved', 'rejected'], {
+      name: 'status',
+      required: true
+    });
+    if (!statusCheck.ok) {
       return {
         success: false,
-        error: '状态参数错误'
+        error: statusCheck.error
       };
+    }
+    const applicationId = applicationIdCheck.value;
+    const status = statusCheck.value;
+    let rejectReason = '';
+
+    if (status === 'rejected') {
+      const rejectReasonCheck = validateString(event && event.rejectReason, {
+        name: 'rejectReason',
+        required: true,
+        min: 1,
+        max: 200
+      });
+      if (!rejectReasonCheck.ok) {
+        return {
+          success: false,
+          error: rejectReasonCheck.error === 'missing rejectReason'
+            ? '拒绝时必须填写原因'
+            : rejectReasonCheck.error
+        };
+      }
+      rejectReason = rejectReasonCheck.value;
     }
 
     if (status === 'rejected' && !rejectReason) {

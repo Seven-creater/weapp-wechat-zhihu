@@ -5,6 +5,7 @@ cloud.init({
 });
 
 const db = cloud.database();
+const media = require('./media');
 
 exports.main = async (event, context) => {
   try {
@@ -25,14 +26,16 @@ exports.main = async (event, context) => {
       .limit(pageSize)
       .get();
 
+    const data = await replaceMediaList(result.data || []);
+
     return {
       success: true,
-      data: result.data,
+      data,
       pagination: {
         page: page,
         pageSize: pageSize,
-        total: result.data.length,
-        hasMore: result.data.length >= pageSize
+        total: data.length,
+        hasMore: data.length >= pageSize
       }
     };
 
@@ -45,3 +48,13 @@ exports.main = async (event, context) => {
     };
   }
 };
+
+async function replaceMediaList(list) {
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const cloudIds = new Set();
+  list.forEach((item) => media.collectCloudFileIdsDeep(item, cloudIds, { maxScan: 120 }));
+  const urlMap = await media.resolveTempUrlMap(cloud, Array.from(cloudIds), {
+    scenario: 'getCases'
+  });
+  return list.map((item) => media.replaceCloudUrlsDeep(item, urlMap, { maxDepth: 6 }));
+}

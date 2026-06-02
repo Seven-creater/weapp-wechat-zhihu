@@ -111,6 +111,7 @@
       <block wx:for="{{posts}}" wx:key="id">
         <view class="post-item" bindtap="navigateToDetail" data-id="{{item.id}}" data-route="{{item.route}}">
           <image class="post-cover" src="{{item.image}}" mode="aspectFill" wx:if="{{item.hasImage}}"></image>
+          <view class="post-tag" wx:if="{{item.tag}}">{{item.tag}}</view>
           <view class="post-title">{{item.title}}</view>
           <view class="post-footer">
             <view class="like-info">

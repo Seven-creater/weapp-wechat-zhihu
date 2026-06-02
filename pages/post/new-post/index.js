@@ -156,11 +156,15 @@ Page({
 
       const db = getDB();
       const userInfo = app.globalData.userInfo || {};
+      const community = (userInfo.profile && userInfo.profile.community) ||
+        userInfo.community ||
+        "楠竹社区";
       const data = {
         title: title || undefined,
         content: content || "",
         images: fileIDs,
         type: postType,
+        community,
         stats: { view: 0, like: 0, comment: 0 },
         createTime: db.serverDate(),
         updateTime: db.serverDate(),
@@ -177,6 +181,10 @@ Page({
 
       await db.collection("posts").add({ data });
 
+      const openid = app.globalData.openid || wx.getStorageSync("openid");
+      if (openid) {
+        wx.setStorageSync(`profilePostsDirtyAt:${openid}`, Date.now());
+      }
       wx.setStorageSync("communityInitialTab", postType === "case" ? 2 : 1);
       wx.hideLoading();
       wx.showToast({ title: "发布成功", icon: "success" });

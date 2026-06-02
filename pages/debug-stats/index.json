@@ -1,5 +1,4 @@
 {
-  "navigationBarTitleText": "统计数据调试",
+  "navigationBarTitleText": "性能采样调试",
   "usingComponents": {}
 }
-

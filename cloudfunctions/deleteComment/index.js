@@ -1,4 +1,3 @@
-// 云函数入口文件
 const cloud = require('wx-server-sdk');
 
 cloud.init({
@@ -6,70 +5,109 @@ cloud.init({
 });
 
 const db = cloud.database();
+const _ = db.command;
 
-// 云函数入口函数
-exports.main = async (event, context) => {
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[deleteComment] shared auth unavailable');
+}
+
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[deleteComment] shared validate unavailable');
+}
+
+const SUPER_ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `missing ${options.name || 'value'}` };
+  }
+  return { ok: true, value: value.trim() };
+}
+
+async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
+  if (SUPER_ADMIN_OPENIDS.includes(openid)) {
+    return true;
+  }
+  const userRes = await db.collection('users')
+    .where({ _openid: openid })
+    .field({ isAdmin: true, permissions: true })
+    .limit(1)
+    .get();
+  const user = userRes.data && userRes.data[0];
+  return !!(user && (user.isAdmin === true || (user.permissions && user.permissions.canManageUsers === true)));
+}
+
+exports.main = async (event = {}) => {
   const wxContext = cloud.getWXContext();
   const openid = wxContext.OPENID;
-  const { commentId, postId } = event;
 
-  if (!commentId || !postId) {
-    return { success: false, error: 'commentId and postId required' };
+  const commentIdCheck = validateString(event.commentId, { name: 'commentId', required: true, min: 8, max: 64 });
+  if (!commentIdCheck.ok) {
+    return { success: false, error: commentIdCheck.error };
+  }
+  const postIdCheck = validateString(event.postId, { name: 'postId', required: true, min: 8, max: 64 });
+  if (!postIdCheck.ok) {
+    return { success: false, error: postIdCheck.error };
   }
 
+  const commentId = commentIdCheck.value;
+  const postId = postIdCheck.value;
+
   try {
-    // 检查是否是管理员
-    const adminOpenids = [
-      'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',  // 第一位管理员
-      'oOJhu3T9Us9TAnibhfctmyRw2Urc'   // 第二位管理员
-    ];
-    const isAdmin = adminOpenids.includes(openid);
+    const callerIsAdmin = await isAdmin(openid);
 
     const commentRes = await db.collection('comments').doc(commentId).get();
     const comment = commentRes.data;
 
-    // 管理员可以删除任何评论，普通用户只能删除自己的评论
-    if (!comment || (!isAdmin && comment._openid !== openid)) {
+    const commentOwner = (comment && (comment.authorOpenid || comment._openid)) || '';
+    if (!comment || (!callerIsAdmin && commentOwner !== openid)) {
       return { success: false, error: 'permission denied' };
     }
 
-    // 找到需要删除的回复
-    const repliesRes = await db
-      .collection('comments')
-      .where({ parentId: commentId })
-      .get();
-
+    const repliesRes = await db.collection('comments').where({ parentId: commentId }).get();
     const replyIds = (repliesRes.data || []).map((item) => item._id);
     const allIds = [commentId].concat(replyIds);
 
-    // 删除评论与回复
-    await db
-      .collection('comments')
-      .where(db.command.or(allIds.map((id) => ({ _id: id }))))
+    await db.collection('comments')
+      .where(_.or(allIds.map((id) => ({ _id: id }))))
       .remove();
 
-    // 删除评论相关 actions
-    await db
-      .collection('actions')
-      .where(
-        db.command.or([
-          { type: 'like_comment', targetId: db.command.in(allIds) },
-          { type: 'like_comment', postId: db.command.in(allIds) }
-        ])
-      )
+    await db.collection('actions')
+      .where(_.or([
+        { type: 'like_comment', targetId: _.in(allIds) },
+        { type: 'like_comment', postId: _.in(allIds) }
+      ]))
       .remove();
 
-    // 回写 posts 统计
-    const decrement = allIds.length * -1;
+    const remainCountRes = await db.collection('comments')
+      .where({ postId })
+      .count();
+    const commentCount = Math.max(0, remainCountRes.total || 0);
+
     await db.collection('posts').doc(postId).update({
       data: {
-        'stats.comment': db.command.inc(decrement)
+        'stats.comment': commentCount
       }
     });
 
-    return { success: true, removed: allIds.length };
+    return { success: true, removed: allIds.length, commentCount };
   } catch (err) {
-    console.error('deleteComment error:', err);
-    return { success: false, error: err.message };
+    console.error('[deleteComment] failed:', err && err.message ? err.message : err);
+    return { success: false, error: err && err.message ? err.message : 'delete failed' };
   }
 };

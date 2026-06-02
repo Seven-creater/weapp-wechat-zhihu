@@ -32,7 +32,7 @@ Page({
         if (res.data) {
           this.setData({ 
             post: res.data,
-            title: `${res.data.category || '无障碍'}改造项目`
+            title: `${res.data.categoryName || res.data.category || '无障碍'}改造项目`
           });
         }
       })

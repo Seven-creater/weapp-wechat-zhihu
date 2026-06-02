@@ -1,5 +1,6 @@
 // pages/cases/detail/index.js
 const app = getApp();
+const mediaUtil = require('../../../utils/cloud-media.js');
 
 Page({
   data: {
@@ -32,6 +33,46 @@ Page({
       .get()
       .then(res => {
         wx.hideLoading();
+
+        if (res.data) {
+          this.resolveMedia(res.data)
+            .then((caseData) => {
+              if (caseData.completedAt) {
+                caseData.completedDate = this.formatDate(caseData.completedAt);
+              }
+              if (caseData.nodes) {
+                caseData.nodes.forEach((node) => {
+                  if (node.completedAt) {
+                    node.completedAt = this.formatDate(node.completedAt);
+                  }
+                });
+              }
+
+              this.setData({
+                caseData,
+                loading: false
+              });
+            })
+            .catch(() => {
+              const caseData = res.data;
+              if (caseData.completedAt) {
+                caseData.completedDate = this.formatDate(caseData.completedAt);
+              }
+              if (caseData.nodes) {
+                caseData.nodes.forEach((node) => {
+                  if (node.completedAt) {
+                    node.completedAt = this.formatDate(node.completedAt);
+                  }
+                });
+              }
+
+              this.setData({
+                caseData,
+                loading: false
+              });
+            });
+          return;
+        }
 
         if (res.data) {
           // 格式化日期
@@ -67,6 +108,15 @@ Page({
   },
 
   // 格式化日期
+  resolveMedia: async function (doc) {
+    const cloudIds = mediaUtil.collectCloudFileIdsDeep(doc);
+    if (!cloudIds || cloudIds.size === 0) {
+      return doc;
+    }
+    const mapping = await mediaUtil.resolveTempUrlMap(Array.from(cloudIds));
+    return mediaUtil.replaceCloudUrlsDeep(doc, mapping);
+  },
+
   formatDate: function (date) {
     if (!date) return '';
     const d = new Date(date);
@@ -91,7 +141,22 @@ Page({
     const contractorId = this.data.caseData?.contractorId;
     if (contractorId) {
       wx.navigateTo({
-        url: `/pages/user/index?id=${contractorId}`
+        url: `/pages/user-profile/index?id=${contractorId}`,
+        fail: (err) => {
+          console.error('跳转承包商主页失败:', err);
+          wx.showToast({
+            title: '页面不存在或已下线',
+            icon: 'none'
+          });
+          setTimeout(() => {
+            const pages = getCurrentPages();
+            if (pages.length > 1) {
+              wx.navigateBack({ delta: 1 });
+              return;
+            }
+            wx.switchTab({ url: '/pages/index/index' });
+          }, 300);
+        }
       });
     }
   },

@@ -1,5 +1,5 @@
-// 云函数：toggleFollow - 关注/取消关注用户
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
@@ -7,200 +7,217 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
-exports.main = async (event, context) => {
-  const { OPENID } = cloud.getWXContext();
-  const { targetId, action } = event; // action: 'follow' 或 'unfollow'
+let sharedValidate = null;
+try {
+  sharedValidate = require('../_shared/validate');
+} catch (err) {
+  console.warn('[toggleFollow] shared validate unavailable');
+}
 
-  try {
-    // 验证参数
-    if (!targetId) {
-      return { success: false, error: '缺少目标用户ID' };
-    }
+function validateString(value, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateString === 'function') {
+    return sharedValidate.validateString(value, options);
+  }
+  const { name = 'value', required = false, min = 0, max = 2000 } = options;
+  if (value == null || value === '') {
+    if (required) return { ok: false, error: `missing ${name}` };
+    return { ok: true, value: '' };
+  }
+  if (typeof value !== 'string') return { ok: false, error: `${name} must be string` };
+  const text = value.trim();
+  if (required && !text) return { ok: false, error: `missing ${name}` };
+  if (text.length < min) return { ok: false, error: `${name} too short` };
+  if (text.length > max) return { ok: false, error: `${name} too long` };
+  return { ok: true, value: text };
+}
 
-    if (!action || !['follow', 'unfollow'].includes(action)) {
-      return { success: false, error: '无效的操作类型' };
-    }
+function validateEnum(value, allowed, options = {}) {
+  if (sharedValidate && typeof sharedValidate.validateEnum === 'function') {
+    return sharedValidate.validateEnum(value, allowed, options);
+  }
+  if (!allowed.includes(value)) {
+    return { ok: false, error: `invalid ${options.name || 'value'}` };
+  }
+  return { ok: true, value };
+}
 
-    // 不能关注自己
-    if (OPENID === targetId) {
-      return { success: false, error: '不能关注自己' };
-    }
+async function syncFollowStatsTx(transaction, followerId, targetId) {
+  const legacyOrNewFollowerWhere = _.or([
+    { followerId },
+    { _openid: followerId }
+  ]);
+  const [followingCountRes, followersCountRes] = await Promise.all([
+    transaction.collection('follows').where(legacyOrNewFollowerWhere).count(),
+    transaction.collection('follows').where({ targetId }).count()
+  ]);
 
-    // 使用事务处理
-    const transaction = await db.startTransaction();
+  const followingCount = Math.max(0, followingCountRes.total || 0);
+  const followersCount = Math.max(0, followersCountRes.total || 0);
 
-    try {
-      if (action === 'follow') {
-        // 关注用户
-        // 1. 检查是否已经关注
-        const existingFollow = await transaction.collection('follows')
-          .where({
-            followerId: OPENID,
-            targetId: targetId
-          })
-          .get();
-
-        if (existingFollow.data.length > 0) {
-          await transaction.rollback();
-          return { success: false, error: '已经关注过了' };
+  await Promise.all([
+    transaction.collection('users')
+      .where({ _openid: followerId })
+      .update({
+        data: {
+          'stats.followingCount': followingCount,
+          updateTime: db.serverDate()
         }
+      }),
+    transaction.collection('users')
+      .where({ _openid: targetId })
+      .update({
+        data: {
+          'stats.followersCount': followersCount,
+          updateTime: db.serverDate()
+        }
+      })
+  ]);
+}
 
-        // 2. 添加关注记录
-        await transaction.collection('follows').add({
-          data: {
-            followerId: OPENID,
-            targetId: targetId,
-            isMutual: false,
-            createTime: db.serverDate()
-          }
-        });
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  if (!OPENID) {
+    return { success: false, error: 'unauthorized' };
+  }
 
-        // 3. 检查是否互关
-        const reverseFollow = await transaction.collection('follows')
-          .where({
-            followerId: targetId,
-            targetId: OPENID
-          })
-          .get();
+  const targetIdCheck = validateString(event.targetId, {
+    name: 'targetId',
+    required: true,
+    min: 8,
+    max: 64
+  });
+  if (!targetIdCheck.ok) {
+    return { success: false, error: targetIdCheck.error };
+  }
 
-        const isMutual = reverseFollow.data.length > 0;
+  const actionCheck = validateEnum(event.action, ['follow', 'unfollow'], {
+    name: 'action',
+    required: true
+  });
+  if (!actionCheck.ok) {
+    return { success: false, error: actionCheck.error };
+  }
 
-        // 4. 如果互关，更新两条记录
-        if (isMutual) {
-          await transaction.collection('follows')
+  const targetId = targetIdCheck.value;
+  const action = actionCheck.value;
+  if (OPENID === targetId) {
+    return { success: false, error: 'cannot follow self' };
+  }
+
+  const transaction = await db.startTransaction();
+  try {
+    if (action === 'follow') {
+      const existingFollow = await transaction.collection('follows')
+        .where(_.or([
+          { followerId: OPENID, targetId },
+          { _openid: OPENID, targetId }
+        ]))
+        .get();
+
+      if ((existingFollow.data || []).length > 0) {
+        await transaction.rollback();
+        return {
+          success: true,
+          action: 'follow',
+          already: true,
+          isMutual: !!((existingFollow.data || [])[0] && (existingFollow.data || [])[0].isMutual)
+        };
+      }
+
+      await transaction.collection('follows').add({
+        data: {
+          followerId: OPENID,
+          targetId,
+          isMutual: false,
+          createTime: db.serverDate()
+        }
+      });
+
+      const reverseFollow = await transaction.collection('follows')
+        .where({
+          followerId: targetId,
+          targetId: OPENID
+        })
+        .get();
+
+      const isMutual = (reverseFollow.data || []).length > 0;
+      if (isMutual) {
+        await Promise.all([
+          transaction.collection('follows')
             .where({
               followerId: OPENID,
-              targetId: targetId
+              targetId
             })
             .update({
-              data: {
-                isMutual: true
-              }
-            });
-
-          await transaction.collection('follows')
+              data: { isMutual: true }
+            }),
+          transaction.collection('follows')
             .where({
               followerId: targetId,
               targetId: OPENID
             })
             .update({
-              data: {
-                isMutual: true
-              }
-            });
-        }
-
-        // 5. 更新统计数据（使用 where 查询）
-        // 更新当前用户的关注数
-        await transaction.collection('users')
-          .where({
-            _openid: OPENID
-          })
-          .update({
-            data: {
-              'stats.followingCount': _.inc(1)
-            }
-          });
-
-        // 更新目标用户的粉丝数
-        await transaction.collection('users')
-          .where({
-            _openid: targetId
-          })
-          .update({
-            data: {
-              'stats.followersCount': _.inc(1)
-            }
-          });
-
-        // 提交事务
-        await transaction.commit();
-
-        return { 
-          success: true, 
-          action: 'follow',
-          isMutual: isMutual
-        };
-
-      } else {
-        // 取消关注
-        // 1. 查找关注记录
-        const followRes = await transaction.collection('follows')
-          .where({
-            followerId: OPENID,
-            targetId: targetId
-          })
-          .get();
-
-        if (followRes.data.length === 0) {
-          await transaction.rollback();
-          return { success: false, error: '未找到关注记录' };
-        }
-
-        // 2. 删除关注记录
-        const followId = followRes.data[0]._id;
-        await transaction.collection('follows').doc(followId).remove();
-
-        // 3. 如果之前是互关，更新对方的记录
-        await transaction.collection('follows')
-          .where({
-            followerId: targetId,
-            targetId: OPENID
-          })
-          .update({
-            data: {
-              isMutual: false
-            }
-          });
-
-        // 4. 更新统计数据（使用 where 查询）
-        // 更新当前用户的关注数
-        await transaction.collection('users')
-          .where({
-            _openid: OPENID
-          })
-          .update({
-            data: {
-              'stats.followingCount': _.inc(-1)
-            }
-          });
-
-        // 更新目标用户的粉丝数
-        await transaction.collection('users')
-          .where({
-            _openid: targetId
-          })
-          .update({
-            data: {
-              'stats.followersCount': _.inc(-1)
-            }
-          });
-
-        // 提交事务
-        await transaction.commit();
-
-        return { 
-          success: true, 
-          action: 'unfollow'
-        };
+              data: { isMutual: true }
+            })
+        ]);
       }
 
-    } catch (err) {
-      // 回滚事务
-      try {
-        await transaction.rollback();
-      } catch (rollbackErr) {
-        console.error('回滚失败:', rollbackErr);
-      }
-      throw err;
+      await syncFollowStatsTx(transaction, OPENID, targetId);
+      await transaction.commit();
+
+      return {
+        success: true,
+        action: 'follow',
+        isMutual
+      };
     }
 
+    const followRes = await transaction.collection('follows')
+      .where(_.or([
+        { followerId: OPENID, targetId },
+        { _openid: OPENID, targetId }
+      ]))
+      .get();
+    const followDocs = (followRes.data || []).filter((doc) => doc && doc._id);
+    if (!followDocs.length) {
+      await transaction.rollback();
+      return {
+        success: true,
+        action: 'unfollow',
+        already: true
+      };
+    }
+
+    await Promise.all(followDocs.map((doc) =>
+      transaction.collection('follows').doc(doc._id).remove()
+    ));
+
+    await transaction.collection('follows')
+      .where({
+        followerId: targetId,
+        targetId: OPENID
+      })
+      .update({
+        data: { isMutual: false }
+      });
+
+    await syncFollowStatsTx(transaction, OPENID, targetId);
+    await transaction.commit();
+
+    return {
+      success: true,
+      action: 'unfollow'
+    };
   } catch (err) {
-    console.error('toggleFollow error:', err);
-    return { 
-      success: false, 
-      error: err.message || '操作失败'
+    try {
+      await transaction.rollback();
+    } catch (rollbackErr) {
+      console.error('[toggleFollow] rollback failed:', rollbackErr);
+    }
+    console.error('[toggleFollow] failed:', err);
+    return {
+      success: false,
+      error: err && err.message ? err.message : 'toggle follow failed'
     };
   }
 };
-

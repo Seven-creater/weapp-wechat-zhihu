@@ -9,16 +9,26 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
+let sharedAuth = null;
+try {
+  sharedAuth = require('../_shared/auth');
+} catch (err) {
+  console.warn('[getCertificationApplications] shared auth unavailable');
+}
+
 // 🔐 超级管理员列表（硬编码）
-const SUPER_ADMIN_OPENIDS = [
-  'oOJhu3QmRKlk8Iuu87G6ol0IrDyQ',
-  'oOJhu3T9Us9TAnibhfctmyRw2Urc'
-];
+const SUPER_ADMIN_OPENIDS = (process.env.SUPER_ADMIN_OPENIDS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
 
 /**
  * 检查是否是管理员
  */
 async function isAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isAdmin === 'function') {
+    return sharedAuth.isAdmin({ db, openid });
+  }
   // 1. 首先检查是否是超级管理员
   if (SUPER_ADMIN_OPENIDS.includes(openid)) {
     console.log('✅ 超级管理员权限验证通过:', openid);

@@ -3,7 +3,7 @@ Component({
     selected: 0,
     color: "#999999",
     selectedColor: "#002fa7",
-    unreadCount: 0,  // 🆕 未读消息数量
+    unreadCount: 0,
     list: [
       {
         pagePath: "/pages/index/index",
@@ -38,16 +38,16 @@ Component({
       }
     ]
   },
-  
+
   attached() {
     this.setSelected();
-    this.loadUnreadCount();  // 🆕 加载未读消息数量
+    this.syncUnreadCount();
   },
 
   pageLifetimes: {
     show() {
       this.setSelected();
-      this.loadUnreadCount();  // 🆕 页面显示时刷新未读消息数量
+      this.syncUnreadCount();
     }
   },
 
@@ -55,87 +55,39 @@ Component({
     switchTab(e) {
       const data = e.currentTarget.dataset;
       const url = data.path;
-      
       wx.switchTab({ url });
     },
 
     setSelected() {
       const pages = getCurrentPages();
+      if (!Array.isArray(pages) || pages.length === 0) return;
       const currentPage = pages[pages.length - 1];
-      const pagePath = '/' + currentPage.route;
-      
+      if (!currentPage || typeof currentPage.route !== "string" || !currentPage.route) return;
+      const pagePath = "/" + currentPage.route;
       const selected = this.data.list.findIndex(item => item.pagePath === pagePath);
-      
-      if (selected !== -1) {
-        this.setData({
-          selected: selected
-        });
+
+      if (selected !== -1 && selected !== this.data.selected) {
+        this.setData({ selected });
       }
     },
 
-    /**
-     * 🆕 加载未读消息数量
-     */
-    loadUnreadCount() {
+    syncUnreadCount() {
       const app = getApp();
-      const openid = app.globalData.openid || wx.getStorageSync('openid');
-      
-      if (!openid) {
-        return;
-      }
-
-      // 从云数据库查询未读消息数量（统计所有会话的未读数）
-      wx.cloud.database().collection('conversations')
-        .where({
-          ownerId: openid  // 🔧 使用 ownerId 而不是 targetId
-        })
-        .field({
-          unreadCount: true
-        })
-        .get()
-        .then(res => {
-          const conversations = res.data || [];
-          // 🔧 计算所有会话的未读数量总和
-          const totalUnread = conversations.reduce((sum, conv) => {
-            return sum + (conv.unreadCount || 0);
-          }, 0);
-          
-          console.log('📊 未读消息统计:', totalUnread, '条');
-          
-          this.setData({
-            unreadCount: totalUnread
-          });
-          
-          // 🔧 同时设置 TabBar 角标
-          if (totalUnread > 0) {
-            wx.setTabBarBadge({
-              index: 3,  // 消息是第4个tab（索引为3）
-              text: totalUnread > 99 ? '99+' : String(totalUnread)
-            });
-          } else {
-            wx.removeTabBarBadge({
-              index: 3
-            });
-          }
-        })
-        .catch(err => {
-          console.error('加载未读消息数量失败:', err);
-        });
+      const unreadCount = app && typeof app.getUnreadCount === "function"
+        ? app.getUnreadCount()
+        : ((app && app.globalData && app.globalData.unreadCount) || 0);
+      if (unreadCount === this.data.unreadCount) return;
+      this.setData({ unreadCount });
     },
 
-    /**
-     * 🆕 更新未读消息数量（供外部调用）
-     */
     updateUnreadCount(count) {
-      this.setData({
-        unreadCount: count
-      });
-      
-      // 更新系统 TabBar 角标
+      if (count === this.data.unreadCount) return;
+      this.setData({ unreadCount: count });
+
       if (count > 0) {
         wx.setTabBarBadge({
           index: 3,
-          text: count > 99 ? '99+' : String(count)
+          text: count > 99 ? "99+" : String(count)
         });
       } else {
         wx.removeTabBarBadge({
@@ -145,4 +97,3 @@ Component({
     }
   }
 });
-

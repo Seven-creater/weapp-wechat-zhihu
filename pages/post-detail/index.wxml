@@ -22,6 +22,10 @@
             <text class="tag-icon">🚧</text>
             <text>{{post.categoryName || '随手拍'}}</text>
           </view>
+          <view class="tag-badge tag-demand" wx:elif="{{post.type === 'demand'}}">
+            <text class="tag-icon">📌</text>
+            <text>改造需求</text>
+          </view>
           <view class="tag-badge" wx:elif="{{post.type === 'case'}}">
             <text class="tag-icon">🏗️</text>
             <text>{{post.categoryName || '案例'}}</text>
@@ -66,6 +70,31 @@
         <text class="user-text" user-select="true">{{post.content}}</text>
       </view>
 
+      <view class="recognition-report-card" wx:if="{{post.recognizedCategory}}">
+        <view class="recognition-report-header">
+          <text class="recognition-report-icon">🔎</text>
+          <text class="recognition-report-title">识别结果</text>
+        </view>
+        <view class="recognition-report-row">
+          <text class="recognition-report-label">大类</text>
+          <text class="recognition-report-value">{{post.recognizedCategory}}</text>
+        </view>
+        <view class="recognition-report-row" wx:if="{{post.recognizedSubtypes.length}}">
+          <text class="recognition-report-label">子类</text>
+          <view class="recognition-report-tags">
+            <text
+              class="recognition-report-tag"
+              wx:for="{{post.recognizedSubtypes}}"
+              wx:key="*this"
+            >{{item}}</text>
+          </view>
+        </view>
+        <view class="recognition-report-row" wx:if="{{post.recognitionConfidenceText}}">
+          <text class="recognition-report-label">置信度</text>
+          <text class="recognition-report-value">{{post.recognitionConfidenceText}}</text>
+        </view>
+      </view>
+
       <!-- 第二部分：AI 诊断卡片 (完全独立，带背景色) -->
       <view class="ai-report-card" wx:if="{{post.aiDiagnosis || post.aiSolution}}">
         <view class="ai-header">
@@ -76,19 +105,144 @@
           <text user-select="true">{{post.aiDiagnosis || post.aiSolution}}</text>
         </view>
       </view>
-    </view>
 
-    <!-- 用户建议 -->
-      <view class="user-suggestion-block" wx:if="{{post.userSuggestion && post.userSuggestion.length > 0}}">
-        <view class="suggestion-blue-line"></view>
-        <view class="suggestion-content">
-          <text class="suggestion-label">👤 我的建议</text>
-          <text class="suggestion-text" user-select="true">{{post.userSuggestion}}</text>
+      <view class="demand-info-card" wx:if="{{post.type === 'demand'}}">
+        <view class="demand-info-row">
+          <text class="demand-info-label">需求状态</text>
+          <text class="demand-info-value">{{post.statusText}}</text>
+        </view>
+        <view class="demand-info-row" wx:if="{{post.urgencyText}}">
+          <text class="demand-info-label">紧急程度</text>
+          <text class="demand-info-value urgency-{{post.urgency}}">{{post.urgencyText}}</text>
+        </view>
+        <view class="demand-info-row" wx:if="{{post.community}}">
+          <text class="demand-info-label">所属社区</text>
+          <text class="demand-info-value">{{post.community}}</text>
         </view>
       </view>
 
+      <view class="scheme-report-card" wx:if="{{post.hasSchemePanel}}">
+        <view class="scheme-report-header">
+          <text class="scheme-report-icon">📐</text>
+          <text class="scheme-report-title">匹配改造方案</text>
+        </view>
+        <view class="ramp-problem-tags" wx:if="{{post.rampProblems && post.rampProblems.length}}">
+          <text
+            class="ramp-problem-tag"
+            wx:for="{{post.rampProblems}}"
+            wx:key="*this"
+          >{{item}}</text>
+        </view>
+        <block wx:if="{{post.matchedSchemes && post.matchedSchemes.length}}">
+          <view
+            class="scheme-card {{scheme.resourceStatus === 'placeholder' ? 'placeholder' : 'ready'}}"
+            wx:for="{{post.matchedSchemes}}"
+            wx:for-item="scheme"
+            wx:for-index="schemeIndex"
+            wx:key="code"
+          >
+            <view
+              class="scheme-card-summary"
+              data-index="{{schemeIndex}}"
+              data-status="{{scheme.resourceStatus}}"
+              data-code="{{scheme.code}}"
+              bindtap="handleSchemeTap"
+              aria-role="button"
+              aria-label="{{scheme.code}} {{scheme.resourceStatus === 'placeholder' ? '暂无方案文件' : '查看首个方案文件'}}"
+            >
+              <view class="scheme-card-main">
+                <text class="scheme-card-code">{{scheme.code}}</text>
+                <text class="scheme-card-title">{{scheme.title}}</text>
+              </view>
+              <text class="scheme-card-status" wx:if="{{scheme.resourceStatus === 'placeholder'}}">暂无方案文件</text>
+              <text class="scheme-card-status" wx:else>{{scheme.totalFileCount || 0}}个文件</text>
+            </view>
+            <view class="scheme-focused-sections">
+              <view class="scheme-focus-section" wx:if="{{scheme.displaySections && scheme.displaySections.drawingFiles && scheme.displaySections.drawingFiles.length}}">
+                <view class="scheme-section-title">
+                  <text>施工图纸</text>
+                  <text class="scheme-group-count">{{scheme.displaySections.drawingFiles.length}}个文件</text>
+                </view>
+                <view
+                  class="scheme-file-row {{file.fileType === 'engineering' ? 'engineering' : 'preview'}}"
+                  wx:for="{{scheme.displaySections.drawingFiles}}"
+                  wx:for-item="file"
+                  wx:for-index="fileIndex"
+                  wx:key="cloudPath"
+                  data-scheme-index="{{schemeIndex}}"
+                  data-section="drawingFiles"
+                  data-file-index="{{fileIndex}}"
+                  bindtap="handleSchemeDisplayFileTap"
+                  aria-role="button"
+                  aria-label="{{file.name}}"
+                >
+                  <text class="scheme-file-name">{{file.name}}</text>
+                  <text class="scheme-file-type">{{file.fileType === 'engineering' ? '工程文件' : '预览'}}</text>
+                </view>
+              </view>
+
+              <view class="scheme-focus-section scheme-tag-summary" wx:if="{{scheme.schemeSummary}}">
+                <view class="scheme-section-title">
+                  <text>方案标签卡</text>
+                </view>
+                <view class="scheme-summary-line" wx:if="{{scheme.schemeSummary.matchedSubtypesText}}">
+                  <text class="scheme-summary-label">适用问题</text>
+                  <text class="scheme-summary-value">{{scheme.schemeSummary.matchedSubtypesText}}</text>
+                </view>
+                <view class="scheme-summary-line" wx:if="{{scheme.schemeSummary.designFocus}}">
+                  <text class="scheme-summary-label">改造要点</text>
+                  <text class="scheme-summary-value">{{scheme.schemeSummary.designFocus}}</text>
+                </view>
+                <view
+                  class="scheme-file-row preview"
+                  wx:if="{{scheme.displaySections.tagCardFiles && scheme.displaySections.tagCardFiles.length}}"
+                  wx:for="{{scheme.displaySections.tagCardFiles}}"
+                  wx:for-item="file"
+                  wx:for-index="fileIndex"
+                  wx:key="cloudPath"
+                  data-scheme-index="{{schemeIndex}}"
+                  data-section="tagCardFiles"
+                  data-file-index="{{fileIndex}}"
+                  bindtap="handleSchemeDisplayFileTap"
+                  aria-role="button"
+                  aria-label="{{file.name}}"
+                >
+                  <text class="scheme-file-name">{{file.name}}</text>
+                  <text class="scheme-file-type">标签卡</text>
+                </view>
+              </view>
+
+              <view class="scheme-focus-section" wx:if="{{scheme.displaySections && scheme.displaySections.materialTableFiles && scheme.displaySections.materialTableFiles.length}}">
+                <view class="scheme-section-title">
+                  <text>施工物料表</text>
+                  <text class="scheme-group-count">{{scheme.displaySections.materialTableFiles.length}}个文件</text>
+                </view>
+                <view
+                  class="scheme-file-row preview"
+                  wx:for="{{scheme.displaySections.materialTableFiles}}"
+                  wx:for-item="file"
+                  wx:for-index="fileIndex"
+                  wx:key="cloudPath"
+                  data-scheme-index="{{schemeIndex}}"
+                  data-section="materialTableFiles"
+                  data-file-index="{{fileIndex}}"
+                  bindtap="handleSchemeDisplayFileTap"
+                  aria-role="button"
+                  aria-label="{{file.name}}"
+                >
+                  <text class="scheme-file-name">{{file.name}}</text>
+                  <text class="scheme-file-type">物料表</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+        <text class="scheme-card-empty" wx:else>{{post.schemeMessage || '暂无方案'}}</text>
+      </view>
+    </view>
+
     <!-- 定位信息 -->
-    <view class="location-card" wx:if="{{post.address || post.formattedAddress}}">
+    <view class="location-card" wx:if="{{post.address || post.formattedAddress || post.locationCoordinateText}}">
       <image class="location-icon" src="/images/flag.png" aria-hidden="true"></image>
       <view class="location-info">
         <view class="location-header">
@@ -97,6 +251,7 @@
         </view>
         <text class="location-text">{{post.formattedAddress || post.address}}</text>
         <text class="detail-address-text" wx:if="{{post.detailAddress}}">{{post.detailAddress}}</text>
+        <text class="coordinate-text" wx:if="{{post.locationCoordinateText}}">{{post.locationCoordinateText}}</text>
       </view>
     </view>
 
@@ -158,7 +313,7 @@
         <text class="title-icon">🔧</text>
         <text class="title-text">专业操作</text>
         <text class="status-badge status-{{post.status}}">
-          {{post.status === 'pending' ? '待处理' : post.status === 'processing' ? '处理中' : '已完成'}}
+          {{post.statusText}}
         </text>
       </view>
       
@@ -168,8 +323,8 @@
         <view class="linked-item" wx:if="{{proposalCount > 0}}" bindtap="viewProposalList">
           <text class="linked-icon">📐</text>
           <view class="linked-info">
-            <text class="linked-title">设计方案</text>
-            <text class="linked-desc">已有 {{proposalCount}} 个设计方案</text>
+            <text class="linked-title">{{post.type === 'demand' ? '报名方案' : '设计方案'}}</text>
+            <text class="linked-desc">已有 {{proposalCount}} 个{{post.type === 'demand' ? '报名方案' : '设计方案'}}</text>
           </view>
           <text class="linked-arrow">›</text>
         </view>
@@ -187,22 +342,22 @@
         <!-- 暂无关联内容提示 -->
         <view class="no-linked-content" wx:if="{{proposalCount === 0 && !linkedProject}}">
           <text class="no-content-icon">📋</text>
-          <text class="no-content-text">暂无关联的设计方案或施工项目</text>
+          <text class="no-content-text">{{post.type === 'demand' ? '暂无报名方案或施工项目' : '暂无关联的设计方案或施工项目'}}</text>
         </view>
       </view>
       
       <!-- 操作按钮区（根据角色显示） -->
       <view class="professional-buttons">
         <!-- 设计师功能 -->
-        <block wx:if="{{isDesigner}}">
+        <block wx:if="{{canSubmitProposal}}">
           <!-- 添加设计方案按钮 -->
           <view 
             class="pro-btn design-btn" 
             bindtap="addDesignSolution"
-            wx:if="{{proposalCount === 0}}"
+            wx:if="{{post.type === 'demand' || proposalCount === 0}}"
           >
             <text class="pro-icon">📐</text>
-            <text class="pro-text">添加设计方案</text>
+            <text class="pro-text">{{post.type === 'demand' ? '提交报名方案' : '添加设计方案'}}</text>
           </view>
         </block>
         
@@ -222,7 +377,7 @@
           <view 
             class="pro-btn update-btn" 
             bindtap="updateProjectNode"
-            wx:if="{{linkedProject && post.status === 'processing'}}"
+            wx:if="{{linkedProject && (post.status === 'processing' || post.status === 'constructing' || post.status === 'accepting')}}"
           >
             <text class="pro-icon">📸</text>
             <text class="pro-text">更新施工节点</text>
@@ -256,7 +411,7 @@
           <view 
             class="pro-btn complete-btn" 
             bindtap="confirmProjectCompletion"
-            wx:if="{{linkedProject && post.status === 'processing'}}"
+            wx:if="{{linkedProject && (post.status === 'processing' || post.status === 'constructing' || post.status === 'accepting')}}"
           >
             <text class="pro-icon">✅</text>
             <text class="pro-text">确认项目完成</text>
@@ -269,7 +424,7 @@
           <view 
             class="pro-btn complete-btn" 
             bindtap="confirmProjectCompletion"
-            wx:if="{{linkedProject && post.status === 'processing'}}"
+            wx:if="{{linkedProject && (post.status === 'processing' || post.status === 'constructing' || post.status === 'accepting')}}"
           >
             <text class="pro-icon">✅</text>
             <text class="pro-text">确认项目完成</text>
