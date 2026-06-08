@@ -1055,236 +1055,48 @@ Page({
       return this._commentsLoadInflight;
     }
 
-    const { db, _ } = getDB();
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    console.log('🔍 开始加载评论，postId:', this.data.postId);
-    const isAdmin = !!this.data.isAdmin;
+    console.log('[post-detail] load comments:', this.data.postId);
 
-    this._commentsLoadInflight = db.collection('comments')
-      .where({ postId: this.data.postId })
-      .field({
-        _id: true,
-        postId: true,
-        content: true,
-        parentId: true,
-        likes: true,
-        likeCount: true,
-        createTime: true,
-        authorOpenid: true,
-        _openid: true
-      })
-      .orderBy('createTime', 'desc')
-      .get()
-      .then(async res => {
-        console.log('📊 查询到的评论总数:', res.data.length);
-        const allComments = res.data;
-        
-        if (allComments.length === 0) {
-          this._latestCommentCount = 0;
-          const emptyUpdates = { comments: [] };
-          if (this.data.post) {
-            emptyUpdates['post.stats.comment'] = 0;
-          }
-          this.setData(emptyUpdates);
-          return;
+    this._commentsLoadInflight = wx.cloud.callFunction({
+      name: 'getPostComments',
+      data: {
+        postId: this.data.postId
+      }
+    })
+      .then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || 'query failed');
         }
 
-        const commentIds = allComments.map(c => c._id);
-        const authorIds = [...new Set(allComments.map(c => c.authorOpenid || c._openid).filter(Boolean))];
-        const batchUserMap = await this.fetchUsersBatch(authorIds);
+        const payload = res.result.data || {};
+        const comments = Array.isArray(payload.comments) ? payload.comments : [];
+        const total = Number.isFinite(Number(payload.total))
+          ? Math.max(0, Number(payload.total))
+          : comments.length;
 
+        this._latestCommentCount = total;
         if (!this._commentLikeCache) this._commentLikeCache = new Map();
-        const now = Date.now();
-        const canUseLikeCache = !!(
-          openid &&
-          !force &&
-          this._commentLikeCacheAt &&
-          (now - this._commentLikeCacheAt < STATUS_SYNC_TTL_MS)
-        );
-        const likedMap = new Set();
-        const needQueryIds = [];
-        if (openid) {
-          commentIds.forEach((id) => {
-            if (!id) return;
-            if (canUseLikeCache && this._commentLikeCache.has(id)) {
-              if (this._commentLikeCache.get(id)) likedMap.add(id);
-            } else {
-              needQueryIds.push(id);
+        this._commentLikeCache.clear();
+        comments.forEach((comment) => {
+          if (comment && comment._id) {
+            this._commentLikeCache.set(comment._id, !!comment.liked);
+          }
+          (comment && Array.isArray(comment.replies) ? comment.replies : []).forEach((reply) => {
+            if (reply && reply._id) {
+              this._commentLikeCache.set(reply._id, !!reply.liked);
             }
           });
+        });
+        this._commentLikeCacheAt = Date.now();
+
+        const updates = { comments };
+        if (this.data.post) {
+          updates['post.stats.comment'] = total;
         }
-
-        const likesPromise = (openid && needQueryIds.length > 0)
-          ? this.fetchInteractionStatuses(
-            needQueryIds.map((id) => ({ id, collection: 'comments', type: 'like' }))
-          ).then((rows) => ({
-            data: rows
-              .filter((row) => row && row.status)
-              .map((row) => ({ targetId: row.id }))
-          }))
-          : Promise.resolve({ data: [] });
-
-        /* const usersPromise = Promise.all(
-          authorIds.map(authorId => 
-            Promise.resolve({
-              result: {
-                success: true,
-                data: batchUserMap[authorId] || {}
-              }
-            }).then(res => {
-            if (res.result && res.result.success) {
-              return {
-                  openid: authorId,
-                  userInfo: res.result.data.userInfo || { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
-                  userType: res.result.data.userType || 'CommunityWorker'
-              };
-            }
-            return {
-                openid: authorId,
-                userInfo: { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
-                userType: 'CommunityWorker'
-            };
-            }).catch(err => {
-              console.error('查询用户信息失败:', authorId, err);
-              return {
-                openid: authorId,
-                userInfo: { avatarUrl: '/images/default-avatar.png', nickName: '微信用户' },
-                userType: 'CommunityWorker'
-              };
-            })
-          )
-        ); */
-
-        return likesPromise.then((likesRes) => {
-          const freshLikedSet = new Set();
-          (likesRes.data || []).forEach((like) => {
-            if (like && like.targetId) freshLikedSet.add(like.targetId);
-          });
-
-          if (openid) {
-            const needQuerySet = new Set(needQueryIds);
-            if (!canUseLikeCache) {
-              this._commentLikeCache.clear();
-            }
-            commentIds.forEach((id) => {
-              if (!id) return;
-              let liked = false;
-              if (freshLikedSet.has(id)) {
-                liked = true;
-              } else if (canUseLikeCache && !needQuerySet.has(id) && this._commentLikeCache.has(id)) {
-                liked = !!this._commentLikeCache.get(id);
-              }
-              this._commentLikeCache.set(id, liked);
-              if (liked) likedMap.add(id);
-            });
-            this._commentLikeCacheAt = Date.now();
-          }
-          
-          const userMap = new Map();
-          authorIds.forEach((authorId) => {
-            const userData = batchUserMap[authorId] || {};
-            userMap.set(authorId, {
-              userInfo: userData.userInfo || { avatarUrl: '/images/default-avatar.png', nickName: '寰俊鐢ㄦ埛' },
-              userType: userData.userType || 'CommunityWorker'
-            });
-          });
-        
-          console.log('❤️ 已点赞的评论数:', likedMap.size);
-          console.log('👥 查询到的用户数:', userMap.size);
-
-          const mainComments = [];
-          const repliesMap = {};
-          const commentById = new Map();
-          allComments.forEach((item) => {
-            if (item && item._id) {
-              commentById.set(item._id, item);
-            }
-          });
-          const resolveRootParentId = (comment) => {
-            let parentId = comment && comment.parentId;
-            let guard = 0;
-            while (parentId && guard < 10) {
-              const parent = commentById.get(parentId);
-              if (!parent) return '';
-              if (!parent.parentId) return parent._id;
-              parentId = parent.parentId;
-              guard += 1;
-            }
-            return '';
-          };
-          
-          allComments.forEach(comment => {
-            comment.createTime = this.formatTime(comment.createTime);
-            const commentAuthorOpenid = comment.authorOpenid || comment._openid || '';
-            comment._openid = commentAuthorOpenid;
-            comment.isOwner = commentAuthorOpenid === openid;
-            comment.canDelete = comment.isOwner || isAdmin; // 作者或管理员可以删除
-            comment.likes = comment.likes || comment.likeCount || 0;
-            comment.liked = likedMap.has(comment._id);
-
-            const userData = userMap.get(commentAuthorOpenid);
-            if (userData) {
-              comment.userInfo = userData.userInfo;
-              comment.userType = userData.userType;
-            } else {
-              if (!comment.userInfo) {
-                comment.userInfo = { 
-                  avatarUrl: '/images/default-avatar.png', 
-                  nickName: '微信用户' 
-                };
-              }
-              if (!comment.userType) {
-                comment.userType = 'CommunityWorker';
-              }
-            }
-
-            if (!comment.parentId) { 
-              comment.replies = []; 
-              mainComments.push(comment); 
-          } else {
-              const rootParentId = resolveRootParentId(comment);
-              if (!rootParentId) {
-                comment.parentId = '';
-                comment.replies = [];
-                mainComments.push(comment);
-                return;
-              }
-              if (!repliesMap[rootParentId]) {
-                repliesMap[rootParentId] = [];
-              }
-              repliesMap[rootParentId].push(comment); 
-          }
-        });
-
-          mainComments.forEach(comment => { 
-            if (repliesMap[comment._id]) {
-              comment.replies = repliesMap[comment._id]; 
-            }
-          });
-
-          const mainIdSet = new Set(mainComments.map((item) => item && item._id).filter(Boolean));
-          Object.keys(repliesMap).forEach((rootId) => {
-            if (mainIdSet.has(rootId)) return;
-            const orphanReplies = repliesMap[rootId] || [];
-            orphanReplies.forEach((reply) => {
-              if (!reply) return;
-              reply.parentId = '';
-              reply.replies = [];
-              mainComments.push(reply);
-            });
-          });
-          
-          console.log('✅ 主评论数量:', mainComments.length);
-          this._latestCommentCount = Math.max(0, allComments.length);
-          const updates = { comments: mainComments };
-          if (this.data.post) {
-            updates['post.stats.comment'] = this._latestCommentCount;
-          }
-          this.setData(updates);
-        });
+        this.setData(updates);
       })
-      .catch(err => {
-        console.error('❌ 加载评论失败:', err);
+      .catch((err) => {
+        console.error('[post-detail] loadComments failed:', err);
       })
       .finally(() => {
         this._commentsLoadInflight = null;
