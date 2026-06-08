@@ -88,8 +88,7 @@ async function checkAdminAccess(openid) {
   if (!openid) return false;
   if (sharedAuth && typeof sharedAuth.assertAdmin === 'function') {
     try {
-      await sharedAuth.assertAdmin({ db, openid, contextName: 'getUserInfoAdmin' });
-      return true;
+      return await sharedAuth.assertAdmin({ db, openid, contextName: 'getUserInfoAdmin' }) === true;
     } catch (err) {
       return false;
     }

@@ -64,6 +64,21 @@ async function isAdmin(openid) {
   return false;
 }
 
+function isSuperAdmin(openid) {
+  if (sharedAuth && typeof sharedAuth.isSuperAdmin === 'function') {
+    return sharedAuth.isSuperAdmin({ openid });
+  }
+  return SUPER_ADMIN_OPENIDS.includes(openid);
+}
+
+function maskOpenid(openid) {
+  if (sharedAuth && typeof sharedAuth.maskOpenid === 'function') {
+    return sharedAuth.maskOpenid(openid);
+  }
+  if (typeof openid !== 'string' || openid.length < 8) return 'unknown';
+  return `${openid.slice(0, 3)}***${openid.slice(-3)}`;
+}
+
 function validateString(value, options = {}) {
   if (sharedValidate && typeof sharedValidate.validateString === 'function') {
     return sharedValidate.validateString(value, options);
@@ -72,6 +87,23 @@ function validateString(value, options = {}) {
     return { ok: false, error: `missing ${options.name || 'value'}` };
   }
   return { ok: true, value: value.trim() };
+}
+
+async function writeAdminAuditLog({ actorOpenid, action, targetOpenid, success, reason }) {
+  try {
+    await db.collection('admin_audit_logs').add({
+      data: {
+        actorOpenid,
+        action,
+        targetOpenid,
+        success: success === true,
+        reason: typeof reason === 'string' ? reason.slice(0, 120) : '',
+        createTime: db.serverDate()
+      }
+    });
+  } catch (err) {
+    console.warn('[setAdmin] audit log failed:', err && err.message ? err.message : err);
+  }
 }
 
 // 管理员权限配置（不改变用户身份，只添加管理员权限）
@@ -110,13 +142,20 @@ exports.main = async (event, context) => {
   const targetOpenid = targetCheck.value;
 
   try {
-    // 🔒 安全检查：只允许管理员调用此函数
-    const callerIsAdmin = await isAdmin(OPENID);
+    // 🔒 安全检查：只有环境变量中的超级管理员可以授予管理员权限
+    const callerIsSuperAdmin = isSuperAdmin(OPENID);
     
-    if (!callerIsAdmin) {
+    if (!callerIsSuperAdmin) {
+      await writeAdminAuditLog({
+        actorOpenid: OPENID,
+        action: 'set_admin_denied',
+        targetOpenid,
+        success: false,
+        reason: 'not super admin'
+      });
       return {
         success: false,
-        error: '权限不足：只有管理员可以设置其他管理员'
+        error: '权限不足：只有超级管理员可以设置其他管理员'
       };
     }
 
@@ -146,7 +185,15 @@ exports.main = async (event, context) => {
         }
       });
 
-    console.log('✅ 用户已获得管理员权限:', targetOpenid);
+    await writeAdminAuditLog({
+      actorOpenid: OPENID,
+      action: 'set_admin',
+      targetOpenid,
+      success: true,
+      reason: 'grant admin permissions'
+    });
+
+    console.log('✅ 用户已获得管理员权限:', maskOpenid(targetOpenid));
     console.log('   保持原有身份:', targetUser.userType, targetUser.userTypeLabel);
 
     return {

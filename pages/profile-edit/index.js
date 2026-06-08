@@ -1,16 +1,6 @@
 // pages/profile-edit/index.js
 const app = getApp();
 
-// 延迟初始化数据库
-let db = null;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
-
 Page({
   data: {
     form: {
@@ -147,40 +137,17 @@ Page({
 
   // 同步到云端数据库
   syncToCloud: function (userInfo) {
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-
-    if (!openid) {
-      return Promise.reject(new Error("缺少 openid"));
-    }
-
-    return db
-      .collection("users")
-      .where({ _openid: openid })
-      .get()
-      .then((res) => {
-        if (res.data.length > 0) {
-          // 更新现有记录
-          return db
-            .collection("users")
-            .doc(res.data[0]._id)
-            .update({
-              data: {
-                nickName: userInfo.nickName,
-                avatarUrl: userInfo.avatarUrl,
-                updatedAt: db.serverDate(),
-              },
-            });
-        } else {
-          // 创建新记录
-          return db.collection("users").add({
-            data: {
-              nickName: userInfo.nickName,
-              avatarUrl: userInfo.avatarUrl,
-              createTime: db.serverDate(),
-              updatedAt: db.serverDate(),
-            },
-          });
-        }
-      });
+    return wx.cloud.callFunction({
+      name: "updateUserInfo",
+      data: {
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl,
+      },
+    }).then((res) => {
+      if (!res.result || !res.result.success) {
+        throw new Error((res.result && res.result.error) || "同步失败");
+      }
+      return res;
+    });
   },
 });

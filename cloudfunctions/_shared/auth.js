@@ -17,8 +17,7 @@ function maskOpenid(openid) {
 async function isAdmin({ db, openid }) {
   if (!db || !openid) return false;
 
-  const superAdmins = parseOpenidsFromEnv();
-  if (superAdmins.includes(openid)) {
+  if (isSuperAdmin({ openid })) {
     return true;
   }
 
@@ -35,6 +34,11 @@ async function isAdmin({ db, openid }) {
     !!(user.permissions && user.permissions.canManageUsers === true);
 }
 
+function isSuperAdmin({ openid }) {
+  if (!openid) return false;
+  return parseOpenidsFromEnv().includes(openid);
+}
+
 async function assertAdmin({ db, openid, contextName = 'admin-check' }) {
   const ok = await isAdmin({ db, openid });
   if (ok) return true;
@@ -44,6 +48,7 @@ async function assertAdmin({ db, openid, contextName = 'admin-check' }) {
 
 module.exports = {
   isAdmin,
+  isSuperAdmin,
   assertAdmin,
   maskOpenid
 };
