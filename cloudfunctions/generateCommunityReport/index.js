@@ -1,19 +1,12 @@
-const https = require('https');
-const { URL } = require('url');
 const cloud = require('wx-server-sdk');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const API_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-const DEFAULT_MODEL = 'qwen3.6-plus';
-const REQUEST_TIMEOUT_MS = 45000;
 const MAX_SUMMARY_ROWS = 500;
 const PAGE_SIZE = 100;
 const MAX_POINTS = 200;
 const MAX_TYPICAL_ISSUES = 9;
-const MAX_REPORT_TEXT_LEN = 6000;
-const MAX_REPORT_TOKENS = 1800;
 
 const ALLOWED_COMMUNITIES = new Set(['楠竹社区', '和美社区']);
 const COMMUNITY_CENTERS = {
@@ -88,25 +81,17 @@ exports.main = async (event = {}) => {
     const generatedAt = formatDateTime(new Date());
     const summary = await buildCommunitySummary(community);
     const reportData = buildStructuredReport(community, generatedAt, summary);
-    const ai = summary.total > 0
-      ? await generateReportWithAI(community, reportData)
-      : {
-        success: false,
-        status: 'skipped',
-        errorType: 'empty_data',
-        errorMessage: '社区暂无障碍数据，未调用AI'
-      };
-    const reportText = ai.success ? ai.text : buildFallbackReport(community, generatedAt, reportData);
+    const reportText = buildFallbackReport(community, generatedAt, reportData);
     const reportSections = buildReportSections(reportData, reportText);
-    const aiStatus = ai.success ? 'success' : (ai.status || 'fallback');
+    const aiStatus = 'template';
     const htmlResult = await generateAndUploadHtmlReport({
       community,
       generatedAt,
       reportData,
       reportText,
       reportSections,
-      aiFallback: !ai.success,
-      aiErrorMessage: ai.errorMessage || ''
+      aiFallback: false,
+      aiErrorMessage: ''
     });
 
     return {
@@ -126,10 +111,10 @@ exports.main = async (event = {}) => {
       htmlReportFileID: htmlResult.fileID,
       htmlReportUrl: htmlResult.tempFileURL,
       htmlReportError: htmlResult.error || '',
-      aiFallback: !ai.success,
+      aiFallback: false,
       aiStatus,
-      aiErrorType: ai.errorType || '',
-      aiErrorMessage: ai.errorMessage || ''
+      aiErrorType: '',
+      aiErrorMessage: ''
     };
   } catch (err) {
     console.error('[generateCommunityReport] failed:', err && err.message ? err.message : err);
@@ -357,93 +342,6 @@ function buildStructuredReport(community, generatedAt, summary) {
   };
 }
 
-async function generateReportWithAI(community, reportData) {
-  const apiKey = process.env.DASHSCOPE_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      status: 'fallback',
-      errorType: 'missing_key',
-      errorMessage: 'AI服务未配置API Key'
-    };
-  }
-
-  const promptData = {
-    community,
-    generatedAt: reportData.generatedAt,
-    total: reportData.stats.total,
-    updatedAt: reportData.stats.updatedAt,
-    statusCounts: reportData.stats.statusCounts,
-    issueTypeStats: reportData.issueTypeStats,
-    riskStats: reportData.riskStats,
-    topIssues: reportData.stats.topIssues,
-    typicalIssues: reportData.typicalIssues.map((item) => ({
-      category: item.category,
-      subtype: item.subtype,
-      riskText: item.riskText,
-      location: item.location
-    })),
-    schemeRecommendations: reportData.schemeRecommendations.map((item) => ({
-      code: item.code,
-      title: item.title,
-      hitCount: item.hitCount
-    }))
-  };
-
-  const payload = {
-    model: process.env.DASHSCOPE_REPORT_MODEL || process.env.DASHSCOPE_MODEL || DEFAULT_MODEL,
-    temperature: 0.2,
-    max_tokens: MAX_REPORT_TOKENS,
-    messages: [
-      {
-        role: 'system',
-        content: '你是无障碍社区治理报告助手。只能依据给定统计数据生成中文报告，不得编造地点、数量、预算金额或责任单位。'
-      },
-      {
-        role: 'user',
-        content: [
-          `请为${community}生成一份无障碍环境诊断报告正文。`,
-          '要求：面向社区工作者，语气务实，包含整体结论、重点风险、治理建议、方案使用建议。',
-          '不要输出 Markdown 表格，不要改写或新增统计数字。',
-          '',
-          `真实数据：${JSON.stringify(promptData)}`
-        ].join('\n')
-      }
-    ]
-  };
-
-  try {
-    const response = await postJson(API_URL, payload, {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    });
-    const text = response &&
-      response.choices &&
-      response.choices[0] &&
-      response.choices[0].message &&
-      response.choices[0].message.content;
-    const normalized = toSafeString(String(text || ''), MAX_REPORT_TEXT_LEN);
-    if (!normalized) {
-      return {
-        success: false,
-        status: 'fallback',
-        errorType: 'empty_response',
-        errorMessage: 'AI返回内容为空'
-      };
-    }
-    return { success: true, status: 'success', text: normalized };
-  } catch (err) {
-    const aiError = normalizeAiError(err);
-    console.warn('[generateCommunityReport] AI fallback:', aiError.errorType, aiError.errorMessage);
-    return {
-      success: false,
-      status: 'fallback',
-      errorType: aiError.errorType,
-      errorMessage: aiError.errorMessage
-    };
-  }
-}
-
 function buildFallbackReport(community, generatedAt, reportData) {
   const categories = reportData.issueTypeStats
     .slice(0, 5)
@@ -490,7 +388,7 @@ function buildReportSections(reportData, reportText) {
       content: `建议优先处理高风险问题${reportData.riskStats.high || 0}条，并结合推荐方案：${topSchemes}。`
     },
     {
-      title: 'AI报告正文',
+      title: '报告正文',
       content: reportText
     }
   ];
@@ -640,11 +538,11 @@ function buildHtmlReport(input) {
       <table><thead><tr><th>方案编号</th><th>方案名称</th><th>适用场景</th><th>匹配次数</th></tr></thead><tbody>${schemeRows || '<tr><td colspan="4">暂无匹配方案</td></tr>'}</tbody></table>
     </section>
     <section class="section">
-      <h2 class="section-title">AI报告正文</h2>
+      <h2 class="section-title">报告正文</h2>
       ${aiFallback ? `<p class="hint">AI生成暂不可用，已展示系统模板报告。${aiErrorMessage ? `原因：${escapeHtml(aiErrorMessage)}` : ''}</p>` : ''}
       <pre>${escapeHtml(reportText)}</pre>
     </section>
-    <div class="footer">报告由“無界营造”AI辅助生成，数据源自社区障碍信息与AI诊断模型，仅供社区自查与整改沟通参考。</div>
+    <div class="footer">报告由“無界营造”系统模板生成，数据源自社区障碍信息统计，仅供社区自查与整改沟通参考。</div>
   </main>
 </body>
 </html>`;
@@ -929,79 +827,6 @@ function rankObject(value) {
     .map((name) => ({ name, count: Number(value[name]) || 0 }))
     .filter((item) => item.count > 0)
     .sort((a, b) => b.count - a.count);
-}
-
-function postJson(url, data, headers) {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const body = JSON.stringify(data);
-    const req = https.request({
-      method: 'POST',
-      hostname: parsed.hostname,
-      path: `${parsed.pathname}${parsed.search}`,
-      headers: Object.assign({}, headers, {
-        'Content-Length': Buffer.byteLength(body)
-      }),
-      timeout: REQUEST_TIMEOUT_MS
-    }, (res) => {
-      const chunks = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
-        const raw = Buffer.concat(chunks).toString('utf8');
-        let json = null;
-        try {
-          json = raw ? JSON.parse(raw) : null;
-        } catch (err) {
-          return reject(createAiError('invalid_response', 'AI接口返回格式异常'));
-        }
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          return reject(createAiError('http_error', `AI接口请求失败，HTTP ${res.statusCode}`));
-        }
-        resolve(json);
-      });
-    });
-
-    req.on('timeout', () => {
-      req.destroy(createAiError('timeout', 'AI接口请求超时'));
-    });
-    req.on('error', (err) => {
-      reject(err && err.aiErrorType
-        ? err
-        : createAiError('network_error', 'AI接口网络请求失败'));
-    });
-    req.write(body);
-    req.end();
-  });
-}
-
-function createAiError(errorType, errorMessage) {
-  const err = new Error(errorMessage);
-  err.aiErrorType = errorType;
-  err.safeMessage = errorMessage;
-  return err;
-}
-
-function normalizeAiError(err) {
-  if (err && err.aiErrorType) {
-    return {
-      errorType: err.aiErrorType,
-      errorMessage: err.safeMessage || err.message || 'AI生成失败'
-    };
-  }
-  const message = err && err.message ? err.message : '';
-  if (/timeout/i.test(message)) {
-    return { errorType: 'timeout', errorMessage: 'AI接口请求超时' };
-  }
-  if (/invalid response|JSON/i.test(message)) {
-    return { errorType: 'invalid_response', errorMessage: 'AI接口返回格式异常' };
-  }
-  if (/empty response/i.test(message)) {
-    return { errorType: 'empty_response', errorMessage: 'AI返回内容为空' };
-  }
-  if (/request failed|HTTP/i.test(message)) {
-    return { errorType: 'http_error', errorMessage: 'AI接口请求失败' };
-  }
-  return { errorType: 'network_error', errorMessage: 'AI接口网络请求失败' };
 }
 
 function formatDateTime(date) {

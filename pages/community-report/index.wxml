@@ -1,6 +1,6 @@
 <view class="report-page">
   <view class="report-header">
-    <view class="report-kicker">無界营造 AI 社区报告</view>
+    <view class="report-kicker">無界营造 社区报告</view>
     <text class="report-title">{{community}}无障碍环境诊断报告</text>
     <text class="report-time" wx:if="{{generatedAt}}">生成时间：{{generatedAt}}</text>
   </view>
@@ -136,7 +136,7 @@
     </view>
 
     <view class="section-card" wx:if="{{reportSections.length}}">
-      <view class="section-title">AI报告正文</view>
+      <view class="section-title">报告正文</view>
       <view class="report-section" wx:for="{{reportSections}}" wx:key="title">
         <text class="report-section-title">{{item.title}}</text>
         <text class="report-section-content">{{item.content}}</text>
@@ -144,7 +144,7 @@
     </view>
 
     <view class="section-card" wx:elif="{{reportText}}">
-      <view class="section-title">AI报告正文</view>
+      <view class="section-title">报告正文</view>
       <text class="report-text">{{reportText}}</text>
     </view>
   </block>
