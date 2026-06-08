@@ -1,0 +1,9 @@
+{
+  "name": "trackSolutionViews",
+  "version": "1.0.0",
+  "description": "Rate-limited solution view counter",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

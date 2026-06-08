@@ -273,15 +273,13 @@ Page({
 
   // 更新浏览量
   updateViewCount: function (solutionId) {
-    const db = getDB();
-    
-    db.collection("solutions")
-      .doc(solutionId)
-      .update({
-        data: {
-          viewCount: db.command.inc(1),
-        },
-      });
+    if (!solutionId) return;
+    wx.cloud.callFunction({
+      name: "trackSolutionViews",
+      data: { id: solutionId },
+    }).catch((err) => {
+      console.error("更新浏览量失败", err);
+    });
   },
 
   // 预览图片

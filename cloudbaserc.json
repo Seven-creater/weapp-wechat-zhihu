@@ -93,6 +93,13 @@
       "memorySize": 512,
       "runtime": "Nodejs16.13",
       "handler": "index.main"
+    },
+    {
+      "name": "trackSolutionViews",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
     }
   ]
 }

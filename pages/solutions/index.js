@@ -166,17 +166,14 @@ Page({
 
   // 更新浏览量
   updateViewCount: function (solutions) {
-    solutions.forEach((solution) => {
-      db.collection("solutions")
-        .doc(solution._id)
-        .update({
-          data: {
-            viewCount: db.command.inc(1),
-          },
-        })
-        .catch((err) => {
-          console.error("更新浏览量失败:", err);
-        });
+    const ids = (solutions || []).map((solution) => solution._id).filter(Boolean);
+    if (ids.length === 0) return;
+
+    wx.cloud.callFunction({
+      name: "trackSolutionViews",
+      data: { ids },
+    }).catch((err) => {
+      console.error("更新浏览量失败:", err);
     });
   },
 
