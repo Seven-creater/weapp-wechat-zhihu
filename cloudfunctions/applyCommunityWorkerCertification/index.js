@@ -1,62 +1,100 @@
-// 云函数：applyCommunityWorkerCertification
-// 提交社区工作者认证申请（存储在 users 集合中）
 const cloud = require('wx-server-sdk');
+
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
 const db = cloud.database();
 
-exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext();
-  const openid = wxContext.OPENID;
+function fail(error) {
+  return { success: false, error: toFriendlyError(error) };
+}
+
+function toFriendlyError(error) {
+  if (error === 'unauthorized') return '请先登录';
+  if (error === 'user not found') return '用户不存在，请先完成注册';
+  if (error === 'pending application exists') return '您已有待审核的申请，请等待审核结果';
+  if (error === 'submit certification failed') return '提交失败，请稍后重试';
+  if (typeof error === 'string' && error.startsWith('missing ')) return '请填写完整的认证信息';
+  if (typeof error === 'string' && error.endsWith(' must be string')) return '认证信息格式错误';
+  if (typeof error === 'string' && error.endsWith(' too long')) return '认证信息过长';
+  return error || '提交失败，请稍后重试';
+}
+
+function safeString(value, options = {}) {
+  const { name = 'value', required = false, max = 80 } = options;
+  if (value == null || value === '') {
+    if (required) return { ok: false, error: `missing ${name}` };
+    return { ok: true, value: '' };
+  }
+  if (typeof value !== 'string') return { ok: false, error: `${name} must be string` };
+  const text = value.trim();
+  if (required && !text) return { ok: false, error: `missing ${name}` };
+  if (text.length > max) return { ok: false, error: `${name} too long` };
+  return { ok: true, value: text };
+}
+
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  if (!OPENID) return fail('unauthorized');
 
   try {
-    const { community, position, workId, nickName, avatarUrl, phoneNumber } = event;
+    const communityCheck = safeString(event.community, {
+      name: 'community',
+      required: true,
+      max: 32
+    });
+    if (!communityCheck.ok) return fail(communityCheck.error);
 
-    // 验证必填字段
-    if (!community || !position || !workId) {
-      return {
-        success: false,
-        error: '请填写完整的认证信息'
-      };
-    }
+    const positionCheck = safeString(event.position, {
+      name: 'position',
+      required: true,
+      max: 40
+    });
+    if (!positionCheck.ok) return fail(positionCheck.error);
 
-    // 查询用户是否存在
+    const workIdCheck = safeString(event.workId, {
+      name: 'workId',
+      required: true,
+      max: 40
+    });
+    if (!workIdCheck.ok) return fail(workIdCheck.error);
+
     const userQuery = await db.collection('users')
-      .where({ _openid: openid })
+      .where({ _openid: OPENID })
+      .field({
+        _id: true,
+        certificationApplication: true
+      })
+      .limit(1)
       .get();
 
     if (!userQuery.data || userQuery.data.length === 0) {
-      return {
-        success: false,
-        error: '用户不存在，请先完成注册'
-      };
+      return fail('user not found');
     }
 
     const user = userQuery.data[0];
-
-    // 检查是否已有待审核的申请
     if (user.certificationApplication && user.certificationApplication.status === 'pending') {
-      return {
-        success: false,
-        error: '您已有待审核的申请，请等待审核结果'
-      };
+      return fail('pending application exists');
     }
 
-    // ✅ 更新用户记录，添加认证申请信息（统一数据结构）
+    const certificationInfo = {
+      community: communityCheck.value,
+      position: positionCheck.value,
+      workId: workIdCheck.value
+    };
+
     await db.collection('users')
       .doc(user._id)
       .update({
         data: {
           certificationApplication: {
             type: 'communityWorker',
-            info: {  // ✅ 将认证信息放在 info 对象中
-              community: community,
-              position: position,
-              workId: workId
-            },
-            status: 'pending', // pending, approved, rejected
+            info: certificationInfo,
+            community: certificationInfo.community,
+            position: certificationInfo.position,
+            workId: certificationInfo.workId,
+            status: 'pending',
             applyTime: Date.now(),
             reviewTime: null,
             reviewerId: null,
@@ -66,19 +104,13 @@ exports.main = async (event, context) => {
         }
       });
 
-    console.log('社区工作者认证申请已提交:', openid);
-
+    console.log('[applyCommunityWorkerCertification] submitted:', OPENID);
     return {
       success: true,
       message: '认证申请已提交，请等待审核'
     };
-
   } catch (err) {
-    console.error('提交认证申请失败:', err);
-    return {
-      success: false,
-      error: err.message || '提交失败，请稍后重试'
-    };
+    console.error('[applyCommunityWorkerCertification] failed:', err && err.message ? err.message : err);
+    return fail('submit certification failed');
   }
 };
-
