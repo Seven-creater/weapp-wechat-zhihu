@@ -121,9 +121,8 @@ Page({
 
   checkProfessionalPermissions() {
     const userType = app.globalData.userType || wx.getStorageSync('userType');
-    const currentUserInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {};
-    const permissions = currentUserInfo.permissions || {};
     const openid = app.globalData.openid || wx.getStorageSync('openid');
+    const accessCache = app.globalData.__adminStatusCache || {};
     const isAdmin = !!this.data.isAdmin;
     
     // 判断用户角色
@@ -136,8 +135,8 @@ Page({
     
     const canViewUserContact = !!(
       isAdmin ||
-      permissions.canManageUsers === true ||
-      permissions.canViewUserContact === true ||
+      accessCache.canManageUsers === true ||
+      accessCache.canViewUserContact === true ||
       isCommunityWorker
     );
 
@@ -179,22 +178,23 @@ Page({
       return Promise.resolve(cachedAdmin);
     }
 
-    const { db } = getDB();
-    return db.collection('users')
-      .where({ _openid: openid })
-      .field({ isAdmin: true, permissions: true })
-      .limit(1)
-      .get()
+    return wx.cloud.callFunction({
+        name: 'getCurrentUserAccess',
+        data: {}
+      })
       .then((res) => {
-        const user = (res.data && res.data[0]) || {};
-        const isAdmin = !!(
-          user.isAdmin === true ||
-          (user.permissions && user.permissions.canManageUsers === true)
-        );
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || 'query failed');
+        }
+        const access = res.result.data || {};
+        const isAdmin = !!access.isAdmin;
 
         app.globalData.__adminStatusCache = {
           openid,
           isAdmin,
+          canManageUsers: !!access.canManageUsers,
+          canViewUserContact: !!access.canViewUserContact,
+          userType: access.userType || 'normal',
           expireAt: Date.now() + ADMIN_STATUS_TTL_MS
         };
 

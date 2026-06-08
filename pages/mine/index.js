@@ -180,31 +180,18 @@ Page({
   },
 
   checkIsAdmin: async function(openid) {
-    // 仅基于数据库管理员字段判断，不依赖前端硬编码 openid
+    if (!openid) return false;
     try {
-      const db = getDB();
-      if (!db) return false;
-      
-      const userQuery = await db.collection('users')
-        .where({ _openid: openid })
-        .limit(1)
-        .get();
-      
-      if (userQuery.data && userQuery.data.length > 0) {
-        const user = userQuery.data[0];
-        
-        // 检查是否有管理员标识或管理员权限
-        if (user.isAdmin === true || 
-            (user.permissions && user.permissions.canManageUsers === true)) {
-          console.log('✅ 数据库管理员权限验证通过:', openid);
-          return true;
-        }
+      const res = await wx.cloud.callFunction({
+        name: 'getCurrentUserAccess',
+        data: {}
+      });
+      if (res.result && res.result.success) {
+        return !!(res.result.data && res.result.data.isAdmin);
       }
     } catch (err) {
       console.error('查询管理员权限失败:', err);
     }
-    
-    console.log('❌ 管理员权限验证失败:', openid);
     return false;
   },
 
