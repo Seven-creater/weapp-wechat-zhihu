@@ -11,6 +11,7 @@ const INTERACTION_COOLDOWN_MS = 300;
 const INTERACTION_GUARD_TIMEOUT_MS = 10 * 1000;
 const STATUS_SYNC_TTL_MS = 8 * 1000;
 const ADMIN_STATUS_TTL_MS = 60 * 1000;
+const INTERACTION_STATUS_BATCH_SIZE = 50;
 
 const getDB = () => {
   if (!db) {
@@ -269,6 +270,29 @@ Page({
       });
       return Object.assign({}, cachedMap, remoteMap);
     });
+  },
+
+  fetchInteractionStatuses(items) {
+    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    const safeItems = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!openid || safeItems.length === 0) return Promise.resolve([]);
+
+    const chunks = [];
+    for (let i = 0; i < safeItems.length; i += INTERACTION_STATUS_BATCH_SIZE) {
+      chunks.push(safeItems.slice(i, i + INTERACTION_STATUS_BATCH_SIZE));
+    }
+
+    return Promise.all(chunks.map((chunk) =>
+      wx.cloud.callFunction({
+        name: 'getInteractionStatus',
+        data: { items: chunk }
+      }).then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || 'query failed');
+        }
+        return Array.isArray(res.result.data) ? res.result.data : [];
+      })
+    )).then((groups) => groups.reduce((list, group) => list.concat(group), []));
   },
 
   scheduleCommentsReload(force = true) {
@@ -1022,18 +1046,7 @@ Page({
   },
 
   checkLikeStatus() {
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    if (!openid) return;
-    const { db, _ } = getDB();
-    db.collection('actions').where({
-      _openid: openid,
-      type: _.in(['like_post', 'like']),
-      targetId: this.data.postId
-    }).count().then(res => {
-      this.setData({ isLiked: res.total > 0 });
-    }).catch(err => {
-      console.error('检查点赞状态失败:', err);
-    });
+    return this.syncLikeStatus(true);
   },
 
   loadComments(force = false) {
@@ -1102,11 +1115,13 @@ Page({
         }
 
         const likesPromise = (openid && needQueryIds.length > 0)
-          ? db.collection('actions').where({
-            _openid: openid,
-            type: _.in(['like_comment', 'like']),
-            targetId: _.in(needQueryIds)
-          }).field({ targetId: true }).get()
+          ? this.fetchInteractionStatuses(
+            needQueryIds.map((id) => ({ id, collection: 'comments', type: 'like' }))
+          ).then((rows) => ({
+            data: rows
+              .filter((row) => row && row.status)
+              .map((row) => ({ targetId: row.id }))
+          }))
           : Promise.resolve({ data: [] });
 
         /* const usersPromise = Promise.all(
@@ -1341,13 +1356,10 @@ Page({
       return Promise.resolve(!!this.data.isLiked);
     }
 
-    const { db, _ } = getDB();
-    this._likeStatusSyncInflight = db.collection('actions').where({
-      _openid: openid,
-      type: _.in(['like_post', 'like']),
-      targetId: this.data.postId
-    }).count().then((res) => {
-      const isLiked = (res.total || 0) > 0;
+    this._likeStatusSyncInflight = this.fetchInteractionStatuses([
+      { id: this.data.postId, collection: 'posts', type: 'like' }
+    ]).then((rows) => {
+      const isLiked = !!(rows[0] && rows[0].status);
       if (isLiked !== this.data.isLiked) {
         this.setData({ isLiked });
       }
@@ -1414,14 +1426,11 @@ Page({
       return Promise.resolve(!!this.data.isCollected);
     }
 
-    const { db, _ } = getDB();
-    this._collectStatusSyncInflight = db.collection('actions').where(_.and([
-      { _openid: openid },
-      { type: _.in(['collect_post', 'collect']) },
-      _.or([{ targetId: this.data.postId }, { postId: this.data.postId }])
-    ])).count()
-      .then((res) => {
-        const isCollected = (res.total || 0) > 0;
+    this._collectStatusSyncInflight = this.fetchInteractionStatuses([
+      { id: this.data.postId, collection: 'posts', type: 'collect' }
+    ])
+      .then((rows) => {
+        const isCollected = !!(rows[0] && rows[0].status);
         if (isCollected !== this.data.isCollected) {
           this.setData({ isCollected });
         }

@@ -1,0 +1,9 @@
+{
+  "name": "getInteractionStatus",
+  "version": "1.0.0",
+  "description": "Current user interaction status projection",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

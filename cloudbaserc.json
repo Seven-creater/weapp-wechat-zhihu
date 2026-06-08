@@ -121,6 +121,13 @@
       "memorySize": 256,
       "runtime": "Nodejs16.13",
       "handler": "index.main"
+    },
+    {
+      "name": "getInteractionStatus",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
     }
   ]
 }
