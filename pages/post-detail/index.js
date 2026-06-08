@@ -687,11 +687,6 @@ Page({
         const isAdmin = !!this.data.isAdmin;
         post.canDelete = post.isOwner || isAdmin; // 作者或管理员可以删除
         
-        // 🔍 调试日志
-        console.log('🔍 当前用户 openid:', openid);
-        console.log('🔍 是否是管理员:', isAdmin);
-        console.log('🔍 是否是作者:', post.isOwner);
-        console.log('🔍 是否可以删除:', post.canDelete);
         
         this.setData({
           post,
