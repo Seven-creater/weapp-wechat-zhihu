@@ -308,41 +308,27 @@ App({
     if (!userInfo || !openid) {
       return Promise.reject(new Error('缺少必要参数'));
     }
-    
-    console.log('📝 更新用户资料:', { openid, userInfo });
-    
-    const db = wx.cloud.database();
-    return db.collection('users')
-      .where({ _openid: openid })
-      .get()
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          console.log('✅ 更新现有用户资料，保留 userType:', res.data[0].userType);
-          return db.collection('users')
-            .doc(res.data[0]._id)
-            .update({
-              data: {
-                userInfo: userInfo,
-                updateTime: db.serverDate(),
-              }
-            });
-        } else {
-          console.log('✅ 创建新用户，默认 userType: CommunityWorker');
-          return db.collection('users').add({
-            data: {
-              userInfo: userInfo,
-              userType: 'CommunityWorker',
-              createTime: db.serverDate(),
-              updateTime: db.serverDate(),
-            }
-          });
-        }
-      })
+
+    const payload = {
+      nickName: userInfo.nickName || '',
+      avatarUrl: userInfo.avatarUrl || ''
+    };
+    if (userInfo.phoneNumber) {
+      payload.phoneNumber = userInfo.phoneNumber;
+    }
+    if (userInfo.profile) {
+      payload.profile = userInfo.profile;
+    }
+
+    return wx.cloud.callFunction({
+      name: 'updateUserInfo',
+      data: payload
+    })
       .then(() => {
-        console.log('✅ 用户资料更新成功');
+        console.log('用户资料更新成功');
       })
       .catch(err => {
-        console.error('❌ 更新用户资料失败:', err);
+        console.error('更新用户资料失败:', err);
         throw err;
       });
   },
