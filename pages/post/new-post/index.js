@@ -1,15 +1,5 @@
 const app = getApp();
 
-// 延迟初始化数据库
-let db = null;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
-
 const getFileExt = (filePath) => {
   const parts = String(filePath || "").split(".");
   const ext = parts[parts.length - 1];
@@ -153,33 +143,34 @@ Page({
       await this.checkTextSafe(content);
 
       const fileIDs = await this.uploadImagesToCloud(images);
-
-      const db = getDB();
       const userInfo = app.globalData.userInfo || {};
       const community = (userInfo.profile && userInfo.profile.community) ||
         userInfo.community ||
         "楠竹社区";
-      const data = {
-        title: title || undefined,
-        content: content || "",
-        images: fileIDs,
-        type: postType,
-        community,
-        stats: { view: 0, like: 0, comment: 0 },
-        createTime: db.serverDate(),
-        updateTime: db.serverDate(),
-        userInfo: {
-          nickName: userInfo.nickName || "匿名用户",
-          avatarUrl: userInfo.avatarUrl || "/images/zhi.png",
+
+      const result = await wx.cloud.callFunction({
+        name: "createLegacyPost",
+        data: {
+          title: title || "",
+          content: content || "",
+          images: fileIDs,
+          postType,
+          community,
+          address: this.data.locationName || "",
+          location:
+            typeof this.data.latitude === "number" &&
+            typeof this.data.longitude === "number"
+              ? {
+                  latitude: this.data.latitude,
+                  longitude: this.data.longitude,
+                }
+              : null,
         },
-      };
+      });
 
-      if (typeof this.data.latitude === "number" && typeof this.data.longitude === "number") {
-        data.location = new db.Geo.Point(this.data.longitude, this.data.latitude);
-        data.address = this.data.locationName || "";
+      if (!result.result || !result.result.success) {
+        throw new Error((result.result && result.result.error) || "发布失败");
       }
-
-      await db.collection("posts").add({ data });
 
       const openid = app.globalData.openid || wx.getStorageSync("openid");
       if (openid) {

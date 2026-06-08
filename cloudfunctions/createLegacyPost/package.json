@@ -1,0 +1,9 @@
+{
+  "name": "createLegacyPost",
+  "version": "1.0.0",
+  "description": "Create legacy community or case posts with server-side validation",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
