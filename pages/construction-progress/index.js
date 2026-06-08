@@ -4,15 +4,6 @@ const constructionTeam = require("../../utils/construction-team.js");
 const mediaUtil = require("../../utils/cloud-media.js");
 
 // 延迟初始化数据库
-let db = null;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
-
 Page({
   data: {
     projectId: '',
@@ -62,51 +53,36 @@ Page({
   loadProjectDetails: function (projectId) {
     this.setData({ loading: true });
 
-    const db = getDB();
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
+    wx.cloud.callFunction({
+      name: 'getConstructionProjectDetail',
+      data: { projectId }
+    }).then(async (res) => {
+      const payload = res.result || {};
+      if (!payload.success || !payload.data) {
+        throw new Error(payload.error || '?????');
+      }
 
-    db.collection('construction_projects')
-      .doc(projectId)
-      .get()
-      .then(async (res) => {
-        const project = await this.resolveMedia(res.data);
-        
-        if (!project) {
-          throw new Error('项目不存在');
-        }
+      const project = await this.resolveMedia(payload.data.project);
+      const team = await this.resolveMedia(payload.data.team);
+      const permissions = payload.data.permissions || {};
 
-        this.setData({ project });
-
-        // 判断权限
-        const canUpdate = project.teamId && project.team_openid === openid;
-        const canReview = project._openid === openid && project.status === 'completed' && !project.reviewed;
-
-        this.setData({ canUpdate, canReview });
-
-        // 加载施工团队信息
-        if (project.teamId) {
-          return constructionTeam.getTeamDetails(project.teamId);
-        }
-        return null;
-      })
-      .then(team => {
-        if (team) {
-          this.setData({ team });
-        }
-      })
-      .catch(err => {
-        console.error('加载项目详情失败:', err);
-        wx.showToast({
-          title: err.message || '加载失败',
-          icon: 'none',
-        });
-      })
-      .finally(() => {
-        this.setData({ loading: false });
+      this.setData({
+        project,
+        team,
+        canUpdate: !!permissions.canUpdate,
+        canReview: !!permissions.canReview
       });
+    }).catch(err => {
+      console.error('????????:', err);
+      wx.showToast({
+        title: err.message || '????',
+        icon: 'none',
+      });
+    }).finally(() => {
+      this.setData({ loading: false });
+    });
   },
 
-  // 显示进度更新表单
   showUpdateProgressForm: function () {
     this.setData({
       showUpdateForm: true,

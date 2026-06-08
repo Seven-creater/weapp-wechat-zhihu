@@ -60,7 +60,7 @@ exports.main = async (event, context) => {
         }
       });
 
-    console.log('问题核实成功:', postId, '核实人:', OPENID, '类型:', userType);
+    console.log('[security] event logged');
 
     return {
       success: true,

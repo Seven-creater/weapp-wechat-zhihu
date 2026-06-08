@@ -99,7 +99,7 @@ exports.main = async (event, context) => {
         });
     }
 
-    console.log('✅ 项目已确认完工:', postId, '确认人:', openid);
+    console.log('[security] event logged');
 
     return {
       success: true,

@@ -36,7 +36,7 @@ async function isAdmin(openid) {
   }
   // 1. 首先检查是否是超级管理员
   if (SUPER_ADMIN_OPENIDS.includes(openid)) {
-    console.log('✅ 超级管理员权限验证通过:', openid);
+    console.log('[security] event logged');
     return true;
   }
 
@@ -52,7 +52,7 @@ async function isAdmin(openid) {
       
       if (user.isAdmin === true || 
           (user.permissions && user.permissions.canManageUsers === true)) {
-        console.log('✅ 数据库管理员权限验证通过:', openid);
+        console.log('[security] event logged');
         return true;
       }
     }
@@ -60,7 +60,7 @@ async function isAdmin(openid) {
     console.error('查询管理员权限失败:', err);
   }
 
-  console.log('❌ 管理员权限验证失败:', openid);
+  console.log('[security] event logged');
   return false;
 }
 
@@ -194,7 +194,7 @@ exports.main = async (event, context) => {
     });
 
     console.log('✅ 用户已获得管理员权限:', maskOpenid(targetOpenid));
-    console.log('   保持原有身份:', targetUser.userType, targetUser.userTypeLabel);
+    console.log('[security] event logged');
 
     return {
       success: true,

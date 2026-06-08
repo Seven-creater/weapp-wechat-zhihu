@@ -210,7 +210,7 @@ Page({
   },
 
   loadFullUserInfo: function (openid) {
-    console.log('🔄 开始加载完整用户信息, openid:', openid);
+    console.log('???????');
     
     wx.cloud.callFunction({
       name: 'getUserInfo',
@@ -664,7 +664,7 @@ Page({
     wx.makePhoneCall({
       phoneNumber: phone,
       success: () => {
-        console.log('拨号成功:', phone);
+        console.log('???????');
       },
       fail: (err) => {
         console.error('拨号失败:', err);

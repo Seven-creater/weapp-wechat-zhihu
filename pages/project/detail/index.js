@@ -27,146 +27,52 @@ Page({
 
   // 加载项目详情
   loadProject: function () {
-    wx.showLoading({ title: '加载中...' });
-    
-    const db = wx.cloud.database();
-    db.collection('construction_projects')  // 使用construction_projects集合
-      .doc(this.data.projectId)
-      .get()
-      .then(res => {
-        wx.hideLoading();
-        if (res.data) {
-          this.resolveMedia(res.data)
-            .then((project) => {
-              if (project.stages) {
-                project.stages = project.stages.map((stage) => {
-                  if (stage.completedAt) {
-                    stage.completedAtFormatted = this.formatTime(stage.completedAt);
-                  }
-                  return stage;
-                });
-              }
+    wx.showLoading({ title: '???...' });
 
-              this.setData({
-                project,
-                loading: false
-              }, () => {
-                this.checkPermissions();
-              });
-            })
-            .catch(() => {
-              const project = res.data;
-              if (project.stages) {
-                project.stages = project.stages.map((stage) => {
-                  if (stage.completedAt) {
-                    stage.completedAtFormatted = this.formatTime(stage.completedAt);
-                  }
-                  return stage;
-                });
-              }
-
-              this.setData({
-                project,
-                loading: false
-              }, () => {
-                this.checkPermissions();
-              });
-            });
-          return;
-        }
-        if (res.data) {
-          // 格式化时间
-          const project = res.data;
-          if (project.stages) {
-            project.stages = project.stages.map(stage => {
-              if (stage.completedAt) {
-                stage.completedAtFormatted = this.formatTime(stage.completedAt);
-              }
-              return stage;
-            });
+    wx.cloud.callFunction({
+      name: 'getConstructionProjectDetail',
+      data: { projectId: this.data.projectId }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success || !payload.data) {
+        throw new Error(payload.error || '????');
+      }
+      return this.resolveMedia(payload.data.project).then((project) => ({
+        project,
+        permissions: payload.data.permissions || {}
+      }));
+    }).then(({ project, permissions }) => {
+      wx.hideLoading();
+      if (project.stages) {
+        project.stages = project.stages.map((stage) => {
+          if (stage.completedAt) {
+            stage.completedAtFormatted = this.formatTime(stage.completedAt);
           }
-          
-          this.setData({
-            project: project,
-            loading: false
-          }, () => {
-            // 项目数据加载完成后再检查权限
-            this.checkPermissions();
-          });
-        }
-      })
-      .catch(err => {
-        wx.hideLoading();
-        console.error('加载项目失败:', err);
-        wx.showToast({
-          title: '加载失败',
-          icon: 'none'
+          return stage;
         });
+      }
+      this.setData({
+        project,
+        loading: false,
+        canConfirm: !!permissions.canConfirm,
+        userType: permissions.userType || '',
+        isPoster: !!permissions.isPoster
       });
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('??????:', err);
+      wx.showToast({
+        title: err.message || '????',
+        icon: 'none'
+      });
+      this.setData({ loading: false });
+    });
   },
 
-  // 检查权限
-  checkPermissions: function () {
-    const db = wx.cloud.database();
-    const openid = wx.getStorageSync('openid') || app.globalData.openid;
-    
-    if (!openid) {
-      console.log('用户未登录');
-      return;
-    }
-    
-    // 检查用户类型
-    db.collection('users')
-      .where({ _openid: openid })
-      .get()
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          const userType = res.data[0].userType;
-          this.setData({ userType });
-          
-          // 社区工作者可以确认
-          if (userType === 'communityWorker') {
-            this.setData({ canConfirm: true });
-            console.log('社区工作者，可以确认');
-          }
-        }
-        
-        // 检查是否是发帖者（在获取用户类型后）
-        this.checkIfPoster(openid);
-      })
-      .catch(err => {
-        console.error('查询用户类型失败:', err);
-      });
-  },
+  checkPermissions: function () {},
 
-  // 检查是否是发帖者
-  checkIfPoster: function (openid) {
-    if (!this.data.project || !this.data.project.issueId) {
-      console.log('项目数据不完整');
-      return;
-    }
-    
-    const db = wx.cloud.database();
-    db.collection('posts')
-      .doc(this.data.project.issueId)
-      .get()
-      .then(res => {
-        if (res.data && res.data._openid === openid) {
-          this.setData({
-            isPoster: true,
-            canConfirm: true
-          });
-          console.log('是发帖者，可以确认');
-        } else {
-          console.log('不是发帖者');
-        }
-      })
-      .catch(err => {
-        console.error('查询帖子失败:', err);
-      });
-  },
+  checkIfPoster: function () {},
 
-  // 跳转到施工方主页
   navigateToContractor: function () {
     if (!this.data.project || !this.data.project.contractorId) {
       wx.showToast({

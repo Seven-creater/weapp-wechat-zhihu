@@ -2,8 +2,6 @@
   "pages": [
     "pages/index/index",
     "pages/login/index",
-    "pages/test-diagnosis/index",
-    "pages/debug-stats/index",
     "pages/edit-profile/index",
     "pages/community/community",
     "pages/community-report/index",

@@ -28,10 +28,6 @@
             <text class="cert-icon">🆔</text>
             <text class="cert-text">{{profile.workId}}</text>
           </view>
-          <view class="cert-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
-            <text class="cert-icon">📞</text>
-            <text class="cert-text phone-link">{{userInfo.phoneNumber}}</text>
-          </view>
         </view>
         
         <!-- 🆕 施工方认证信息 -->
@@ -47,10 +43,6 @@
           <view class="cert-item" wx:if="{{profile.serviceArea}}">
             <text class="cert-icon">📍</text>
             <text class="cert-text">{{profile.serviceArea}}</text>
-          </view>
-          <view class="cert-item phone-item" wx:if="{{userInfo.phoneNumber}}" bindtap="makePhoneCall" data-phone="{{userInfo.phoneNumber}}">
-            <text class="cert-icon">📞</text>
-            <text class="cert-text phone-link">{{userInfo.phoneNumber}}</text>
           </view>
         </view>
       </view>

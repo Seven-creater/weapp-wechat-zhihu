@@ -211,7 +211,7 @@ Page({
       updateData.phoneNumber = phoneNumber;
     }
     
-    console.log('📝 保存用户信息（不包含 userType）:', updateData);
+    console.log('???????');
     
     return wx.cloud.callFunction({
       name: 'updateUserInfo',
@@ -230,7 +230,7 @@ Page({
           profile: updatedProfile
         };
         
-        console.log('✅ 保存成功，用户身份:', userInfo.userType);
+        console.log('???????');
         
         app.globalData.userInfo = userInfo;
         app.globalData.userType = userInfo.userType;

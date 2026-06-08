@@ -2,15 +2,7 @@
 const app = getApp();
 const { formatUserName } = require('../../utils/userDisplay');
 
-let db = null;
 const MARK_READ_THROTTLE_MS = 5 * 1000;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
 
 Page({
   data: {
@@ -64,6 +56,10 @@ Page({
     const watcher = this.data.watcher;
     if (watcher && typeof watcher.close === 'function') {
       watcher.close();
+    }
+    if (this._messagePollingTimer) {
+      clearInterval(this._messagePollingTimer);
+      this._messagePollingTimer = null;
     }
     if (this.data.watcher) {
       this.setData({ watcher: null });
@@ -124,62 +120,43 @@ Page({
     const targetOpenId = this.data.targetOpenId;
     if (!myOpenId || !targetOpenId) return;
 
-    const dbInstance = getDB();
-    const roomId = [myOpenId, targetOpenId].sort().join('_');
     this.closeWatcher();
-    this.setData({ loading: true });
+    this.loadMessages();
+    this._messagePollingTimer = setInterval(() => {
+      this.loadMessages({ silent: true });
+    }, 8000);
+  },
 
-    const watcher = dbInstance.collection('messages')
-      .where({ roomId })
-      .orderBy('createTime', 'asc')
-      .watch({
-        onChange: (snapshot) => {
-          const currentMessages = this.data.messages || [];
-          const docChanges = snapshot.docChanges || [];
-          let nextMessages;
+  loadMessages(options = {}) {
+    const targetOpenId = this.data.targetOpenId;
+    if (!targetOpenId) return Promise.resolve();
+    if (!options.silent) {
+      this.setData({ loading: true });
+    }
 
-          // 初始化或缺少 diff 信息时，回退全量构建
-          if (!docChanges.length || !currentMessages.length) {
-            nextMessages = (snapshot.docs || []).map((doc) => ({
-              ...doc,
-              isMy: doc._openid === myOpenId
-            }));
-          } else {
-            const map = new Map(currentMessages.map((item) => [item._id, item]));
-            docChanges.forEach((change) => {
-              const doc = change.doc || {};
-              const id = doc._id || change.docId;
-              if (!id) return;
-              const dataType = change.dataType || change.type;
-              if (dataType === 'remove') {
-                map.delete(id);
-                return;
-              }
-              map.set(id, {
-                ...doc,
-                isMy: doc._openid === myOpenId
-              });
-            });
-            nextMessages = Array.from(map.values()).sort((a, b) => {
-              const ta = toTime(a.createTime);
-              const tb = toTime(b.createTime);
-              return ta - tb;
-            });
-          }
-
-          this.setData({
-            messages: nextMessages,
-            loading: false,
-            toView: 'bottom-anchor'
-          });
-        },
-        onError: (err) => {
-          console.error('watch messages failed', err);
-          this.setData({ loading: false });
-        }
+    return wx.cloud.callFunction({
+      name: 'getConversationMessages',
+      data: {
+        targetId: targetOpenId,
+        page: 1,
+        pageSize: 50
+      }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || 'load failed');
+      }
+      this.setData({
+        messages: payload.data || [],
+        loading: false,
+        toView: 'bottom-anchor'
       });
-
-    this.setData({ watcher });
+    }).catch((err) => {
+      console.error('load messages failed', err);
+      if (!options.silent) {
+        this.setData({ loading: false });
+      }
+    });
   },
 
   onInput(e) {
@@ -228,6 +205,7 @@ Page({
         throw new Error((res.result && res.result.error) || 'send failed');
       }
       this.scrollToBottom();
+      this.initChatWatcher();
     }).catch((err) => {
       console.error('send message failed:', err);
       this.setData({ inputValue: content });

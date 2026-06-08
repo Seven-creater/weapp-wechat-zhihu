@@ -1,15 +1,7 @@
 // pages/notify/notify.js
 const app = getApp();
 
-let db = null;
 const PAGE_TTL_MS = 30 * 1000;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
 
 Page({
   data: {
@@ -115,8 +107,8 @@ Page({
     if (this.data.messageLoading) return Promise.resolve();
     if (!this.data.messageHasMore && !refresh) return Promise.resolve();
 
-    const myOpenId = app.globalData.openid || wx.getStorageSync("openid");
-    if (!myOpenId) {
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
+    if (!openid) {
       this.setData({
         messages: [],
         messageHasMore: false,
@@ -125,47 +117,42 @@ Page({
       return Promise.resolve();
     }
 
-    const dbInstance = getDB();
     const nextPage = refresh ? 1 : this.data.messagePage + 1;
     this.setData({ messageLoading: true });
 
-    return dbInstance.collection("conversations")
-      .where({ ownerId: myOpenId })
-      .orderBy("updateTime", "desc")
-      .skip((nextPage - 1) * this.data.messagePageSize)
-      .limit(this.data.messagePageSize)
-      .get()
-      .then(async (res) => {
-        const conversations = res.data || [];
-        const targetIds = conversations.map((item) => item.targetId).filter(Boolean);
-        const batchUserMap = await this.fetchUsersBatch(targetIds);
+    return wx.cloud.callFunction({
+      name: "getConversationList",
+      data: {
+        page: nextPage,
+        pageSize: this.data.messagePageSize
+      }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || "load failed");
+      }
 
-        const mapped = conversations.map((item) => {
-          const userData = batchUserMap[item.targetId] || {};
-          const userInfo = userData.userInfo || { nickName: "未知用户", avatarUrl: "/images/zhi.png" };
-          return {
-            id: item.targetId,
-            name: userInfo.nickName || "未知用户",
-            avatar: userInfo.avatarUrl || "/images/zhi.png",
-            userType: userData.userType || "normal",
-            time: this.formatTime(item.updateTime),
-            preview: item.lastMessage || "暂无消息",
-            unread: item.unreadCount || 0
-          };
-        });
+      const mapped = (payload.data || []).map((item) => ({
+        id: item.id,
+        name: item.name || "????",
+        avatar: item.avatar || "/images/zhi.png",
+        userType: item.userType || "normal",
+        time: this.formatTime(item.updateTime),
+        preview: item.preview || "????",
+        unread: item.unread || 0
+      }));
 
-        const messages = refresh ? mapped : (this.data.messages || []).concat(mapped);
-        this.setData({
-          messages,
-          messagePage: nextPage,
-          messageHasMore: mapped.length >= this.data.messagePageSize,
-          messageLoading: false
-        });
-      })
-      .catch((err) => {
-        console.error("加载私信失败", err);
-        this.setData({ messages: [], messageLoading: false });
+      const messages = refresh ? mapped : (this.data.messages || []).concat(mapped);
+      this.setData({
+        messages,
+        messagePage: nextPage,
+        messageHasMore: !!payload.hasMore,
+        messageLoading: false
       });
+    }).catch((err) => {
+      console.error("??????", err);
+      this.setData({ messages: [], messageLoading: false });
+    });
   },
 
   loadNotifications() {

@@ -135,7 +135,7 @@ exports.main = async (event, context) => {
       }
     });
 
-    console.log('✅ 施工项目已创建:', projectId, '施工方:', openid);
+    console.log('[security] event logged');
 
     return {
       success: true,

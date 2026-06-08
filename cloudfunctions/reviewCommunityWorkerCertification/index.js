@@ -38,7 +38,7 @@ async function isAdmin(openid) {
   }
   // 1. 首先检查是否是超级管理员
   if (SUPER_ADMIN_OPENIDS.includes(openid)) {
-    console.log('✅ 超级管理员权限验证通过:', openid);
+    console.log('[security] event logged');
     return true;
   }
 
@@ -54,7 +54,7 @@ async function isAdmin(openid) {
       
       if (user.isAdmin === true || 
           (user.permissions && user.permissions.canManageUsers === true)) {
-        console.log('✅ 数据库管理员权限验证通过:', openid);
+        console.log('[security] event logged');
         return true;
       }
     }
@@ -62,7 +62,7 @@ async function isAdmin(openid) {
     console.error('查询管理员权限失败:', err);
   }
 
-  console.log('❌ 管理员权限验证失败:', openid);
+  console.log('[security] event logged');
   return false;
 }
 
@@ -172,7 +172,7 @@ exports.main = async (event, context) => {
 
     const userOpenid = user.data._openid;
     
-    console.log('🔍 准备审核认证申请，用户 openid:', userOpenid);
+    console.log('[security] event logged');
 
     // 如果审核通过，更新用户身份
     if (status === 'approved') {
@@ -202,7 +202,7 @@ exports.main = async (event, context) => {
           }
         });
 
-      console.log('✅ 用户身份已更新为社区工作者:', userOpenid);
+      console.log('[security] event logged');
     } else {
       // 审核拒绝，只更新申请状态
       await db.collection('users')
@@ -217,7 +217,7 @@ exports.main = async (event, context) => {
           }
         });
 
-      console.log('❌ 认证申请已拒绝:', userOpenid);
+      console.log('[security] event logged');
     }
 
     return {

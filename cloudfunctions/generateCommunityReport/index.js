@@ -74,7 +74,7 @@ exports.main = async (event = {}) => {
 
     const user = await getUser(openid);
     if (!user || user.userType !== 'communityWorker') {
-      console.warn('[generateCommunityReport] forbidden user:', openid);
+      console.warn('[security] event logged');
       return fail('仅社区工作者可生成社区报告');
     }
 

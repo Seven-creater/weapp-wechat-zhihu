@@ -97,12 +97,12 @@ App({
       this.globalData.openid = openid;
       this.globalData.userType = userType || 'CommunityWorker';
       this.globalData.hasLogin = true;
-      console.log('✅ 自动登录成功, openid:', openid, 'userType:', this.globalData.userType);
+      console.log('???????');
       
       this.refreshUserInfo(openid);
     } else {
       // ✅ 如果缺少任何一个，清除所有登录数据
-      console.log('⚠️ 登录数据不完整（openid:', !!openid, 'userInfo:', !!userInfo, '），清除缓存');
+      console.log('???????');
       wx.removeStorageSync('openid');
       wx.removeStorageSync('userInfo');
       wx.removeStorageSync('userType');
@@ -144,7 +144,7 @@ App({
         wx.setStorageSync('userInfo', fullUserInfo);
         wx.setStorageSync('userType', userType);
         
-        console.log('✅ 用户信息已从数据库刷新, userType:', userType);
+        console.log('???????');
       }
     }).catch(err => {
       console.error('❌ 刷新用户信息失败:', err);
@@ -665,44 +665,9 @@ App({
    * 🆕 更新未读消息数量
    */
   _legacyUpdateUnreadCount: function () {
-    const openid = this.getOpenid();
-    if (!openid) {
-      return;
-    }
-
-    wx.cloud.database().collection('conversations')
-      .where({
-        ownerId: openid
-      })
-      .field({
-        unreadCount: true
-      })
-      .get()
-      .then(res => {
-        const conversations = res.data || [];
-        const totalUnread = conversations.reduce((sum, conv) => {
-          return sum + (conv.unreadCount || 0);
-        }, 0);
-        
-        console.log('📊 全局未读消息统计:', totalUnread, '条');
-        
-        // 更新全局数据
-        this.globalData.unreadCount = totalUnread;
-        
-        // 更新 TabBar 角标
-        this.updateTabBarBadge(totalUnread);
-        
-        // 通知所有页面更新
-        this.notifyUnreadCountChange(totalUnread);
-      })
-      .catch(err => {
-        console.error('更新未读消息数量失败:', err);
-      });
+    this.updateUnreadCount({ force: true, source: 'legacy' });
   },
 
-  /**
-   * 🆕 更新 TabBar 角标
-   */
   updateTabBarBadge: function (count) {
     if (count > 0) {
       wx.setTabBarBadge({
@@ -799,32 +764,17 @@ App({
     return this.unreadCountInflight;
   },
 
-  sumUnreadCountByOwner: function (openid) {
-    const db = wx.cloud.database();
-    const PAGE_SIZE = 100;
-    const MAX_SCAN_ROWS = 1000;
-
-    const fetchPage = (skip, acc) => {
-      if (skip >= MAX_SCAN_ROWS) {
-        return Promise.resolve(acc);
+  sumUnreadCountByOwner: function () {
+    return wx.cloud.callFunction({
+      name: 'getUnreadSummary',
+      data: {}
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || 'query failed');
       }
-      return db.collection('conversations')
-        .where({ ownerId: openid })
-        .field({ unreadCount: true })
-        .skip(skip)
-        .limit(PAGE_SIZE)
-        .get()
-        .then((res) => {
-          const rows = Array.isArray(res.data) ? res.data : [];
-          const nextAcc = rows.reduce((sum, conv) => sum + (conv.unreadCount || 0), acc);
-          if (rows.length < PAGE_SIZE) {
-            return nextAcc;
-          }
-          return fetchPage(skip + PAGE_SIZE, nextAcc);
-        });
-    };
-
-    return fetchPage(0, 0);
+      return Number(payload.totalUnread || 0);
+    });
   },
 
   getUnreadCount: function () {

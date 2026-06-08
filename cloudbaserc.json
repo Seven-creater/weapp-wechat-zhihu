@@ -135,6 +135,153 @@
       "memorySize": 256,
       "runtime": "Nodejs16.13",
       "handler": "index.main"
+    },
+    {
+      "name": "getUnreadSummary",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getConversationList",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getConversationMessages",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getConstructionProjectDetail",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "updateConstructionProgress",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "submitTeamReview",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getFacilityDetail",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getMyIssues",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getMyProjectList",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "addDesignerSolution",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "applyCertification",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "applyCommunityWorkerCertification",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "confirmCompletion",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "createConstructionProject",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getCertificationApplications",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getCertificationStats",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getCommunityWorkerCertApplications",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "reviewCertification",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "reviewCommunityWorkerCertification",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "setAdmin",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "verifyIssue",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
     }
   ]
 }

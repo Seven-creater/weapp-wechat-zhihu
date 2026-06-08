@@ -81,7 +81,7 @@ exports.main = async (event, context) => {
       }
     });
 
-    console.log('✅ 设计者方案已添加:', openid, '帖子ID:', postId);
+    console.log('[security] event logged');
 
     return {
       success: true,

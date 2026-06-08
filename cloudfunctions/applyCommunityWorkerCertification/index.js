@@ -104,7 +104,7 @@ exports.main = async (event = {}) => {
         }
       });
 
-    console.log('[applyCommunityWorkerCertification] submitted:', OPENID);
+    console.log('[security] event logged');
     return {
       success: true,
       message: '认证申请已提交，请等待审核'

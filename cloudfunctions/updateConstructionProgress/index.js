@@ -1,100 +1,83 @@
-// 云函数：updateConstructionProgress
-// 施工方更新施工进度
 const cloud = require('wx-server-sdk');
-cloud.init({
-  env: cloud.DYNAMIC_CURRENT_ENV
-});
+
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const _ = db.command;
 
-exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext();
-  const openid = wxContext.OPENID;
+exports.main = async (event = {}) => {
+  const { OPENID } = cloud.getWXContext();
+  if (!OPENID) return { success: false, error: 'unauthorized' };
+
+  const projectId = toSafeString(event.projectId, 64);
+  const milestone = toSafeString(event.milestone, 120);
+  const notes = toSafeString(event.notes, 500);
+  const progress = clamp(Number(event.progress), 0, 100);
+  const photos = Array.isArray(event.photos)
+    ? event.photos.map((item) => toSafeString(item, 256)).filter(Boolean).slice(0, 9)
+    : [];
+
+  if (!projectId) return { success: false, error: 'missing projectId' };
+  if (!Number.isFinite(progress) || !milestone) {
+    return { success: false, error: 'invalid progress payload' };
+  }
 
   try {
-    const { projectId, progress, milestone, photos, notes } = event;
-
-    // 验证参数
-    if (!projectId) {
-      return {
-        success: false,
-        error: '参数错误：缺少项目ID'
-      };
-    }
-
-    if (progress === undefined || !milestone) {
-      return {
-        success: false,
-        error: '参数错误：缺少进度或里程碑描述'
-      };
-    }
-
-    // 1. 获取项目信息
     const projectRes = await db.collection('construction_projects').doc(projectId).get();
-    if (!projectRes.data) {
-      return {
-        success: false,
-        error: '项目不存在'
-      };
-    }
-
     const project = projectRes.data;
+    if (!project) return { success: false, error: 'project not found' };
 
-    // 2. 验证权限（只有该项目的施工方或社区工作者可以更新）
-    const userRes = await db.collection('users').where({ _openid: openid }).get();
+    const userRes = await db.collection('users')
+      .where({ _openid: OPENID })
+      .field({ userType: true, userInfo: true })
+      .limit(1)
+      .get();
     const user = userRes.data && userRes.data[0];
-    
-    const canUpdate = 
-      (user && user.userType === 'contractor' && project.constructorId === openid) ||
+    const contractorIds = [project.constructorId, project.contractorId, project.team_openid].filter(Boolean);
+    const canUpdate =
+      (user && user.userType === 'contractor' && contractorIds.includes(OPENID)) ||
       (user && user.userType === 'communityWorker');
 
     if (!canUpdate) {
-      return {
-        success: false,
-        error: '无权限更新此项目'
-      };
+      console.warn('[updateConstructionProgress] forbidden');
+      return { success: false, error: 'forbidden' };
     }
 
-    // 3. 构建里程碑数据
     const milestoneData = {
       stage: milestone,
       completedAt: new Date().toISOString(),
-      photos: photos || [],
-      notes: notes || '',
-      updatedBy: openid,
-      updatedByName: user?.userInfo?.nickName || '施工方'
+      photos,
+      notes,
+      updatedBy: OPENID,
+      updatedByName: (user.userInfo && user.userInfo.nickName) || '施工方'
     };
 
-    // 4. 更新项目进度
     const updateData = {
-      progress: progress,
+      progress,
       milestones: _.push(milestoneData),
       updateTime: db.serverDate()
     };
 
-    // 如果进度达到100%，自动更新状态为已完成
     if (progress >= 100) {
       updateData.status = 'completed';
       updateData['plan.actualEndDate'] = new Date().toISOString();
     } else if (progress > 0 && project.status === 'pending') {
-      // 如果是第一次更新进度，状态从pending变为in_progress
       updateData.status = 'in_progress';
-      if (!project.plan.startDate) {
+      if (!project.plan || !project.plan.startDate) {
         updateData['plan.startDate'] = new Date().toISOString();
       }
     }
 
-    await db.collection('construction_projects').doc(projectId).update({
-      data: updateData
-    });
+    await db.collection('construction_projects').doc(projectId).update({ data: updateData });
 
-    // 5. 同步更新帖子中的进度信息
-    const postRes = await db.collection('posts').where({ 'constructionProject.projectId': projectId }).get();
-    if (postRes.data && postRes.data.length > 0) {
-      const post = postRes.data[0];
-      
-      await db.collection('posts').doc(post._id).update({
+    const postRes = await db.collection('posts')
+      .where({ 'constructionProject.projectId': projectId })
+      .field({ _id: true })
+      .limit(1)
+      .get();
+
+    if (postRes.data && postRes.data[0]) {
+      await db.collection('posts').doc(postRes.data[0]._id).update({
         data: {
           'constructionProject.progress': progress,
           'constructionProject.milestones': _.push(milestoneData),
@@ -104,23 +87,26 @@ exports.main = async (event, context) => {
       });
     }
 
-    console.log('✅ 施工进度已更新:', projectId, '进度:', progress + '%');
-
     return {
       success: true,
-      message: '施工进度已更新',
-      progress: progress,
+      message: 'construction progress updated',
+      progress,
       milestone: milestoneData
     };
-
   } catch (err) {
-    console.error('更新施工进度失败:', err);
-    return {
-      success: false,
-      error: err.message || '更新失败，请稍后重试'
-    };
+    console.error('[updateConstructionProgress] failed:', err && err.message ? err.message : err);
+    return { success: false, error: 'update failed' };
   }
 };
 
+function toSafeString(value, maxLen) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}
 
-
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return NaN;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}

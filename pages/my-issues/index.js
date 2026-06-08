@@ -1,16 +1,6 @@
 // pages/my-issues/index.js
 const app = getApp();
 
-let db = null;
-const PAGE_TTL_MS = 30 * 1000;
-
-const getDB = () => {
-  if (!db) {
-    db = wx.cloud.database();
-  }
-  return db;
-};
-
 Page({
   data: {
     currentTab: "issues",
@@ -28,7 +18,6 @@ Page({
   },
 
   onLoad() {
-    getDB();
     this.checkLoginAndLoad({ force: true });
   },
 
@@ -139,94 +128,88 @@ Page({
   },
 
   loadMyIssues() {
-    const dbInstance = getDB();
     const { issuesPage, limit } = this.data;
-    const skip = (issuesPage - 1) * limit;
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
 
-    if (!openid) {
-      this.setData({ issues: [], loading: false, issuesHasMore: false });
-      return Promise.resolve();
-    }
+    return wx.cloud.callFunction({
+      name: "getMyIssues",
+      data: {
+        type: "issues",
+        page: issuesPage,
+        pageSize: limit
+      }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || "query failed");
+      }
 
-    return dbInstance.collection("issues")
-      .where({ _openid: openid })
-      .orderBy("createTime", "desc")
-      .skip(skip)
-      .limit(limit)
-      .get()
-      .then((res) => {
-        const newIssues = (res.data || []).map((issue) => {
-          const aiText = issue.aiAnalysis || issue.aiSolution || "";
-          const aiSummary = aiText.length > 30
-            ? aiText.substring(0, 30) + "..."
-            : (aiText || "AI正在分析中...");
+      const newIssues = (payload.data || []).map((issue) => {
+        const aiText = issue.aiAnalysis || issue.aiSolution || "";
+        const aiSummary = aiText.length > 30
+          ? aiText.substring(0, 30) + "..."
+          : (aiText || "AI?????...");
 
-          return {
-            ...issue,
-            createTime: this.formatTime(issue.createTime),
-            aiSummary
-          };
-        });
-
-        const issues = issuesPage === 1 ? newIssues : [...this.data.issues, ...newIssues];
-        this.setData({
-          issues,
-          issuesHasMore: newIssues.length === limit,
-          loading: false
-        });
-      })
-      .catch((err) => {
-        console.error("加载路障反馈数据失败:", err);
-        this.setData({ issues: [], loading: false, issuesHasMore: false });
-        wx.showToast({ title: "加载失败", icon: "none" });
+        return {
+          ...issue,
+          createTime: this.formatTime(issue.createTime),
+          aiSummary
+        };
       });
+
+      const issues = issuesPage === 1 ? newIssues : [...this.data.issues, ...newIssues];
+      this.setData({
+        issues,
+        issuesHasMore: !!payload.hasMore,
+        loading: false
+      });
+    }).catch((err) => {
+      console.error("??????????:", err);
+      this.setData({ issues: [], loading: false, issuesHasMore: false });
+      wx.showToast({ title: "????", icon: "none" });
+    });
   },
 
   loadMyPosts() {
-    const dbInstance = getDB();
     const { postsPage, limit } = this.data;
-    const skip = (postsPage - 1) * limit;
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
 
-    if (!openid) {
-      this.setData({ posts: [], loading: false, postsHasMore: false });
-      return Promise.resolve();
-    }
+    return wx.cloud.callFunction({
+      name: "getMyIssues",
+      data: {
+        type: "posts",
+        page: postsPage,
+        pageSize: limit
+      }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || "query failed");
+      }
 
-    return dbInstance.collection("posts")
-      .where({ _openid: openid })
-      .orderBy("createTime", "desc")
-      .skip(skip)
-      .limit(limit)
-      .get()
-      .then((res) => {
-        const newPosts = (res.data || []).map((post) => {
-          const contentText = post.content || "";
-          const summary = contentText.length > 30
-            ? contentText.substring(0, 30) + "..."
-            : (contentText || "分享了一张图片");
+      const newPosts = (payload.data || []).map((post) => {
+        const contentText = post.content || post.title || "";
+        const summary = contentText.length > 30
+          ? contentText.substring(0, 30) + "..."
+          : (contentText || "???????");
 
-          return {
-            ...post,
-            createTime: this.formatTime(post.createTime),
-            stats: post.stats || { like: 0, comment: 0 },
-            summary
-          };
-        });
-
-        const posts = postsPage === 1 ? newPosts : [...this.data.posts, ...newPosts];
-        this.setData({
-          posts,
-          postsHasMore: newPosts.length === limit,
-          loading: false
-        });
-      })
-      .catch((err) => {
-        console.error("加载社区帖子数据失败:", err);
-        this.setData({ posts: [], loading: false, postsHasMore: false });
-        wx.showToast({ title: "加载失败", icon: "none" });
+        return {
+          ...post,
+          createTime: this.formatTime(post.createTime),
+          stats: post.stats || { like: 0, comment: 0 },
+          summary
+        };
       });
+
+      const posts = postsPage === 1 ? newPosts : [...this.data.posts, ...newPosts];
+      this.setData({
+        posts,
+        postsHasMore: !!payload.hasMore,
+        loading: false
+      });
+    }).catch((err) => {
+      console.error("??????????:", err);
+      this.setData({ posts: [], loading: false, postsHasMore: false });
+      wx.showToast({ title: "????", icon: "none" });
+    });
   },
 
   loadMoreIssues() {

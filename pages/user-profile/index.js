@@ -95,9 +95,6 @@ Page({
           avatarUrl: '/images/zhi.png'
         };
         
-        // ✅ 添加 phoneNumber 到 userInfo
-        userInfo.phoneNumber = userData.phoneNumber || '';
-        
         // 🔥 只设置用户信息，不设置 stats（stats 由 loadStats 实时计算）
         this.setData({ 
           userInfo: userInfo,
@@ -398,9 +395,9 @@ Page({
   /**
    * 🆕 拨打电话
    */
-  makePhoneCall: function (e) {
-    const phone = e.currentTarget.dataset.phone;
-    if (!phone) {
+  makePhoneCall: function () {
+    const targetId = this.data.targetId;
+    if (!targetId) {
       wx.showToast({
         title: '电话号码为空',
         icon: 'none'
@@ -408,18 +405,21 @@ Page({
       return;
     }
 
-    wx.makePhoneCall({
-      phoneNumber: phone,
-      success: () => {
-        console.log('拨号成功:', phone);
-      },
-      fail: (err) => {
-        console.error('拨号失败:', err);
-        wx.showToast({
-          title: '拨号失败',
-          icon: 'none'
-        });
+    wx.cloud.callFunction({
+      name: 'getUserContact',
+      data: { targetId }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success || !payload.phoneNumber) {
+        throw new Error(payload.error || 'contact unavailable');
       }
+      wx.makePhoneCall({ phoneNumber: payload.phoneNumber });
+    }).catch((err) => {
+      console.error('获取联系方式失败:', err);
+      wx.showToast({
+        title: '暂无权限查看电话',
+        icon: 'none'
+      });
     });
   }
 });

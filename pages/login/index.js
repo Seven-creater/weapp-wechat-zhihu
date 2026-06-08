@@ -439,7 +439,7 @@ Page({
         if (res.result && res.result.openid) {
           app.globalData.openid = res.result.openid;
           wx.setStorageSync('openid', res.result.openid);
-          console.log('获取 openid 成功:', res.result.openid);
+          console.log('???????');
           resolve(res.result.openid);
         } else {
           reject(new Error('获取 openid 失败'));

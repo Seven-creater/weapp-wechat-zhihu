@@ -44,140 +44,50 @@ Page({
 
   // 加载设施详情
   loadFacilityDetail: function () {
-    wx.showLoading({ title: '加载中...' });
-    
+    wx.showLoading({ title: '???...' });
+
     wx.cloud.callFunction({
-      name: 'getFacilities',
-      data: {
-        facilityId: this.data.facilityId,
-        page: 1,
-        pageSize: 1,
-        includeTotal: false
-      }
-    }).then(res => {
+      name: 'getFacilityDetail',
+      data: { facilityId: this.data.facilityId }
+    }).then((res) => {
       wx.hideLoading();
-      
-      if (res.result && res.result.success) {
-        const facilities = res.result.data || [];
-        const facility = facilities.find(f => f._id === this.data.facilityId);
-        
-        if (facility) {
-          // 处理位置信息
-          const coords = facility.location?.coordinates;
-          if (coords && Array.isArray(coords)) {
-            facility.longitude = coords[0];
-            facility.latitude = coords[1];
-          }
-          
-          // 格式化状态历史时间
-          if (facility.statusHistory && Array.isArray(facility.statusHistory)) {
-            facility.statusHistory = facility.statusHistory.map(record => ({
-              ...record,
-              updateTime: this.formatTime(record.updateTime)
-            }));
-          }
-          
-          this.setData({
-            facility: facility,
-            loading: false
-          });
-        } else {
-          // 如果在列表中没找到，直接查询数据库
-          this.loadFromDatabase();
-        }
-      } else {
-        this.loadFromDatabase();
+      const payload = res.result || {};
+      if (!payload.success || !payload.data || !payload.data.facility) {
+        throw new Error(payload.error || '?????');
       }
+
+      const facility = payload.data.facility;
+      const coords = facility.location && facility.location.coordinates;
+      if (coords && Array.isArray(coords)) {
+        facility.longitude = coords[0];
+        facility.latitude = coords[1];
+      }
+
+      if (facility.statusHistory && Array.isArray(facility.statusHistory)) {
+        facility.statusHistory = facility.statusHistory.map(record => ({
+          ...record,
+          updateTime: this.formatTime(record.updateTime)
+        }));
+      }
+
+      this.setData({
+        facility,
+        canUpdate: !!payload.data.canUpdate,
+        loading: false
+      });
     }).catch(err => {
-      console.error('加载设施详情失败:', err);
-      this.loadFromDatabase();
+      wx.hideLoading();
+      console.error('????????:', err);
+      wx.showToast({
+        title: err.message || '????',
+        icon: 'none'
+      });
+      this.setData({ loading: false });
     });
   },
 
-  // 从数据库直接加载
-  loadFromDatabase: function () {
-    const db = wx.cloud.database();
-    
-    db.collection('facilities')
-      .doc(this.data.facilityId)
-      .get()
-      .then(res => {
-        wx.hideLoading();
-        
-        if (res.data) {
-          const facility = res.data;
-          
-          // 处理位置信息
-          const coords = facility.location?.coordinates;
-          if (coords && Array.isArray(coords)) {
-            facility.longitude = coords[0];
-            facility.latitude = coords[1];
-          }
-          
-          // 格式化状态历史时间
-          if (facility.statusHistory && Array.isArray(facility.statusHistory)) {
-            facility.statusHistory = facility.statusHistory.map(record => ({
-              ...record,
-              updateTime: this.formatTime(record.updateTime)
-            }));
-          }
-          
-          this.setData({
-            facility: facility,
-            loading: false
-          });
-        } else {
-          wx.showToast({
-            title: '设施不存在',
-            icon: 'none'
-          });
-          setTimeout(() => {
-            wx.navigateBack();
-          }, 1500);
-        }
-      })
-      .catch(err => {
-        wx.hideLoading();
-        console.error('加载设施详情失败:', err);
-        wx.showToast({
-          title: '加载失败',
-          icon: 'none'
-        });
-      });
-  },
+  checkUpdatePermission: function () {},
 
-  // 检查更新权限
-  checkUpdatePermission: function () {
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    if (!openid) {
-      this.setData({ canUpdate: false });
-      return;
-    }
-
-    const db = wx.cloud.database();
-    db.collection('users')
-      .where({ _openid: openid })
-      .get()
-      .then(res => {
-        if (res.data && res.data.length > 0) {
-          const user = res.data[0];
-          const userType = user.userType || 'normal';
-          
-          // 社区工作者可以更新所有设施
-          // 设计者和普通用户可以更新自己创建的设施
-          const canUpdate = 
-            userType === 'communityWorker' ||
-            (this.data.facility && this.data.facility._openid === openid);
-          
-          this.setData({ canUpdate });
-        }
-      })
-      .catch(err => {
-        console.error('检查权限失败:', err);
-      });
-  },
-
-  // 格式化时间
   formatTime: function (time) {
     if (!time) return '';
     

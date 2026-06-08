@@ -27,44 +27,29 @@ Page({
   // 加载项目列表
   loadProjects: function () {
     this.setData({ loading: true });
-    
-    const db = wx.cloud.database();
-    const openid = wx.getStorageSync('openid') || app.globalData.openid;
-    
-    // 根据activeTab确定查询条件
-    let statusCondition;
-    if (this.data.activeTab === 'active') {
-      // 进行中的项目：preparing, constructing, accepting
-      statusCondition = db.command.in(['preparing', 'constructing', 'accepting']);
-    } else {
-      // 已完成的项目
-      statusCondition = 'completed';
-    }
-    
-    db.collection('issues')  // 使用issues集合
-      .where({
-        contractorId: openid,
-        status: statusCondition
-      })
-      .orderBy('createTime', 'desc')
-      .get()
-      .then(res => {
-        this.setData({
-          projects: res.data || [],
-          loading: false
-        });
-      })
-      .catch(err => {
-        console.error('加载项目失败:', err);
-        this.setData({ loading: false });
-        wx.showToast({
-          title: '加载失败',
-          icon: 'none'
-        });
+
+    wx.cloud.callFunction({
+      name: 'getMyProjectList',
+      data: { tab: this.data.activeTab }
+    }).then((res) => {
+      const payload = res.result || {};
+      if (!payload.success) {
+        throw new Error(payload.error || 'query failed');
+      }
+      this.setData({
+        projects: payload.data || [],
+        loading: false
       });
+    }).catch(err => {
+      console.error('??????:', err);
+      this.setData({ loading: false });
+      wx.showToast({
+        title: '????',
+        icon: 'none'
+      });
+    });
   },
 
-  // 查看项目详情
   viewProject: function (e) {
     const id = e.currentTarget.dataset.id;
     wx.navigateTo({
