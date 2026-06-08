@@ -27,7 +27,7 @@ try {
   console.warn('[getPublicData] shared metrics unavailable');
 }
 
-const ALLOWED_COLLECTIONS = new Set(['posts', 'solutions', 'actions']);
+const ALLOWED_COLLECTIONS = new Set(['posts', 'solutions']);
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const MAX_KEYWORD_LEN = 50;
@@ -164,11 +164,6 @@ function buildWhere(collection, event, openid) {
     where._openid = _.in(authorOpenids);
   }
 
-  // "actions" only returns current user's records to avoid exposing private behavior.
-  if (collection === 'actions') {
-    where._openid = openid;
-  }
-
   const near = event.near || {};
   const latitude = Number(near.latitude);
   const longitude = Number(near.longitude);
@@ -208,9 +203,6 @@ function buildWhere(collection, event, openid) {
 async function getSingleDoc(collection, docId, openid, fieldMode) {
   try {
     const where = { _id: docId };
-    if (collection === 'actions') {
-      where._openid = openid;
-    }
     let queryBuilder = db.collection(collection).where(where);
 
     const projection = buildDetailProjection(collection, fieldMode);
@@ -222,9 +214,6 @@ async function getSingleDoc(collection, docId, openid, fieldMode) {
     const doc = result && Array.isArray(result.data) ? result.data[0] : null;
     if (!doc) {
       return fail('document not found');
-    }
-    if (collection === 'actions' && doc._openid !== openid) {
-      return fail('forbidden');
     }
     const [converted] = await convertCloudMedia([doc]);
     return {
@@ -297,22 +286,6 @@ function buildProjection(collection, fieldMode) {
     };
   }
 
-  if (collection === 'actions') {
-    return {
-      _id: true,
-      _openid: true,
-      targetId: true,
-      postId: true,
-      type: true,
-      targetCollection: true,
-      targetRoute: true,
-      title: true,
-      image: true,
-      coverImg: true,
-      createTime: true
-    };
-  }
-
   return null;
 }
 
@@ -379,22 +352,6 @@ function buildDetailProjection(collection) {
       status: true,
       createTime: true,
       updateTime: true
-    };
-  }
-
-  if (collection === 'actions') {
-    return {
-      _id: true,
-      _openid: true,
-      targetId: true,
-      postId: true,
-      type: true,
-      targetCollection: true,
-      targetRoute: true,
-      title: true,
-      image: true,
-      coverImg: true,
-      createTime: true
     };
   }
 

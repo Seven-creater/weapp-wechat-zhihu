@@ -50,15 +50,14 @@ Page({
 
   loadFavoritesList() {
     this.setData({ loading: true });
+    const openid = app.globalData.openid || wx.getStorageSync("openid");
     return wx.cloud.callFunction({
-      name: "getPublicData",
+      name: "getUserActions",
       data: {
-        collection: "actions",
+        targetId: openid,
+        type: "collect",
         page: 1,
-        pageSize: 50,
-        orderBy: "createTime",
-        order: "desc",
-        fieldMode: "list"
+        pageSize: 50
       }
     }).then((res) => {
       if (!res.result || !res.result.success) {
@@ -66,14 +65,14 @@ Page({
       }
 
       const favoritesList = (res.result.data || []).map((item) => {
-        const normalizedType = item.type || "collect_post";
+        const normalizedType = item.collection === "solutions" ? "collect_solution" : "collect_post";
         return {
-          _id: item._id,
-          targetId: item.targetId || item.postId,
+          _id: item.id,
+          targetId: item.id,
           title: item.title || "未命名项目",
-          image: item.image || item.coverImg || "",
+          image: item.image || "",
           type: normalizedType,
-          targetRoute: item.targetRoute,
+          targetRoute: item.route,
           formatTime: item.formatTime || "",
           createTime: item.createTime
         };
