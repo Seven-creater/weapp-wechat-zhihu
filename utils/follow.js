@@ -50,21 +50,9 @@ function toggleFollow(targetId, action) {
 }
 
 function checkFollowStatus(targetId) {
-  return new Promise((resolve, reject) => {
-    const openid = app.globalData.openid || wx.getStorageSync('openid');
-    if (!openid) return resolve(false);
-
-    const db = wx.cloud.database();
-    const cmd = db.command;
-    db.collection('follows')
-      .where(cmd.or([
-        { followerId: openid, targetId },
-        { _openid: openid, targetId }
-      ]))
-      .count()
-      .then((res) => resolve((res.total || 0) > 0))
-      .catch(reject);
-  });
+  const openid = app.globalData.openid || wx.getStorageSync('openid');
+  if (!openid) return Promise.resolve(false);
+  return callPublicStats(targetId).then((stats) => !!stats.isFollowing);
 }
 
 function normalizeFollowListArgs(userIdOrOptions, maybeOptions) {
@@ -124,24 +112,28 @@ function getFollowersList(userIdOrOptions, maybeOptions) {
 }
 
 function getFollowStats(userId) {
-  return new Promise((resolve, reject) => {
-    const openid = userId || app.globalData.openid || wx.getStorageSync('openid');
-    if (!openid) return reject(new Error('not logged in'));
+  const openid = userId || app.globalData.openid || wx.getStorageSync('openid');
+  if (!openid) return Promise.reject(new Error('not logged in'));
+  return callPublicStats(openid);
+}
 
-    const db = wx.cloud.database();
-    const cmd = db.command;
-    Promise.all([
-      db.collection('follows').where(cmd.or([
-        { followerId: openid },
-        { _openid: openid }
-      ])).count(),
-      db.collection('follows').where({ targetId: openid }).count()
-    ]).then(([followingRes, followersRes]) => {
-      resolve({
-        following: followingRes.total || 0,
-        followers: followersRes.total || 0
-      });
-    }).catch(reject);
+function callPublicStats(targetId) {
+  if (!targetId || typeof targetId !== 'string') {
+    return Promise.reject(new Error('invalid targetId'));
+  }
+  return wx.cloud.callFunction({
+    name: 'getUserPublicStats',
+    data: { targetId }
+  }).then((res) => {
+    if (!res.result || !res.result.success) {
+      throw new Error(res.result?.error || 'query failed');
+    }
+    return res.result.data || {
+      following: 0,
+      followers: 0,
+      likes: 0,
+      isFollowing: false
+    };
   });
 }
 

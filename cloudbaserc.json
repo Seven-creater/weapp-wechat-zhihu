@@ -100,6 +100,20 @@
       "memorySize": 256,
       "runtime": "Nodejs16.13",
       "handler": "index.main"
+    },
+    {
+      "name": "getUserActions",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
+    },
+    {
+      "name": "getUserPublicStats",
+      "timeout": 15,
+      "memorySize": 256,
+      "runtime": "Nodejs16.13",
+      "handler": "index.main"
     }
   ]
 }

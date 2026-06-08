@@ -371,44 +371,37 @@ Page({
         console.log('✅ 关注统计:', stats);
         this.setData({
           'stats.following': stats.following,
-          'stats.followers': stats.followers
+          'stats.followers': stats.followers,
+          'stats.likes': stats.likes || 0
         });
       })
       .catch(err => {
         console.error('❌ 加载关注统计失败:', err);
         this.setData({
           'stats.following': 0,
-          'stats.followers': 0
+          'stats.followers': 0,
+          'stats.likes': 0
         });
       });
 
     // 加载获赞数
-    this.loadLikesCount(openid);
+    // likes are returned by getUserPublicStats through followUtil.getFollowStats.
   },
 
   loadLikesCount: function(openid) {
-    const db = getDB();
-    if (!db) {
-      this.setData({ 'stats.likes': 0 });
-      return;
-    }
-
-    db.collection("posts")
-      .where({ _openid: openid })
-      .field({ stats: true, _id: true })
-      .get()
+    return wx.cloud.callFunction({
+      name: "getUserPublicStats",
+      data: { targetId: openid }
+    })
       .then((res) => {
-        const posts = res.data || [];
-        const totalLikes = posts.reduce((sum, post) => {
-          const likes = (post.stats && post.stats.like) || 0;
-          return sum + likes;
-        }, 0);
-        
-        console.log('✅ 总获赞数:', totalLikes);
-        this.setData({ "stats.likes": totalLikes });
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || "加载失败");
+        }
+        const stats = res.result.data || {};
+        this.setData({ "stats.likes": stats.likes || 0 });
       })
       .catch((err) => {
-        console.error('❌ 加载获赞数失败:', err);
+        console.error('加载获赞数失败:', err);
         this.setData({ "stats.likes": 0 });
       });
   },
@@ -485,30 +478,28 @@ Page({
   },
 
   loadCollectedPosts: function (page, refresh) {
-    const db = getDB();
-    if (!db) {
-      console.error('数据库未初始化');
-      this.setData({ loading: false });
-      return Promise.reject(new Error('数据库未初始化'));
+    const currentOpenid = app.globalData.openid || wx.getStorageSync("openid");
+    if (!currentOpenid) {
+      this.setData({ loading: false, posts: [], hasMore: false });
+      return Promise.resolve();
     }
 
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-    const types = ["collect_post", "collect_solution", "collect"];
-    
-    return db
-      .collection("actions")
-      .where({
-        _openid: openid,
-        type: db.command.in(types),
-      })
-      .orderBy("createTime", "desc")
-      .skip((page - 1) * this.data.pageSize)
-      .limit(this.data.pageSize)
-      .get()
-      .then((res) => this.hydrateActionItems(res.data || []))
-      .then((mapped) => {
+    return wx.cloud.callFunction({
+      name: "getUserActions",
+      data: {
+        targetId: currentOpenid,
+        type: "collect",
+        page,
+        pageSize: this.data.pageSize
+      }
+    })
+      .then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || "加载失败");
+        }
+        const mapped = res.result.data || [];
         const posts = refresh ? mapped : (this.data.posts || []).concat(mapped);
-        const hasMore = mapped.length >= this.data.pageSize;
+        const hasMore = !!(res.result.pagination && res.result.pagination.hasMore);
         this.setData({
           posts,
           page: page,
@@ -525,29 +516,28 @@ Page({
   },
 
   loadLikedPosts: function (page, refresh) {
-    const db = getDB();
-    if (!db) {
-      console.error('数据库未初始化');
-      this.setData({ loading: false });
-      return Promise.reject(new Error('数据库未初始化'));
+    const currentOpenid = app.globalData.openid || wx.getStorageSync("openid");
+    if (!currentOpenid) {
+      this.setData({ loading: false, posts: [], hasMore: false });
+      return Promise.resolve();
     }
 
-    const openid = app.globalData.openid || wx.getStorageSync("openid");
-    const types = ["like_post", "like_solution", "like"];
-    return db
-      .collection("actions")
-      .where({
-        _openid: openid,
-        type: db.command.in(types),
-      })
-      .orderBy("createTime", "desc")
-      .skip((page - 1) * this.data.pageSize)
-      .limit(this.data.pageSize)
-      .get()
-      .then((res) => this.hydrateActionItems(res.data || []))
-      .then((mapped) => {
+    return wx.cloud.callFunction({
+      name: "getUserActions",
+      data: {
+        targetId: currentOpenid,
+        type: "like",
+        page,
+        pageSize: this.data.pageSize
+      }
+    })
+      .then((res) => {
+        if (!res.result || !res.result.success) {
+          throw new Error(res.result?.error || "加载失败");
+        }
+        const mapped = res.result.data || [];
         const posts = refresh ? mapped : (this.data.posts || []).concat(mapped);
-        const hasMore = mapped.length >= this.data.pageSize;
+        const hasMore = !!(res.result.pagination && res.result.pagination.hasMore);
         this.setData({
           posts,
           page: page,
@@ -561,83 +551,6 @@ Page({
         this.setData({ loading: false });
         wx.showToast({ title: err.message || "加载失败", icon: "none" });
       });
-  },
-
-  hydrateActionItems: async function (list) {
-    const db = getDB();
-    if (!db) {
-      console.error('数据库未初始化');
-      return [];
-    }
-
-    const actions = list || [];
-    if (actions.length === 0) return [];
-    const byCollection = { posts: [], solutions: [] };
-    actions.forEach((item) => {
-      const type = String(item.type || "");
-      const collection =
-        item.targetCollection ||
-        (type.indexOf("solution") > -1 ? "solutions" : "posts");
-      const targetId = item.targetId || item.postId;
-      if (collection && targetId) {
-        byCollection[collection].push(targetId);
-      }
-    });
-
-    const [postsRes, solutionsRes] = await Promise.all([
-      byCollection.posts.length
-        ? db
-            .collection("posts")
-            .where({ _id: db.command.in(byCollection.posts) })
-            .get()
-        : Promise.resolve({ data: [] }),
-      byCollection.solutions.length
-        ? db
-            .collection("solutions")
-            .where({ _id: db.command.in(byCollection.solutions) })
-            .get()
-        : Promise.resolve({ data: [] }),
-    ]);
-
-    const postMap = new Map(
-      (postsRes.data || []).map((item) => [item._id, item]),
-    );
-    const solutionMap = new Map(
-      (solutionsRes.data || []).map((item) => [item._id, item]),
-    );
-
-    const items = actions
-      .map((action) => {
-        const type = String(action.type || "");
-        const collection =
-          action.targetCollection ||
-          (type.indexOf("solution") > -1 ? "solutions" : "posts");
-        const targetId = action.targetId || action.postId;
-        const doc =
-          collection === "solutions"
-            ? solutionMap.get(targetId)
-            : postMap.get(targetId);
-        
-        if (!doc) {
-          return null;
-        }
-        
-        const base = this.buildPostItemFromDoc(doc, collection);
-        return {
-          ...base,
-          id: targetId || base.id,
-          route:
-            base.route ||
-            action.targetRoute ||
-            (collection === "solutions"
-              ? "/pages/solution-detail/index"
-              : "/pages/post-detail/index"),
-          collection,
-        };
-      })
-      .filter(Boolean);
-
-    return this.convertCloudImages(items);
   },
 
   formatPostTag: function (doc) {

@@ -2,21 +2,6 @@ const app = getApp();
 const followUtil = require('../../utils/follow.js');
 const mediaUtil = require('../../utils/cloud-media.js');
 
-// 延迟初始化数据库
-let db = null;
-
-const getDB = () => {
-  if (!db) {
-    try {
-      db = wx.cloud.database();
-    } catch (err) {
-      console.error('数据库初始化失败:', err);
-      return null;
-    }
-  }
-  return db;
-};
-
 Page({
   data: {
     targetId: '',
@@ -165,7 +150,8 @@ Page({
       .then(stats => {
         this.setData({ 
           'stats.following': stats.following,
-          'stats.followers': stats.followers
+          'stats.followers': stats.followers,
+          'stats.likes': stats.likes || 0
         });
       })
       .catch(err => {
@@ -173,27 +159,18 @@ Page({
       });
 
     // 加载获赞数
-    this.loadStatsFromCollections(targetId);
+    // likes are returned by getUserPublicStats through followUtil.getFollowStats.
   },
 
-  // 🔥 降级方案：从各个集合实时查询统计数据
   loadStatsFromCollections: function(targetId) {
-    const db = getDB();
-    if (!db) return;
-
-    // 🔥 加载获赞数（该用户的帖子被点赞的总数）
-    db.collection("posts")
-      .where({ _openid: targetId })
-      .field({ stats: true, _id: true })
-      .get()
+    wx.cloud.callFunction({
+      name: 'getUserPublicStats',
+      data: { targetId }
+    })
       .then((res) => {
-        const posts = res.data || [];
-        const totalLikes = posts.reduce((sum, post) => {
-          const likes = (post.stats && post.stats.like) || 0;
-          return sum + likes;
-        }, 0);
-        
-        this.setData({ "stats.likes": totalLikes });
+        if (!res.result || !res.result.success) return;
+        const stats = res.result.data || {};
+        this.setData({ "stats.likes": stats.likes || 0 });
       })
       .catch((err) => {
         console.error('加载获赞数失败:', err);
@@ -250,212 +227,36 @@ Page({
   // 加载收藏的帖子（包含真实点赞数）
   loadCollectedPosts: function(targetId) {
     this.loadActionCards(targetId, ['collect_post', 'collect_solution', 'collect']);
-    return;
-
-    const db = getDB();
-    if (!db) {
-      this.setData({ posts: [] });
-      return;
-    }
-
-    // 1. 先查询收藏记录
-    db.collection('actions')
-      .where({
-        _openid: targetId,
-        type: db.command.in(['collect_post', 'collect_solution', 'collect'])
-      })
-      .orderBy('createTime', 'desc')
-      .limit(20)
-      .get()
-      .then(async (res) => {
-        const actions = res.data || [];
-        if (actions.length === 0) {
-          this.setData({ posts: [] });
-          return;
-        }
-
-        // 2. 提取帖子ID
-        const postIds = actions.map(a => a.targetId || a.postId).filter(Boolean);
-        
-        if (postIds.length === 0) {
-          this.setData({ posts: [] });
-          return;
-        }
-        
-        // 3. 批量查询帖子详情
-        const postsRes = await db.collection('posts')
-          .where({ _id: db.command.in(postIds) })
-          .get();
-
-        // 4. 转换图片URL
-        const posts = await this.convertCloudImages(postsRes.data || []);
-
-        // 5. 映射为显示格式（只显示能查到详情的帖子）
-        const mappedPosts = posts
-          .filter(item => item && item._id) // 过滤无效数据
-          .map(item => ({
-            id: item._id,
-            title: item.content || item.title || '无标题',
-            image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
-            hasImage: item.images && item.images.length > 0,  // ✅ 判断是否有图片
-            likes: item.stats ? item.stats.like : 0,
-            route: '/pages/post-detail/index'
-          }));
-
-        this.setData({ posts: mappedPosts });
-      })
-      .catch(err => {
-        console.error('加载收藏失败:', err);
-        this.setData({ posts: [] });
-      });
   },
 
   // 加载点赞的帖子（包含真实点赞数）
   loadLikedPosts: function(targetId) {
     this.loadActionCards(targetId, ['like_post', 'like_solution', 'like']);
-    return;
-
-    const db = getDB();
-    if (!db) {
-      this.setData({ posts: [] });
-      return;
-    }
-
-    // 1. 先查询点赞记录
-    db.collection('actions')
-      .where({
-        _openid: targetId,
-        type: db.command.in(['like_post', 'like_solution', 'like'])
-      })
-      .orderBy('createTime', 'desc')
-      .limit(20)
-      .get()
-      .then(async (res) => {
-        const actions = res.data || [];
-        if (actions.length === 0) {
-          this.setData({ posts: [] });
-          return;
-        }
-
-        // 2. 提取帖子ID
-        const postIds = actions.map(a => a.targetId || a.postId).filter(Boolean);
-        
-        if (postIds.length === 0) {
-          this.setData({ posts: [] });
-          return;
-        }
-        
-        // 3. 批量查询帖子详情
-        const postsRes = await db.collection('posts')
-          .where({ _id: db.command.in(postIds) })
-          .get();
-
-        // 4. 转换图片URL
-        const posts = await this.convertCloudImages(postsRes.data || []);
-
-        // 5. 映射为显示格式（只显示能查到详情的帖子）
-        const mappedPosts = posts
-          .filter(item => item && item._id) // 过滤无效数据
-          .map(item => ({
-            id: item._id,
-            title: item.content || item.title || '无标题',
-            image: (item.images && item.images.length > 0) ? item.images[0] : '/images/24213.jpg',
-            hasImage: item.images && item.images.length > 0,  // ✅ 判断是否有图片
-            likes: item.stats ? item.stats.like : 0,
-            route: '/pages/post-detail/index'
-          }));
-
-        this.setData({ posts: mappedPosts });
-      })
-      .catch(err => {
-        console.error('加载点赞失败:', err);
-        this.setData({ posts: [] });
-      });
   },
 
   // 转换云存储图片URL
   loadActionCards: async function(targetId, actionTypes) {
-    const db = getDB();
-    if (!db) {
-      this.setData({ posts: [] });
-      return;
-    }
-
+    const type = (actionTypes || []).some((item) => String(item).indexOf('collect') > -1)
+      ? 'collect'
+      : 'like';
     try {
-      const actionRes = await db.collection('actions')
-        .where({
-          _openid: targetId,
-          type: db.command.in(actionTypes)
-        })
-        .orderBy('createTime', 'desc')
-        .limit(20)
-        .get();
-
-      const actions = actionRes.data || [];
-      if (actions.length === 0) {
-        this.setData({ posts: [] });
-        return;
-      }
-
-      const postIds = [];
-      const solutionIds = [];
-      actions.forEach((action) => {
-        const targetId = action.targetId || action.postId;
-        if (!targetId) return;
-        const actionType = String(action.type || '');
-        const targetCollection = String(action.targetCollection || '');
-        const isSolution = actionType.indexOf('_solution') > -1 || targetCollection === 'solutions';
-        if (isSolution) {
-          solutionIds.push(targetId);
-        } else {
-          postIds.push(targetId);
+      const res = await wx.cloud.callFunction({
+        name: 'getUserActions',
+        data: {
+          targetId,
+          type,
+          page: 1,
+          pageSize: 20
         }
       });
-
-      const [postDocs, solutionDocs] = await Promise.all([
-        this.fetchDocsByIds('posts', postIds),
-        this.fetchDocsByIds('solutions', solutionIds)
-      ]);
-      const postMap = new Map(postDocs.map((item) => [item._id, item]));
-      const solutionMap = new Map(solutionDocs.map((item) => [item._id, item]));
-
-      const cards = [];
-      actions.forEach((action) => {
-        const targetId = action.targetId || action.postId;
-        if (!targetId) return;
-        const actionType = String(action.type || '');
-        const targetCollection = String(action.targetCollection || '');
-        const isSolution = actionType.indexOf('_solution') > -1 || targetCollection === 'solutions';
-        const doc = isSolution ? solutionMap.get(targetId) : postMap.get(targetId);
-        if (!doc) return;
-
-        cards.push({
-          id: doc._id,
-          title: doc.content || doc.title || '无标题',
-          tag: this.formatPostTag(doc),
-          image: mediaUtil.pickImageFromDoc(doc) || '',
-          hasImage: !!mediaUtil.pickImageFromDoc(doc),
-          likes: doc.stats ? (doc.stats.like || 0) : 0,
-          route: isSolution ? '/pages/solution-detail/index' : '/pages/post-detail/index'
-        });
-      });
-
-      this.setData({ posts: cards });
+      if (!res.result || !res.result.success) {
+        throw new Error(res.result?.error || 'query failed');
+      }
+      this.setData({ posts: res.result.data || [] });
     } catch (err) {
       console.error('loadActionCards failed:', err);
       this.setData({ posts: [] });
     }
-  },
-
-  fetchDocsByIds: async function(collection, ids) {
-    const db = getDB();
-    const uniqueIds = Array.from(new Set((ids || []).filter(Boolean))).slice(0, 50);
-    if (!db || uniqueIds.length === 0) return [];
-
-    const res = await db.collection(collection)
-      .where({ _id: db.command.in(uniqueIds) })
-      .get();
-    return this.convertCloudImages(res.data || []);
   },
 
   formatPostTag: function(doc) {
